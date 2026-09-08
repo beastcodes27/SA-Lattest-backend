@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     'address',
     'website',
     'tin',
+    'employee_id_prefix',
     'plan',
     'status',
 ])]

@@ -20,6 +20,7 @@ class DatabaseSeeder extends Seeder
             'address' => 'Mikocheni, Dar es Salaam',
             'website' => 'https://nakurumedical.co.tz',
             'tin' => '123-456-789',
+            'employee_id_prefix' => 'NMC',
             'plan' => 'business',
             'status' => 'active',
         ]);

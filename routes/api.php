@@ -28,8 +28,10 @@ Route::middleware(['auth:sanctum', 'org-admin'])->prefix('admin')->group(functio
     Route::get('stats', [AdminController::class, 'stats']);
     Route::get('employees', [AdminController::class, 'employees']);
     Route::post('employees', [AdminController::class, 'storeEmployee']);
+    Route::get('employees/next', [AdminController::class, 'nextEmployeeId']);
     Route::patch('employees/{employee}', [AdminController::class, 'toggleEmployee']);
     Route::get('reports', [AdminController::class, 'reports']);
     Route::get('branches', [AdminController::class, 'branches']);
     Route::post('branches', [AdminController::class, 'storeBranch']);
+    Route::patch('organization', [AdminController::class, 'updateOrganization']);
 });

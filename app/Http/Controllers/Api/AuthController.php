@@ -24,6 +24,7 @@ class AuthController extends Controller
             'organization.phone' => ['required', 'string', 'max:40'],
             'organization.website' => ['nullable', 'string', 'max:255'],
             'organization.tin' => ['required', 'string', 'max:120'],
+            'organization.employee_id_prefix' => ['nullable', 'string', 'max:20'],
             'organization.plan' => ['required', Rule::in(['starter', 'business', 'enterprise'])],
             'admin.name' => ['required', 'string', 'max:255'],
             'admin.email' => ['required', 'email', 'max:255', 'unique:users,email'],
@@ -50,6 +51,7 @@ class AuthController extends Controller
             'address' => $data['organization']['address'],
             'website' => $data['organization']['website'] ?? null,
             'tin' => $data['organization']['tin'],
+            'employee_id_prefix' => $this->normalizePrefix($data['organization']['employee_id_prefix'] ?? $data['organization']['name']),
             'plan' => $data['organization']['plan'],
             'status' => 'pending',
         ]);
@@ -140,7 +142,12 @@ class AuthController extends Controller
             'employee_id' => $user->employee_id,
             'role' => $user->role,
             'must_change_password' => $user->must_change_password,
-            'org' => $org ? ['id' => $org->id, 'name' => $org->name, 'status' => $org->status] : null,
+            'org' => $org ? [
+                'id' => $org->id,
+                'name' => $org->name,
+                'status' => $org->status,
+                'employee_id_prefix' => $org->employee_id_prefix,
+            ] : null,
             'branch' => $branch ? [
                 'id' => $branch->id,
                 'name' => $branch->name,
@@ -167,5 +174,27 @@ class AuthController extends Controller
         $end = Carbon::now($tz)->endOfDay()->utc();
 
         return [$start, $end];
+    }
+
+    public static function normalizePrefix(string $value): string
+    {
+        $words = preg_split('/[\s\-_]+/', trim($value));
+        $letters = '';
+
+        if (count($words) > 1) {
+            foreach ($words as $word) {
+                if ($word !== '') {
+                    $letters .= strtoupper(mb_substr($word, 0, 1));
+                }
+            }
+        }
+
+        $letters = strtoupper((string) preg_replace('/[^A-Z0-9]/', '', $letters));
+
+        if ($letters === '') {
+            $letters = strtoupper((string) preg_replace('/[^A-Z0-9]/', '', $value));
+        }
+
+        return mb_substr($letters, 0, 4) ?: 'EMP';
     }
 }

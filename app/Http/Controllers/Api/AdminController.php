@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Models\Attendance;
 use App\Models\Branch;
+use App\Models\Organization;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
@@ -15,6 +16,41 @@ class AdminController extends Controller
 {
     private const TIMEZONE = 'Africa/Dar_es_Salaam';
     private const START_MINUTES = 9 * 60;
+
+    public function nextEmployeeId(Request $request): JsonResponse
+    {
+        $org = $request->user()->organization;
+
+        return response()->json([
+            'employee_id' => $this->nextEmployeeIdFor($org),
+        ]);
+    }
+
+    public function updateOrganization(Request $request): JsonResponse
+    {
+        $org = $request->user()->organization;
+
+        $validator = Validator::make($request->all(), [
+            'employee_id_prefix' => ['required', 'string', 'max:20', 'regex:/^[A-Za-z0-9]+$/'],
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['message' => 'Prefix must be letters or numbers only (no spaces).'], 422);
+        }
+
+        $prefix = strtoupper($validator->validated()['employee_id_prefix']);
+        $org->forceFill(['employee_id_prefix' => $prefix])->save();
+
+        return response()->json([
+            'message' => "Employee IDs will use the $prefix prefix.",
+            'org' => [
+                'id' => $org->id,
+                'name' => $org->name,
+                'status' => $org->status,
+                'employee_id_prefix' => $org->employee_id_prefix,
+            ],
+        ]);
+    }
 
     public function stats(Request $request): JsonResponse
     {
@@ -79,7 +115,7 @@ class AdminController extends Controller
 
         $validator = Validator::make($request->all(), [
             'name' => ['required', 'string', 'max:255'],
-            'employee_id' => ['required', 'string', 'max:60', 'unique:users,employee_id'],
+            'employee_id' => ['nullable', 'string', 'max:60', 'unique:users,employee_id'],
             'password' => ['required', 'string', 'min:6'],
             'phone' => ['nullable', 'string', 'max:40'],
             'email' => ['nullable', 'email', 'max:255', 'unique:users,email'],
@@ -98,7 +134,7 @@ class AdminController extends Controller
 
         $employee = new User([
             'name' => $data['name'],
-            'employee_id' => $data['employee_id'],
+            'employee_id' => $data['employee_id'] ?? $this->nextEmployeeIdFor($org),
             'password' => $data['password'],
             'phone' => $data['phone'] ?? null,
             'email' => $data['email'] ?? null,
@@ -283,6 +319,36 @@ class AdminController extends Controller
     {
         return (int) $attendance->occurred_at->copy()->setTimezone(self::TIMEZONE)->format('H') * 60
             + (int) $attendance->occurred_at->copy()->setTimezone(self::TIMEZONE)->format('i');
+    }
+
+    private function nextEmployeeIdFor(Organization $org): string
+    {
+        $prefix = strtoupper(trim((string) $org->employee_id_prefix));
+
+        if ($prefix === '') {
+            $prefix = AuthController::normalizePrefix($org->name);
+        }
+
+        $max = 0;
+        $existing = User::where('employee_id', 'like', $prefix.'-%')->pluck('employee_id');
+        foreach ($existing as $id) {
+            $suffix = substr($id, strlen($prefix) + 1);
+            if ($suffix !== false && ctype_digit($suffix)) {
+                $max = max($max, (int) $suffix);
+            }
+        }
+
+        $next = $max + 1;
+        while (User::where('employee_id', $this->formatEmployeeId($prefix, $next))->exists()) {
+            $next++;
+        }
+
+        return $this->formatEmployeeId($prefix, $next);
+    }
+
+    private function formatEmployeeId(string $prefix, int $number): string
+    {
+        return sprintf('%s-%04d', $prefix, $number);
     }
 
     private function employeePayload(User $user): array
