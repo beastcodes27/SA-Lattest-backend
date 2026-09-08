@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Models\Attendance;
 use App\Models\Branch;
+use App\Services\FaceService;
 use App\Services\GeolocationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -11,7 +12,10 @@ use Illuminate\Support\Facades\Validator;
 
 class AttendanceController extends Controller
 {
-    public function __construct(private readonly GeolocationService $geo) {}
+    public function __construct(
+        private readonly GeolocationService $geo,
+        private readonly FaceService $faces,
+    ) {}
 
     public function toggle(Request $request): JsonResponse
     {
@@ -54,6 +58,24 @@ class AttendanceController extends Controller
                 'message' => 'out_of_range',
                 'distance_m' => round($distance, 1),
                 'radius_m' => (int) $branch->radius_meters,
+            ], 422);
+        }
+
+        if (! $user->face_enrolled || ! $user->face_signature) {
+            return response()->json(['message' => 'Enroll your face before checking in.'], 403);
+        }
+
+        if (! $request->hasFile('image')) {
+            return response()->json(['message' => 'A face scan is required to check in.'], 422);
+        }
+
+        $face = $this->faces->verify($request->file('image'), $user->face_signature);
+
+        if (! $face['ok'] || ! $face['matched']) {
+            return response()->json([
+                'message' => 'face_mismatch',
+                'score' => $face['score'] ?? null,
+                'error' => $face['error'] ?? 'Face did not match your enrolled profile.',
             ], 422);
         }
 

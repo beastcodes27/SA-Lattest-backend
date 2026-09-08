@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Services\FaceService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -63,6 +64,42 @@ class ProfileController extends Controller
 
         return response()->json([
             'message' => 'Profile photo updated.',
+            'user' => AuthController::userPayload($user->fresh()),
+        ]);
+    }
+
+    public function enrollFace(Request $request, FaceService $faces): JsonResponse
+    {
+        $user = $request->user();
+
+        $validator = Validator::make($request->all(), [
+            'image' => ['required', 'image', 'mimes:jpeg,png,webp', 'max:5120'],
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['message' => 'Please upload a JPEG, PNG or WebP image under 5 MB.'], 422);
+        }
+
+        $result = $faces->enroll($request->file('image'));
+
+        if (! $result['ok']) {
+            return response()->json(['message' => $result['error'] ?? 'Could not read your face. Try better lighting.'], 422);
+        }
+
+        $path = $request->file('image')->store('faces', 'public');
+
+        if ($user->face_photo_path && $user->face_photo_path !== $path) {
+            Storage::disk('public')->delete($user->face_photo_path);
+        }
+
+        $user->forceFill([
+            'face_enrolled' => true,
+            'face_signature' => json_encode($result['signature']),
+            'face_photo_path' => $path,
+        ])->save();
+
+        return response()->json([
+            'message' => 'Face enrolled. You can now check in with a face scan.',
             'user' => AuthController::userPayload($user->fresh()),
         ]);
     }

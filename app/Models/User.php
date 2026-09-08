@@ -24,6 +24,9 @@ use Laravel\Sanctum\HasApiTokens;
     'role',
     'active',
     'must_change_password',
+    'face_enrolled',
+    'face_signature',
+    'face_photo_path',
 ])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
@@ -43,6 +46,7 @@ class User extends Authenticatable
             'password' => 'hashed',
             'active' => 'boolean',
             'must_change_password' => 'boolean',
+            'face_enrolled' => 'boolean',
         ];
     }
 
