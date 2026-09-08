@@ -20,6 +20,7 @@ use Laravel\Sanctum\HasApiTokens;
     'branch_id',
     'employee_id',
     'phone',
+    'avatar_path',
     'role',
     'active',
     'must_change_password',

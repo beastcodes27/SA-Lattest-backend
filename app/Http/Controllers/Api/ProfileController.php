@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 
@@ -38,6 +39,32 @@ class ProfileController extends Controller
         ])->save();
 
         return response()->json(['message' => 'Profile updated.', 'user' => AuthController::userPayload($user->fresh())]);
+    }
+
+    public function uploadAvatar(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        $validator = Validator::make($request->all(), [
+            'avatar' => ['required', 'image', 'mimes:jpeg,png,webp', 'max:5120'],
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['message' => 'Please upload a JPEG, PNG or WebP image under 5 MB.'], 422);
+        }
+
+        $path = $request->file('avatar')->store('avatars', 'public');
+
+        if ($user->avatar_path && $user->avatar_path !== $path) {
+            Storage::disk('public')->delete($user->avatar_path);
+        }
+
+        $user->forceFill(['avatar_path' => $path])->save();
+
+        return response()->json([
+            'message' => 'Profile photo updated.',
+            'user' => AuthController::userPayload($user->fresh()),
+        ]);
     }
 
     public function changePassword(Request $request): JsonResponse

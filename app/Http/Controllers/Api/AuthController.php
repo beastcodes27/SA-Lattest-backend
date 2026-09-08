@@ -139,6 +139,7 @@ class AuthController extends Controller
             'name' => $user->name,
             'email' => $user->email,
             'phone' => $user->phone,
+            'avatar_path' => $user->avatar_path,
             'employee_id' => $user->employee_id,
             'role' => $user->role,
             'must_change_password' => $user->must_change_password,
