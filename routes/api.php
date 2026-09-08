@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\AdminController;
 use App\Http\Controllers\Api\AttendanceController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\ProfileController;
@@ -20,4 +21,14 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('attendance/toggle', [AttendanceController::class, 'toggle']);
     Route::get('attendance', [AttendanceController::class, 'index']);
     Route::get('attendance/today', [AttendanceController::class, 'today']);
+});
+
+Route::middleware(['auth:sanctum', 'org-admin'])->prefix('admin')->group(function () {
+    Route::get('stats', [AdminController::class, 'stats']);
+    Route::get('employees', [AdminController::class, 'employees']);
+    Route::post('employees', [AdminController::class, 'storeEmployee']);
+    Route::patch('employees/{employee}', [AdminController::class, 'toggleEmployee']);
+    Route::get('reports', [AdminController::class, 'reports']);
+    Route::get('branches', [AdminController::class, 'branches']);
+    Route::post('branches', [AdminController::class, 'storeBranch']);
 });
