@@ -1,0 +1,64 @@
+<?php
+
+namespace App\Http\Controllers\Api;
+
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rule;
+
+class ProfileController extends Controller
+{
+    public function me(Request $request): JsonResponse
+    {
+        return response()->json(['user' => AuthController::userPayload($request->user())]);
+    }
+
+    public function update(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        $validator = Validator::make($request->all(), [
+            'name' => ['required', 'string', 'max:255'],
+            'phone' => ['nullable', 'string', 'max:40'],
+            'email' => ['nullable', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user->id)],
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['message' => 'The given data was invalid.', 'errors' => $validator->errors()], 422);
+        }
+
+        $data = $validator->validated();
+
+        $user->forceFill([
+            'name' => $data['name'],
+            'phone' => $data['phone'] ?? null,
+            'email' => $data['email'] ?? null,
+        ])->save();
+
+        return response()->json(['message' => 'Profile updated.', 'user' => AuthController::userPayload($user->fresh())]);
+    }
+
+    public function changePassword(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        $validator = Validator::make($request->all(), [
+            'current_password' => ['required', 'string'],
+            'new_password' => ['required', 'string', 'min:6'],
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['message' => 'The given data was invalid.', 'errors' => $validator->errors()], 422);
+        }
+
+        if (! Hash::check($request->current_password, $user->password)) {
+            return response()->json(['message' => 'Your current password is incorrect.'], 422);
+        }
+
+        $user->forceFill(['password' => $request->new_password])->save();
+
+        return response()->json(['message' => 'Password changed.']);
+    }
+}
