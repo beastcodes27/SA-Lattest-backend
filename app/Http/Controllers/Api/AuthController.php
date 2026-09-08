@@ -139,6 +139,7 @@ class AuthController extends Controller
             'phone' => $user->phone,
             'employee_id' => $user->employee_id,
             'role' => $user->role,
+            'must_change_password' => $user->must_change_password,
             'org' => $org ? ['id' => $org->id, 'name' => $org->name, 'status' => $org->status] : null,
             'branch' => $branch ? [
                 'id' => $branch->id,

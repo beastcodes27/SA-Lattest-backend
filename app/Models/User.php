@@ -22,6 +22,7 @@ use Laravel\Sanctum\HasApiTokens;
     'phone',
     'role',
     'active',
+    'must_change_password',
 ])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
@@ -40,6 +41,7 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'active' => 'boolean',
+            'must_change_password' => 'boolean',
         ];
     }
 

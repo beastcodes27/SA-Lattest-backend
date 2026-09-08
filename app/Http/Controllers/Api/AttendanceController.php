@@ -27,6 +27,10 @@ class AttendanceController extends Controller
         $user = $request->user();
         $org = $user->organization;
 
+        if ($user->must_change_password) {
+            return response()->json(['message' => 'Set a new password before checking in.'], 403);
+        }
+
         if (! $org || $org->status !== 'active') {
             return response()->json(['message' => 'Your organization is not active yet.'], 403);
         }

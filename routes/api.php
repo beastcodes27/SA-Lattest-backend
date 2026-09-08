@@ -17,6 +17,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('me', [ProfileController::class, 'me']);
     Route::put('me', [ProfileController::class, 'update']);
     Route::put('me/password', [ProfileController::class, 'changePassword']);
+    Route::put('me/password/force', [ProfileController::class, 'forceChangePassword']);
 
     Route::post('attendance/toggle', [AttendanceController::class, 'toggle']);
     Route::get('attendance', [AttendanceController::class, 'index']);

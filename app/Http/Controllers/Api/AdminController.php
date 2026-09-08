@@ -106,6 +106,7 @@ class AdminController extends Controller
             'role' => 'employee',
             'org_id' => $org->id,
             'active' => true,
+            'must_change_password' => true,
         ]);
         $employee->save();
 

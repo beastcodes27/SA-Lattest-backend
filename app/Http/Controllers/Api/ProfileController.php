@@ -57,8 +57,39 @@ class ProfileController extends Controller
             return response()->json(['message' => 'Your current password is incorrect.'], 422);
         }
 
-        $user->forceFill(['password' => $request->new_password])->save();
+        $user->forceFill([
+            'password' => $request->new_password,
+            'must_change_password' => false,
+        ])->save();
 
         return response()->json(['message' => 'Password changed.']);
+    }
+
+    public function forceChangePassword(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        if (! $user->must_change_password) {
+            return response()->json(['message' => 'Password already set.'], 422);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'new_password' => ['required', 'string', 'min:6'],
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['message' => 'Password must be at least 6 characters.'], 422);
+        }
+
+        if (Hash::check($request->new_password, $user->password)) {
+            return response()->json(['message' => 'New password must be different from the temporary one.'], 422);
+        }
+
+        $user->forceFill([
+            'password' => $request->new_password,
+            'must_change_password' => false,
+        ])->save();
+
+        return response()->json(['message' => 'Password set. You can now check in.', 'user' => AuthController::userPayload($user->fresh())]);
     }
 }
