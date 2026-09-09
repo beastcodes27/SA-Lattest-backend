@@ -43,6 +43,10 @@
         table.emps { width:100%; border-collapse:collapse; font-size:13px; }
         table.emps th { text-align:left; background:rgba(32,15,53,.06); padding:8px 10px; color:var(--ink); font-size:11px; text-transform:uppercase; }
         table.emps td { padding:8px 10px; border-bottom:1px solid rgba(32,15,53,.08); }
+        nav { display:flex; gap:8px; margin-bottom:20px; }
+        .nav { background:#fff; border:1px solid rgba(32,15,53,.2); border-radius:12px; padding:10px 18px; font-weight:800; font-size:14px; cursor:pointer; }
+        .nav.active { background:var(--ink); color:var(--bg); border-color:var(--ink); }
+        select { padding:8px 10px; border-radius:8px; border:1px solid rgba(32,15,53,.2); background:#fff; }
     </style>
 </head>
 <body>
@@ -58,14 +62,23 @@
     </header>
 
     <div class="wrap">
-        <div class="stats" id="stats"></div>
-        <div class="filters" id="filters">
-            <button class="filter active" data-status="">All</button>
-            <button class="filter" data-status="pending">Pending</button>
-            <button class="filter" data-status="active">Active</button>
-            <button class="filter" data-status="suspended">Suspended</button>
+        <nav id="nav">
+            <button class="nav active" data-mode="orgs">Organizations</button>
+            <button class="nav" data-mode="subs">Subscriptions</button>
+        </nav>
+
+        <div id="orgArea">
+            <div class="stats" id="stats"></div>
+            <div class="filters" id="filters">
+                <button class="filter active" data-status="pending">Pending</button>
+                <button class="filter" data-status="active">Active</button>
+                <button class="filter" data-status="suspended">Suspended</button>
+                <button class="filter" data-status="">All</button>
+            </div>
+            <div id="orgs"></div>
         </div>
-        <div id="orgs"></div>
+
+        <div id="subsArea" style="display:none"></div>
     </div>
 
     <div class="msg" id="msg"></div>
@@ -251,6 +264,69 @@
 
         function kv(k, v) {
             return `<div><span>${esc(k)}</span><b>${esc(v == null || v === '' ? '—' : v)}</b></div>`;
+        }
+
+        document.getElementById('nav').addEventListener('click', (e) => {
+            const btn = e.target.closest('.nav');
+            if (!btn) return;
+            mode = btn.dataset.mode;
+            document.querySelectorAll('.nav').forEach(n => n.classList.toggle('active', n.dataset.mode === mode));
+            const orgArea = document.getElementById('orgArea');
+            const subsArea = document.getElementById('subsArea');
+            if (mode === 'orgs') { orgArea.style.display = ''; subsArea.style.display = 'none'; loadOrgs().catch(() => {}); }
+            else { orgArea.style.display = 'none'; subsArea.style.display = ''; loadSubs().catch(() => {}); }
+        });
+
+        let mode = 'orgs';
+
+        async function loadSubs() {
+            const { organizations } = await api('/portal/api/organizations');
+            const box = document.getElementById('subsArea');
+            const list = organizations.filter(o => o.status !== 'pending');
+            if (!list.length) { box.innerHTML = '<p style="color:var(--muted)">No subscriptions yet.</p>'; return; }
+            box.innerHTML = list.map(o => {
+                const sub = o.subscription_status === 'canceled' ? 'Canceled'
+                    : o.on_trial ? 'Free trial'
+                    : o.subscription_status === 'active' ? 'Active' : 'No trial';
+                const subColor = o.subscription_status === 'canceled' ? 'var(--red)' : (o.subscription_status === 'active' || o.on_trial ? 'var(--green)' : 'var(--amber)');
+                const select = `<select id="plan_${o.id}" style="font-weight:700">${['starter','business','enterprise'].map(p => `<option value="${p}" ${p === o.plan ? 'selected' : ''}>${cap(p)}</option>`).join('')}</select>`;
+                const manage = o.status === 'suspended'
+                    ? '<div style="color:var(--red);font-size:12px;font-weight:700">Organization suspended</div>'
+                    : `<button class="btn ghost" onclick="subAction(${o.id},'set_plan')">Set plan</button>
+                       <button class="btn ghost" onclick="extendTrial(${o.id})">Extend trial</button>
+                       ${o.subscription_status === 'canceled'
+                            ? `<button class="btn primary" onclick="subAction(${o.id},'reactivate')">Reactivate</button>`
+                            : `<button class="btn danger" onclick="subAction(${o.id},'cancel')">Cancel</button>`}`;
+                return `<div class="org">
+                    <h3>${esc(o.name)} <span class="pill" style="color:${subColor};background:${subColor}1A">${sub}</span></h3>
+                    <div class="meta">
+                        <span>Plan: <b>${cap(o.plan)}</b></span>
+                        <span>Trial ends <b>${fmtDate(o.trial_ends_at)}</b></span>
+                        <span>${o.on_trial ? o.trial_days_left + 'd left' : ''}</span>
+                        <span>Employees ${o.employees_count}/${o.employees_limit === null ? '∞' : o.employees_limit}</span>
+                        <span>Branches ${o.branches_count}/${o.branches_limit === null ? '∞' : o.branches_limit}</span>
+                    </div>
+                    <div class="actions">${select}${manage}</div>
+                </div>`;
+            }).join('');
+        }
+
+        async function extendTrial(id) {
+            const raw = prompt('Add how many trial days?', '30');
+            if (raw === null) return;
+            const days = parseInt(raw, 10);
+            if (!days || days < 1 || days > 365) { toast('Enter between 1 and 365 days.', false); return; }
+            await subAction(id, 'extend_trial', { days });
+        }
+
+        async function subAction(id, action, extra = {}) {
+            try {
+                const body = { action, ...extra };
+                if (action === 'set_plan') body.plan = document.getElementById('plan_' + id).value;
+                const json = await api(`/portal/api/organizations/${id}/subscription`, { method: 'POST', body: JSON.stringify(body) });
+                toast(json.message || 'Updated', true);
+                await loadSubs();
+            } catch (e) { toast(e.message, false); }
         }
 
         document.getElementById('filters').addEventListener('click', (e) => {

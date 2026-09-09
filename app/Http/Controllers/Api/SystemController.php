@@ -106,6 +106,61 @@ class SystemController extends Controller
         ]);
     }
 
+    public function updateSubscription(Request $request, Organization $organization): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'action' => ['required', Rule::in(['set_plan', 'extend_trial', 'cancel', 'reactivate'])],
+            'plan' => ['nullable', Rule::in(['starter', 'business', 'enterprise'])],
+            'days' => ['nullable', 'integer', 'between:1,365'],
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['message' => 'Invalid subscription action.'], 422);
+        }
+
+        $action = $request->action;
+
+        if ($action === 'set_plan') {
+            if (! $request->plan) {
+                return response()->json(['message' => 'Choose a plan.'], 422);
+            }
+            $organization->forceFill(['plan' => $request->plan])->save();
+            $message = 'Plan set to '.ucfirst($request->plan).'.';
+        } elseif ($action === 'extend_trial') {
+            if (! $request->days) {
+                return response()->json(['message' => 'Enter trial days to add.'], 422);
+            }
+            $base = $organization->trial_ends_at && $organization->trial_ends_at->isFuture()
+                ? $organization->trial_ends_at
+                : now();
+            if ($organization->trial_started_at === null) {
+                $organization->forceFill(['trial_started_at' => now()])->save();
+            }
+            $organization->forceFill(['trial_ends_at' => $base->copy()->addDays((int) $request->days)])->save();
+            $message = 'Trial extended by '.$request->days.' days.';
+        } elseif ($action === 'cancel') {
+            $organization->forceFill([
+                'subscription_status' => 'canceled',
+                'canceled_at' => now(),
+            ])->save();
+            $message = 'Subscription canceled. Access continues until the current period ends.';
+        } else { // reactivate
+            $organization->forceFill([
+                'subscription_status' => null,
+                'canceled_at' => null,
+            ])->save();
+            if ($organization->trial_started_at === null) {
+                $organization->startTrial(30);
+            }
+            $message = 'Subscription reactivated.';
+        }
+
+        return response()->json([
+            'message' => $message,
+            'subscription' => SubscriptionController::payload($organization->fresh()),
+        ]);
+    }
+
     public function approve(Request $request, Organization $organization): JsonResponse
     {
         if ($organization->status !== 'pending') {
