@@ -19,7 +19,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('me', [ProfileController::class, 'me']);
     Route::put('me', [ProfileController::class, 'update']);
     Route::post('me/avatar', [ProfileController::class, 'uploadAvatar']);
-    Route::post('me/face/enroll', [ProfileController::class, 'enrollFace']);
     Route::put('me/password', [ProfileController::class, 'changePassword']);
     Route::put('me/password/force', [ProfileController::class, 'forceChangePassword']);
 
