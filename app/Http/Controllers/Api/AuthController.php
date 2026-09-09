@@ -169,6 +169,7 @@ class AuthController extends Controller
                 'on_trial' => $org->onTrial(),
                 'trial_days_left' => $org->trialDaysLeft(),
                 'trial_ends_at' => $org->trial_ends_at?->toIso8601String(),
+                'subscription_status' => $org->subscription_status,
             ] : null,
             'branch' => $branch ? [
                 'id' => $branch->id,

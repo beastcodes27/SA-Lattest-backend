@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\AdminController;
 use App\Http\Controllers\Api\AttendanceController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\ProfileController;
+use App\Http\Controllers\Api\SubscriptionController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('auth')->group(function () {
@@ -36,4 +37,10 @@ Route::middleware(['auth:sanctum', 'org-admin'])->prefix('admin')->group(functio
     Route::get('branches', [AdminController::class, 'branches']);
     Route::post('branches', [AdminController::class, 'storeBranch']);
     Route::patch('organization', [AdminController::class, 'updateOrganization']);
+});
+
+Route::middleware(['auth:sanctum', 'org-admin'])->prefix('admin')->group(function () {
+    Route::get('subscription', [SubscriptionController::class, 'details']);
+    Route::post('subscription/upgrade', [SubscriptionController::class, 'upgrade']);
+    Route::post('subscription/cancel', [SubscriptionController::class, 'cancel']);
 });

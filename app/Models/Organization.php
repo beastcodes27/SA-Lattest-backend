@@ -18,6 +18,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     'status',
     'trial_started_at',
     'trial_ends_at',
+    'subscription_status',
+    'canceled_at',
 ])]
 class Organization extends Model
 {
@@ -26,6 +28,7 @@ class Organization extends Model
         return [
             'trial_started_at' => 'datetime',
             'trial_ends_at' => 'datetime',
+            'canceled_at' => 'datetime',
         ];
     }
 
@@ -64,7 +67,24 @@ class Organization extends Model
             return false;
         }
 
-        return $this->trial_ends_at === null || $this->trial_ends_at->isFuture();
+        if ($this->subscription_status === 'canceled') {
+            return $this->trial_ends_at !== null && $this->trial_ends_at->isFuture();
+        }
+
+        if ($this->subscriptionActive()) {
+            return true;
+        }
+
+        if ($this->trial_ends_at === null) {
+            return true;
+        }
+
+        return $this->trial_ends_at->isFuture();
+    }
+
+    public function subscriptionActive(): bool
+    {
+        return $this->subscription_status === 'active';
     }
 
 
