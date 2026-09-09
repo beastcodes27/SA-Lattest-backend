@@ -111,9 +111,9 @@ class AuthController extends Controller
         }
 
         if ($user->role === 'superadmin') {
-            $token = $user->createToken('mobile')->plainTextToken;
-
-            return response()->json(['token' => $token, 'user' => $this->userPayload($user)]);
+            return response()->json([
+                'message' => 'System admin access is managed from the SmartAttend web portal.',
+            ], 403);
         }
 
         if (! $user->organization) {

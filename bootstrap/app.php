@@ -17,6 +17,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'org-admin' => \App\Http\Middleware\OrgAdmin::class,
             'system-admin' => \App\Http\Middleware\SystemAdmin::class,
+            'portal.system' => \App\Http\Middleware\WebSystemAdmin::class,
         ]);
 
         $middleware->redirectGuestsTo(function (Request $request) {
