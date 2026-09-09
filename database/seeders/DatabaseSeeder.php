@@ -13,6 +13,16 @@ class DatabaseSeeder extends Seeder
 
     public function run(): void
     {
+        User::create([
+            'name' => 'System Admin',
+            'email' => 'system@smartattend.co.tz',
+            'employee_id' => 'SYS-ADMIN1',
+            'phone' => '+255 700 000 000',
+            'password' => 'Password@123',
+            'role' => 'superadmin',
+            'active' => true,
+        ]);
+
         $org = Organization::create([
             'name' => 'Nakuru Medical Centre',
             'contact_email' => 'admin@nakurumedical.co.tz',

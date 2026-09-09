@@ -14,7 +14,10 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        $middleware->alias(['org-admin' => \App\Http\Middleware\OrgAdmin::class]);
+        $middleware->alias([
+            'org-admin' => \App\Http\Middleware\OrgAdmin::class,
+            'system-admin' => \App\Http\Middleware\SystemAdmin::class,
+        ]);
 
         $middleware->redirectGuestsTo(function (Request $request) {
             if ($request->is('api/*')) {

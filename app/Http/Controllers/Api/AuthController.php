@@ -110,6 +110,12 @@ class AuthController extends Controller
             return response()->json(['message' => 'Your account has been deactivated.'], 403);
         }
 
+        if ($user->role === 'superadmin') {
+            $token = $user->createToken('mobile')->plainTextToken;
+
+            return response()->json(['token' => $token, 'user' => $this->userPayload($user)]);
+        }
+
         if (! $user->organization) {
             return response()->json([
                 'message' => 'Your organization is still pending review. You will be notified once it is approved.',
@@ -120,8 +126,12 @@ class AuthController extends Controller
         $org = $user->organization;
 
         if ($org->status !== 'active') {
+            $message = $org->status === 'suspended'
+                ? 'Your organization is suspended. Contact support for help.'
+                : 'Your organization is still pending review. You will be notified once it is approved.';
+
             return response()->json([
-                'message' => 'Your organization is still pending review. You will be notified once it is approved.',
+                'message' => $message,
                 'organization_status' => $org->status,
             ], 403);
         }

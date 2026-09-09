@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\AttendanceController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Api\SubscriptionController;
+use App\Http\Controllers\Api\SystemController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('auth')->group(function () {
@@ -43,4 +44,11 @@ Route::middleware(['auth:sanctum', 'org-admin'])->prefix('admin')->group(functio
     Route::get('subscription', [SubscriptionController::class, 'details']);
     Route::post('subscription/upgrade', [SubscriptionController::class, 'upgrade']);
     Route::post('subscription/cancel', [SubscriptionController::class, 'cancel']);
+});
+
+Route::middleware(['auth:sanctum', 'system-admin'])->prefix('system')->group(function () {
+    Route::get('stats', [SystemController::class, 'stats']);
+    Route::get('organizations', [SystemController::class, 'organizations']);
+    Route::post('organizations/{organization}/approve', [SystemController::class, 'approve']);
+    Route::post('organizations/{organization}/status', [SystemController::class, 'setStatus']);
 });
