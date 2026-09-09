@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Models\Organization;
+use App\Support\PlanLimits;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
@@ -86,6 +87,10 @@ class SubscriptionController extends Controller
             'trial_ends_at' => $org->trial_ends_at?->toIso8601String(),
             'canceled_at' => $org->canceled_at?->toIso8601String(),
             'accessible' => $org->isAccessible(),
+            'branches_used' => $org->branches()->count(),
+            'branches_limit' => PlanLimits::branchLimit($org->plan),
+            'employees_used' => $org->users()->where('role', 'employee')->count(),
+            'employees_limit' => PlanLimits::employeeLimit($org->plan),
         ];
     }
 }

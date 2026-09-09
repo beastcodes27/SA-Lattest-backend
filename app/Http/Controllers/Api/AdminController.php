@@ -6,6 +6,7 @@ use App\Models\Attendance;
 use App\Models\Branch;
 use App\Models\Organization;
 use App\Models\User;
+use App\Support\PlanLimits;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -112,6 +113,14 @@ class AdminController extends Controller
     public function storeEmployee(Request $request): JsonResponse
     {
         $org = $request->user()->organization;
+
+        $employeeLimit = PlanLimits::employeeLimit($org->plan);
+
+        if ($employeeLimit !== null && $org->users()->where('role', 'employee')->count() >= $employeeLimit) {
+            return response()->json([
+                'message' => "Your {$org->plan} plan covers up to {$employeeLimit} employees. Upgrade your package to add more.",
+            ], 422);
+        }
 
         $validator = Validator::make($request->all(), [
             'name' => ['required', 'string', 'max:255'],
@@ -279,6 +288,14 @@ class AdminController extends Controller
     public function storeBranch(Request $request): JsonResponse
     {
         $org = $request->user()->organization;
+
+        $limit = PlanLimits::branchLimit($org->plan);
+
+        if ($limit !== null && $org->branches()->count() >= $limit) {
+            return response()->json([
+                'message' => "Your {$org->plan} plan allows up to {$limit} branch".($limit === 1 ? '' : 'es').'. Upgrade your package to add more.',
+            ], 422);
+        }
 
         $validator = Validator::make($request->all(), [
             'name' => ['required', 'string', 'max:255'],
