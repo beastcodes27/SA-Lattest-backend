@@ -71,6 +71,7 @@
             <button class="nav active" data-mode="orgs">Organizations</button>
             <button class="nav" data-mode="subs">Subscriptions</button>
             <button class="nav" data-mode="packages">Packages</button>
+            <button class="nav" data-mode="promos">Promos</button>
         </nav>
 
         <div id="orgArea">
@@ -87,6 +88,8 @@
         <div id="subsArea" style="display:none"></div>
 
         <div id="packagesArea" style="display:none"></div>
+
+        <div id="promosArea" style="display:none"></div>
     </div>
 
     <div class="msg" id="msg"></div>
@@ -294,9 +297,10 @@
             document.querySelectorAll('.nav').forEach(n => n.classList.toggle('active', n.dataset.mode === mode));
             const orgArea = document.getElementById('orgArea');
             const subsArea = document.getElementById('subsArea');
-            if (mode === 'orgs') { orgArea.style.display = ''; subsArea.style.display = 'none'; document.getElementById('packagesArea').style.display = 'none'; loadOrgs().catch(() => {}); }
-            else if (mode === 'subs') { orgArea.style.display = 'none'; subsArea.style.display = ''; document.getElementById('packagesArea').style.display = 'none'; loadSubs().catch(() => {}); }
-            else { orgArea.style.display = 'none'; subsArea.style.display = 'none'; document.getElementById('packagesArea').style.display = ''; loadPackages().catch(() => {}); }
+            if (mode === 'orgs') { orgArea.style.display = ''; subsArea.style.display = 'none'; document.getElementById('packagesArea').style.display = 'none'; document.getElementById('promosArea').style.display = 'none'; loadOrgs().catch(() => {}); }
+            else if (mode === 'subs') { orgArea.style.display = 'none'; subsArea.style.display = ''; document.getElementById('packagesArea').style.display = 'none'; document.getElementById('promosArea').style.display = 'none'; loadSubs().catch(() => {}); }
+            else if (mode === 'packages') { orgArea.style.display = 'none'; subsArea.style.display = 'none'; document.getElementById('packagesArea').style.display = ''; document.getElementById('promosArea').style.display = 'none'; loadPackages().catch(() => {}); }
+            else { orgArea.style.display = 'none'; subsArea.style.display = 'none'; document.getElementById('packagesArea').style.display = 'none'; document.getElementById('promosArea').style.display = ''; loadPromos().catch(() => {}); }
         });
 
         let mode = 'orgs';
@@ -395,6 +399,80 @@
                 const json = await api('/portal/api/packages/' + id, { method: 'PUT', body: JSON.stringify(body) });
                 toast(json.message || 'Package saved', true);
                 await loadPackages();
+            } catch (e) { toast(e.message, false); }
+        }
+
+        async function loadPromos() {
+            const { promos } = await api('/portal/api/promos');
+            const box = document.getElementById('promosArea');
+            const newCard = `<div class="org">
+                <h3>Create promo</h3>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+                    <div><label class="plabel">Code (e.g. OFFER20)</label><input class="pfield" id="np_code"></div>
+                    <div><label class="plabel">Type</label><select class="pfield" id="np_type"><option value="trial_days">Extra trial days</option><option value="discount_percent">% discount</option></select></div>
+                </div>
+                <label class="plabel">Title</label><input class="pfield" id="np_title">
+                <label class="plabel">Value</label><input class="pfield" id="np_value" type="number" min="1" value="10">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+                    <div><label class="plabel">Max uses (blank = unlimited)</label><input class="pfield" id="np_max" type="number" min="1"></div>
+                    <div><label class="plabel">Ends (yyyy-mm-dd, optional)</label><input class="pfield" id="np_ends"></div>
+                </div>
+                <div class="actions"><button class="btn primary" onclick="createPromo()">Create Promo</button></div>
+            </div>`;
+            const list = promos.map(p => {
+                const usage = (p.max_uses == null ? p.redeemed + ' used' : p.redeemed + ' / ' + p.max_uses);
+                return `<div class="org">
+                    <h3>${esc(p.code)} <span class="pill" style="color:${p.active ? 'var(--green)' : 'var(--red)'};background:${p.active ? 'var(--green)' : 'var(--red)'}1A">${p.active ? 'Active' : 'Inactive'}</span></h3>
+                    <div class="contact">${esc(p.label)} &middot; ${usage} &middot; ${p.ends_at ? 'ends ' + fmtDate(p.ends_at) : 'no end'}</div>
+                    <label class="plabel">Title</label><input class="pfield" id="pm_title_${p.id}" value="${esc(p.title)}">
+                    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
+                        <div><label class="plabel">Type</label><select class="pfield" id="pm_type_${p.id}"><option value="trial_days" ${p.type === 'trial_days' ? 'selected' : ''}>Extra trial days</option><option value="discount_percent" ${p.type === 'discount_percent' ? 'selected' : ''}>% discount</option></select></div>
+                        <div><label class="plabel">Value</label><input class="pfield" id="pm_value_${p.id}" type="number" min="1" value="${p.value}"></div>
+                        <div><label class="plabel">Max uses</label><input class="pfield" id="pm_max_${p.id}" type="number" min="1" value="${p.max_uses == null ? '' : p.max_uses}"></div>
+                    </div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+                        <div><label class="plabel">Ends (yyyy-mm-dd)</label><input class="pfield" id="pm_ends_${p.id}" value="${p.ends_at ? String(p.ends_at).slice(0,10) : ''}"></div>
+                        <div><label class="plabel">Description</label><input class="pfield" id="pm_desc_${p.id}" value="${esc(p.description || '')}"></div>
+                    </div>
+                    <label class="switch"><input type="checkbox" id="pm_active_${p.id}" ${p.active ? 'checked' : ''}> Active</label>
+                    <div class="actions"><button class="btn primary" onclick="updatePromo(${p.id})">Save</button></div>
+                </div>`;
+            }).join('');
+            box.innerHTML = newCard + list;
+        }
+
+        async function createPromo() {
+            const body = {
+                code: document.getElementById('np_code').value.trim().toUpperCase(),
+                title: document.getElementById('np_title').value.trim(),
+                type: document.getElementById('np_type').value,
+                value: parseInt(document.getElementById('np_value').value, 10),
+                max_uses: document.getElementById('np_max').value ? parseInt(document.getElementById('np_max').value, 10) : null,
+                ends_at: document.getElementById('np_ends').value || null,
+                active: true,
+            };
+            if (!body.code || !body.title || !body.value) { toast('Fill in code, title and value.', false); return; }
+            try {
+                const json = await api('/portal/api/promos', { method: 'POST', body: JSON.stringify(body) });
+                toast(json.message || 'Promo created', true);
+                await loadPromos();
+            } catch (e) { toast(e.message, false); }
+        }
+
+        async function updatePromo(id) {
+            const body = {
+                title: document.getElementById('pm_title_' + id).value.trim(),
+                description: document.getElementById('pm_desc_' + id).value.trim() || null,
+                type: document.getElementById('pm_type_' + id).value,
+                value: parseInt(document.getElementById('pm_value_' + id).value, 10),
+                max_uses: document.getElementById('pm_max_' + id).value ? parseInt(document.getElementById('pm_max_' + id).value, 10) : null,
+                ends_at: document.getElementById('pm_ends_' + id).value || null,
+                active: document.getElementById('pm_active_' + id).checked,
+            };
+            try {
+                const json = await api('/portal/api/promos/' + id, { method: 'PUT', body: JSON.stringify(body) });
+                toast(json.message || 'Promo saved', true);
+                await loadPromos();
             } catch (e) { toast(e.message, false); }
         }
 
