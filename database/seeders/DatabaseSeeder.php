@@ -25,6 +25,8 @@ class DatabaseSeeder extends Seeder
             'status' => 'active',
         ]);
 
+        $org->startTrial(30);
+
         $branch = Branch::create([
             'org_id' => $org->id,
             'name' => 'Main Office',

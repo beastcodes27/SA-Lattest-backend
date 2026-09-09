@@ -31,7 +31,10 @@ class ApproveOrganization extends Command
 
         foreach ($orgs as $org) {
             $org->forceFill(['status' => 'active'])->save();
-            $this->info("Approved: #{$org->id} {$org->name}");
+            if ($org->trial_started_at === null) {
+                $org->startTrial(30);
+            }
+            $this->info("Approved: #{$org->id} {$org->name} — free trial until {$org->fresh()->trial_ends_at?->toDateString()}");
         }
 
         return self::SUCCESS;

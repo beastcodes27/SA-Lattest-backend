@@ -110,10 +110,26 @@ class AuthController extends Controller
             return response()->json(['message' => 'Your account has been deactivated.'], 403);
         }
 
-        if (! $user->organization || $user->organization->status !== 'active') {
+        if (! $user->organization) {
             return response()->json([
                 'message' => 'Your organization is still pending review. You will be notified once it is approved.',
-                'organization_status' => $user->organization?->status ?? 'none',
+                'organization_status' => 'none',
+            ], 403);
+        }
+
+        $org = $user->organization;
+
+        if ($org->status !== 'active') {
+            return response()->json([
+                'message' => 'Your organization is still pending review. You will be notified once it is approved.',
+                'organization_status' => $org->status,
+            ], 403);
+        }
+
+        if (! $org->isAccessible()) {
+            return response()->json([
+                'message' => 'Your free trial has ended. Contact your provider to renew access.',
+                'organization_status' => 'trial_expired',
             ], 403);
         }
 
@@ -149,6 +165,10 @@ class AuthController extends Controller
                 'name' => $org->name,
                 'status' => $org->status,
                 'employee_id_prefix' => $org->employee_id_prefix,
+                'plan' => $org->plan,
+                'on_trial' => $org->onTrial(),
+                'trial_days_left' => $org->trialDaysLeft(),
+                'trial_ends_at' => $org->trial_ends_at?->toIso8601String(),
             ] : null,
             'branch' => $branch ? [
                 'id' => $branch->id,

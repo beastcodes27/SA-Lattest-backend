@@ -39,6 +39,10 @@ class AttendanceController extends Controller
             return response()->json(['message' => 'Your organization is not active yet.'], 403);
         }
 
+        if (! $org->isAccessible()) {
+            return response()->json(['message' => 'Your free trial has ended. Contact your provider to renew access.'], 403);
+        }
+
         $branch = $user->branch ??
             $org->activeBranches()->orderBy('id')->first();
 

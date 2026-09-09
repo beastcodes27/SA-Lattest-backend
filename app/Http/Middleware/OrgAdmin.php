@@ -20,6 +20,10 @@ class OrgAdmin
             return response()->json(['message' => 'Your organization is not active yet.'], 403);
         }
 
+        if (! $user->organization->isAccessible()) {
+            return response()->json(['message' => 'Your free trial has ended. Contact your provider to renew access.'], 403);
+        }
+
         return $next($request);
     }
 }

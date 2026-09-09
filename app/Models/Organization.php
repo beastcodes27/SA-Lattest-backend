@@ -16,13 +16,57 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     'employee_id_prefix',
     'plan',
     'status',
+    'trial_started_at',
+    'trial_ends_at',
 ])]
 class Organization extends Model
 {
+    protected function casts(): array
+    {
+        return [
+            'trial_started_at' => 'datetime',
+            'trial_ends_at' => 'datetime',
+        ];
+    }
+
     public function branches(): HasMany
     {
         return $this->hasMany(Branch::class, 'org_id');
     }
+
+    public function startTrial(int $days = 30): void
+    {
+        $this->forceFill([
+            'trial_started_at' => now(),
+            'trial_ends_at' => now()->addDays($days),
+        ])->save();
+    }
+
+    public function trialDaysLeft(): ?int
+    {
+        if (! $this->trial_ends_at) {
+            return null;
+        }
+
+        $days = (int) ceil(now()->diffInMinutes($this->trial_ends_at, false) / 1440);
+
+        return max(0, $days);
+    }
+
+    public function onTrial(): bool
+    {
+        return $this->trial_ends_at !== null && $this->trialDaysLeft() > 0;
+    }
+
+    public function isAccessible(): bool
+    {
+        if ($this->status !== 'active') {
+            return false;
+        }
+
+        return $this->trial_ends_at === null || $this->trial_ends_at->isFuture();
+    }
+
 
     public function activeBranches(): HasMany
     {
