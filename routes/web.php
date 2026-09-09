@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\PackagesController;
+use App\Http\Controllers\Api\PromoManagerController;
 use App\Http\Controllers\Api\SystemController;
 use App\Http\Controllers\PortalController;
 use Illuminate\Support\Facades\Route;
@@ -23,6 +24,10 @@ Route::prefix('portal')->group(function () {
 
             Route::get('packages', [PackagesController::class, 'systemIndex']);
             Route::put('packages/{package}', [PackagesController::class, 'update']);
+
+            Route::get('promos', [PromoManagerController::class, 'index']);
+            Route::post('promos', [PromoManagerController::class, 'store']);
+            Route::put('promos/{promo}', [PromoManagerController::class, 'update']);
         });
     });
 });

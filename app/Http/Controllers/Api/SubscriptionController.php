@@ -82,6 +82,7 @@ class SubscriptionController extends Controller
             'trial_days_left' => $org->trialDaysLeft(),
             'trial_ends_at' => $org->trial_ends_at?->toIso8601String(),
             'canceled_at' => $org->canceled_at?->toIso8601String(),
+            'discount_percent' => (int) $org->discount_percent,
             'accessible' => $org->isAccessible(),
             'branches_used' => $org->branches()->count(),
             'branches_limit' => PlanLimits::branchLimit($org->plan),

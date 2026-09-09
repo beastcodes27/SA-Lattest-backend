@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\AttendanceController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\PackagesController;
 use App\Http\Controllers\Api\ProfileController;
+use App\Http\Controllers\Api\PromoController;
 use App\Http\Controllers\Api\SubscriptionController;
 use App\Http\Controllers\Api\SystemController;
 use Illuminate\Support\Facades\Route;
@@ -40,6 +41,7 @@ Route::middleware(['auth:sanctum', 'org-admin'])->prefix('admin')->group(functio
     Route::get('branches', [AdminController::class, 'branches']);
     Route::post('branches', [AdminController::class, 'storeBranch']);
     Route::patch('organization', [AdminController::class, 'updateOrganization']);
+    Route::post('promo/redeem', [PromoController::class, 'redeem']);
 });
 
 Route::middleware(['auth:sanctum', 'org-admin'])->prefix('admin')->group(function () {

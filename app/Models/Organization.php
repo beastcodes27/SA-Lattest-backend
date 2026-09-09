@@ -20,6 +20,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     'trial_ends_at',
     'subscription_status',
     'canceled_at',
+    'discount_percent',
 ])]
 class Organization extends Model
 {
@@ -29,6 +30,7 @@ class Organization extends Model
             'trial_started_at' => 'datetime',
             'trial_ends_at' => 'datetime',
             'canceled_at' => 'datetime',
+            'discount_percent' => 'integer',
         ];
     }
 
