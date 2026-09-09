@@ -62,6 +62,50 @@ class SystemController extends Controller
         return response()->json(['organizations' => $orgs]);
     }
 
+    public function organization(Request $request, Organization $organization): JsonResponse
+    {
+        $branches = $organization->branches()
+            ->withCount(['users as employee_count' => fn ($q) => $q->where('role', 'employee')])
+            ->orderBy('name')
+            ->get()
+            ->map(fn ($b) => [
+                'id' => $b->id,
+                'name' => $b->name,
+                'lat' => (float) $b->lat,
+                'lng' => (float) $b->lng,
+                'radius_meters' => (int) $b->radius_meters,
+                'active' => (bool) $b->active,
+                'employee_count' => (int) $b->employee_count,
+            ])
+            ->values();
+
+        $employees = $organization->users()
+            ->where('role', 'employee')
+            ->with('branch:id,name')
+            ->orderBy('name')
+            ->get()
+            ->map(fn ($u) => [
+                'id' => $u->id,
+                'name' => $u->name,
+                'employee_id' => $u->employee_id,
+                'email' => $u->email,
+                'phone' => $u->phone,
+                'active' => (bool) $u->active,
+                'face_enrolled' => (bool) $u->face_enrolled,
+                'branch' => $u->branch?->name ?? 'Unassigned',
+                'created_at' => $u->created_at?->toIso8601String(),
+            ])
+            ->values();
+
+        return response()->json([
+            'organization' => [
+                ...$this->payload($organization),
+                'branches' => $branches,
+                'employees' => $employees,
+            ],
+        ]);
+    }
+
     public function approve(Request $request, Organization $organization): JsonResponse
     {
         if ($organization->status !== 'pending') {

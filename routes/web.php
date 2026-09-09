@@ -15,6 +15,7 @@ Route::prefix('portal')->group(function () {
         Route::prefix('api')->group(function () {
             Route::get('stats', [SystemController::class, 'stats']);
             Route::get('organizations', [SystemController::class, 'organizations']);
+            Route::get('organizations/{organization}', [SystemController::class, 'organization']);
             Route::post('organizations/{organization}/approve', [SystemController::class, 'approve']);
             Route::post('organizations/{organization}/status', [SystemController::class, 'setStatus']);
         });

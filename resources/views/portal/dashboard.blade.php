@@ -35,6 +35,14 @@
         .msg { position:fixed; left:50%; transform:translateX(-50%); top:18px; border-radius:12px; padding:12px 18px; font-weight:700; color:#fff; box-shadow:0 10px 30px rgba(0,0,0,.2); display:none; }
         .msg.ok { background:var(--green); }
         .msg.err { background:var(--red); }
+        .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; }
+        .grid span { display:block; color:var(--muted); font-size:11px; text-transform:uppercase; letter-spacing:.5px; }
+        .grid b { font-size:13px; word-break:break-word; }
+        .branch { background:rgba(32,15,53,.04); border:1px solid rgba(32,15,53,.1); border-radius:10px; padding:10px 12px; font-size:13px; font-weight:800; margin-bottom:8px; }
+        .branch span { font-weight:400; color:var(--muted); font-size:12px; }
+        table.emps { width:100%; border-collapse:collapse; font-size:13px; }
+        table.emps th { text-align:left; background:rgba(32,15,53,.06); padding:8px 10px; color:var(--ink); font-size:11px; text-transform:uppercase; }
+        table.emps td { padding:8px 10px; border-bottom:1px solid rgba(32,15,53,.08); }
     </style>
 </head>
 <body>
@@ -124,6 +132,7 @@
                     : o.status === 'active'
                         ? `<button class="btn danger" onclick="act(${o.id},'suspend')">Suspend</button>`
                         : `<button class="btn primary" onclick="act(${o.id},'reactivate')">Reactivate</button>`;
+                const view = `<button class="btn ghost" onclick="openOrg(${o.id})">View details</button>`;
                 const trial = o.on_trial ? `<div style="color:var(--amber);font-size:12px;font-weight:600;margin-top:8px">Trial ends ${fmtDate(o.trial_ends_at)} &middot; ${o.trial_days_left}d left</div>` : '';
                 return `<div class="org">
                     <h3>${esc(o.name)}</h3>
@@ -137,7 +146,7 @@
                         <span>Prefix ${esc(o.employee_id_prefix || '—')}</span>
                     </div>
                     ${trial}
-                    <div class="actions">${buttons}</div>
+                    <div class="actions">${view}${buttons}</div>
                 </div>`;
             }).join('');
         }
@@ -168,7 +177,6 @@
 
         async function act(id, type) {
             const names = {
-                approve: ['Approve this organization? It starts a 30-day free trial.', () => api(`/portal/api/organizations/${id}/approve`, { method: 'POST', body: JSON.stringify({ days: 30 }) })],
                 reject: ['Reject and suspend this registration?', () => api(`/portal/api/organizations/${id}/status`, { method: 'POST', body: JSON.stringify({ status: 'suspended' }) })],
                 suspend: ['Suspend this organization? Users will lose access.', () => api(`/portal/api/organizations/${id}/status`, { method: 'POST', body: JSON.stringify({ status: 'suspended' }) })],
                 reactivate: ['Reactivate this organization?', () => api(`/portal/api/organizations/${id}/status`, { method: 'POST', body: JSON.stringify({ status: 'active' }) })],
@@ -181,6 +189,68 @@
             } catch (e) {
                 toast(e.message, false);
             }
+        }
+
+        function statusPill(o) {
+            const m = { pending: ['Pending review', 'var(--amber)'], active: ['Active', 'var(--green)'], suspended: ['Suspended', 'var(--red)'] }[o.status] || ['Pending', 'var(--amber)'];
+            return `<span class="pill" style="color:${m[1]};background:${m[1]}1A">${m[0]}</span>`;
+        }
+
+        async function openOrg(id) {
+            try {
+                const { organization: o } = await api('/portal/api/organizations/' + id);
+                renderOrgDetail(o);
+            } catch (e) { if (e.message !== 'expired') toast(e.message, false); }
+        }
+
+        function renderOrgDetail(o) {
+            const actions = o.status === 'pending'
+                ? `<button class="btn primary" onclick="approve(${o.id})">Approve &amp; Start Trial</button><button class="btn danger" onclick="act(${o.id},'reject')">Reject</button>`
+                : o.status === 'active'
+                    ? `<button class="btn danger" onclick="actFromDetail(${o.id},'suspend')">Suspend</button>`
+                    : `<button class="btn primary" onclick="actFromDetail(${o.id},'reactivate')">Reactivate</button>`;
+            const admin = o.admin;
+            const subs = o.subscription_status === 'canceled' ? 'Canceled' : (o.on_trial ? 'Free trial' : (o.subscription_status === 'active' ? 'Active' : '—'));
+            document.getElementById('orgs').innerHTML = `
+                <button class="btn ghost" onclick="loadOrgs()">&larr; Back to organizations</button>
+                <div class="org" style="margin-top:14px">
+                    <h3>${esc(o.name)} ${statusPill(o)}</h3>
+                    <div class="contact">Registered ${fmtDateTime(o.created_at)}</div>
+
+                    <h4 style="margin:18px 0 8px">Organization</h4>
+                    <div class="grid">
+                        ${kv('Contact email', o.contact_email)}${kv('Phone', o.contact_phone)}${kv('Address', o.address)}${kv('Website', o.website)}${kv('TIN / Reg', o.tin)}${kv('ID prefix', o.employee_id_prefix)}
+                    </div>
+
+                    <h4 style="margin:18px 0 8px">Admin / Applicant</h4>
+                    <div class="grid">
+                        ${admin ? `${kv('Name', admin.name)}${kv('Email', admin.email)}${kv('Phone', admin.phone)}${kv('Employee ID', admin.employee_id)}` : kv('Admin', '—')}
+                    </div>
+
+                    <h4 style="margin:18px 0 8px">Plan &amp; subscription</h4>
+                    <div class="grid">
+                        ${kv('Plan', cap(o.plan))}${kv('Subscription', subs)}${kv('Trial ends', fmtDate(o.trial_ends_at))}${kv('Trial days left', o.on_trial ? String(o.trial_days_left) : '—')}
+                        ${kv('Employees', o.employees_count + ' / ' + (o.employees_limit === null ? 'unlimited' : o.employees_limit))}${kv('Branches', o.branches_count + ' / ' + (o.branches_limit === null ? 'unlimited' : o.branches_limit))}
+                    </div>
+
+                    <h4 style="margin:18px 0 8px">Branches</h4>
+                    ${o.branches.length === 0 ? '<div class="contact">No branches</div>' : o.branches.map(b => `<div class="branch">${esc(b.name)} <span>${b.lat}, ${b.lng} &middot; &plusmn;${b.radius_meters} m &middot; ${b.employee_count} employee${b.employee_count === 1 ? '' : 's'}</span></div>`).join('')}
+
+                    <h4 style="margin:18px 0 8px">Employees (${o.employees.length})</h4>
+                    ${o.employees.length === 0 ? '<div class="contact">No employees yet</div>' : `<table class="emps">
+                        <thead><tr><th>Name</th><th>ID</th><th>Branch</th><th>Face</th><th>Status</th></tr></thead>
+                        <tbody>${o.employees.map(e => `<tr><td>${esc(e.name)}</td><td>${esc(e.employee_id)}</td><td>${esc(e.branch)}</td><td>${e.face_enrolled ? 'Yes' : 'No'}</td><td>${e.active ? 'Active' : 'Inactive'}</td></tr>`).join('')}</tbody>
+                    </table>`}
+                    <div class="actions">${actions}</div>
+                </div>`;
+        }
+
+        async function actFromDetail(id, type) {
+            await act(id, type);
+        }
+
+        function kv(k, v) {
+            return `<div><span>${esc(k)}</span><b>${esc(v == null || v === '' ? '—' : v)}</b></div>`;
         }
 
         document.getElementById('filters').addEventListener('click', (e) => {
