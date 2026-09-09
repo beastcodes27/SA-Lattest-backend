@@ -64,10 +64,16 @@
 
     <script>
         const csrf = document.querySelector('meta[name="csrf-token"]').content;
-        let current = '';
+        let current = 'pending';
         const $msg = document.getElementById('msg');
         const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
         const cap = (s) => s ? s.charAt(0).toUpperCase() + s.slice(1) : '';
+
+        function setFilterButton() {
+            document.querySelectorAll('.filter').forEach(f => {
+                f.classList.toggle('active', f.dataset.status === current);
+            });
+        }
 
         function toast(text, ok) {
             $msg.textContent = text;
@@ -105,8 +111,16 @@
             if (!organizations.length) { box.innerHTML = '<p style="color:var(--muted)">No organizations in this view.</p>'; return; }
             box.innerHTML = organizations.map(o => {
                 const status = { pending: ['Pending review', 'var(--amber)'], active: ['Active', 'var(--green)'], suspended: ['Suspended', 'var(--red)'] }[o.status] || ['Pending', 'var(--amber)'];
+                const requestDetails = o.status === 'pending' ? `
+                    <div style="margin-top:12px;background:rgba(184,134,11,.06);border:1px solid rgba(184,134,11,.25);border-radius:12px;padding:12px 14px;font-size:13px">
+                        <div style="font-weight:800;margin-bottom:6px">Registration request</div>
+                        <div><b>Admin:</b> ${esc(o.admin?.name || '—')} &middot; ${esc(o.admin?.email || '—')} &middot; ID ${esc(o.admin?.employee_id || '—')}</div>
+                        <div><b>Phone:</b> ${esc(o.admin?.phone || '—')}</div>
+                        <div><b>Address:</b> ${esc(o.address || '—')} ${o.website ? '&middot; ' + esc(o.website) : ''}</div>
+                        <div><b>TIN / Reg:</b> ${esc(o.tin || '—')} &middot; <b>Requested:</b> ${fmtDateTime(o.created_at)}</div>
+                    </div>` : '';
                 const buttons = o.status === 'pending'
-                    ? `<button class="btn primary" onclick="act(${o.id},'approve')">Approve</button><button class="btn danger" onclick="act(${o.id},'reject')">Reject</button>`
+                    ? `<button class="btn primary" onclick="approve(${o.id})">Approve &amp; Start Trial</button><button class="btn danger" onclick="act(${o.id},'reject')">Reject</button>`
                     : o.status === 'active'
                         ? `<button class="btn danger" onclick="act(${o.id},'suspend')">Suspend</button>`
                         : `<button class="btn primary" onclick="act(${o.id},'reactivate')">Reactivate</button>`;
@@ -114,6 +128,7 @@
                 return `<div class="org">
                     <h3>${esc(o.name)}</h3>
                     <div class="contact">${esc(o.contact_email || o.contact_phone || '—')}</div>
+                    ${requestDetails}
                     <div class="meta">
                         <span><span class="pill" style="color:${status[1]};background:${status[1]}1A">${status[0]}</span></span>
                         <span>Plan: <b>${cap(o.plan)}</b></span>
@@ -131,6 +146,24 @@
             if (!iso) return '—';
             const d = new Date(iso);
             return d.toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
+        }
+
+        function fmtDateTime(iso) {
+            if (!iso) return '—';
+            return new Date(iso).toLocaleString(undefined, { day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit' });
+        }
+
+        async function approve(id) {
+            const raw = prompt('Free trial length in days for this organization?', '30');
+            if (raw === null) return;
+            const days = parseInt(raw, 10);
+            if (!days || days < 1 || days > 365) { toast('Enter a trial length between 1 and 365 days.', false); return; }
+            if (!confirm('Approve this organization and start a ' + days + '-day free trial?')) return;
+            try {
+                const json = await api(`/portal/api/organizations/${id}/approve`, { method: 'POST', body: JSON.stringify({ days }) });
+                toast(json.message || 'Organization approved', true);
+                await Promise.all([loadStats(), loadOrgs()]);
+            } catch (e) { toast(e.message, false); }
         }
 
         async function act(id, type) {
@@ -153,13 +186,13 @@
         document.getElementById('filters').addEventListener('click', (e) => {
             const btn = e.target.closest('.filter');
             if (!btn) return;
-            document.querySelectorAll('.filter').forEach(f => f.classList.remove('active'));
-            btn.classList.add('active');
             current = btn.dataset.status;
+            setFilterButton();
             loadOrgs().catch((e) => e.message !== 'expired' && toast(e.message, false));
         });
 
         (async () => {
+            setFilterButton();
             try {
                 await Promise.all([loadStats(), loadOrgs()]);
             } catch (e) { /* redirect handled */ }

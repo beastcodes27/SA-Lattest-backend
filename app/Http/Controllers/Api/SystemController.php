@@ -120,12 +120,22 @@ class SystemController extends Controller
 
     private function payload(Organization $org): array
     {
+        $admin = $org->users()->where('role', 'admin')->orderBy('id')->first();
+
         return [
             'id' => $org->id,
             'name' => $org->name,
             'contact_email' => $org->contact_email,
             'contact_phone' => $org->contact_phone,
+            'address' => $org->address,
+            'website' => $org->website,
             'tin' => $org->tin,
+            'admin' => $admin ? [
+                'name' => $admin->name,
+                'email' => $admin->email,
+                'phone' => $admin->phone,
+                'employee_id' => $admin->employee_id,
+            ] : null,
             'employee_id_prefix' => $org->employee_id_prefix,
             'plan' => $org->plan,
             'status' => $org->status,
