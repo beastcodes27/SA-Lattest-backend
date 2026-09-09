@@ -18,6 +18,8 @@
         .stat { background:#fff; border:1px solid rgba(32,15,53,.1); border-radius:14px; padding:14px; }
         .stat b { font-size:26px; color:var(--ink); display:block; }
         .stat span { color:var(--muted); font-size:12px; }
+        .stat-btn { display:block; width:100%; text-align:left; font:inherit; cursor:pointer; transition:opacity .15s; }
+        .stat-btn:hover { opacity:.75; }
         .filters { display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap; }
         .filter { border:1px solid rgba(32,15,53,.2); background:#fff; border-radius:999px; padding:8px 16px; cursor:pointer; font-weight:600; font-size:13px; }
         .filter.active { background:var(--ink); color:var(--bg); border-color:var(--ink); }
@@ -124,11 +126,24 @@
         async function loadStats() {
             const { stats } = await api('/portal/api/stats');
             const tiles = [
-                ['Pending', stats.pending], ['Active', stats.active], ['Suspended', stats.suspended],
-                ['Organizations', stats.organizations_total], ['Employees', stats.employees],
-                ['Branches', stats.branches], ['Face check-ins today', stats.today_checkins],
+                ['Pending', stats.pending, 'pending'], ['Active', stats.active, 'active'], ['Suspended', stats.suspended, 'suspended'],
+                ['Organizations', stats.organizations_total, ''], ['Employees', stats.employees, null], ['Branches', stats.branches, null], ['Check-ins today', stats.today_checkins, null],
             ];
-            document.getElementById('stats').innerHTML = tiles.map(([label, value]) => `<div class="stat"><b>${value}</b><span>${label}</span></div>`).join('');
+            document.getElementById('stats').innerHTML = tiles.map(([label, value, status]) => {
+                const inner = `<b>${value}</b><span>${label}</span>`;
+                return status === null ? `<div class="stat">${inner}</div>` : `<button class="stat stat-btn" onclick="goOrgFilter(${status === '' ? "''" : `'${status}'`})">${inner}</button>`;
+            }).join('');
+        }
+
+        function goOrgFilter(status) {
+            mode = 'orgs';
+            current = status;
+            document.querySelectorAll('.nav').forEach(n => n.classList.toggle('active', n.dataset.mode === 'orgs'));
+            document.getElementById('orgArea').style.display = '';
+            document.getElementById('subsArea').style.display = 'none';
+            document.getElementById('packagesArea').style.display = 'none';
+            setFilterButton();
+            loadOrgs().catch(() => {});
         }
 
         async function loadOrgs() {
