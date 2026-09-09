@@ -47,6 +47,9 @@
         .nav { background:#fff; border:1px solid rgba(32,15,53,.2); border-radius:12px; padding:10px 18px; font-weight:800; font-size:14px; cursor:pointer; }
         .nav.active { background:var(--ink); color:var(--bg); border-color:var(--ink); }
         select { padding:8px 10px; border-radius:8px; border:1px solid rgba(32,15,53,.2); background:#fff; }
+        .pfield { width:100%; padding:9px 11px; border-radius:8px; border:1px solid rgba(32,15,53,.2); font-size:13px; margin-top:4px; background:#fff; }
+        .plabel { display:block; font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.5px; color:var(--ink); margin-top:10px; }
+        .switch { display:inline-flex; align-items:center; gap:8px; font-weight:800; font-size:13px; cursor:pointer; margin-top:10px; }
     </style>
 </head>
 <body>
@@ -65,6 +68,7 @@
         <nav id="nav">
             <button class="nav active" data-mode="orgs">Organizations</button>
             <button class="nav" data-mode="subs">Subscriptions</button>
+            <button class="nav" data-mode="packages">Packages</button>
         </nav>
 
         <div id="orgArea">
@@ -79,6 +83,8 @@
         </div>
 
         <div id="subsArea" style="display:none"></div>
+
+        <div id="packagesArea" style="display:none"></div>
     </div>
 
     <div class="msg" id="msg"></div>
@@ -273,8 +279,9 @@
             document.querySelectorAll('.nav').forEach(n => n.classList.toggle('active', n.dataset.mode === mode));
             const orgArea = document.getElementById('orgArea');
             const subsArea = document.getElementById('subsArea');
-            if (mode === 'orgs') { orgArea.style.display = ''; subsArea.style.display = 'none'; loadOrgs().catch(() => {}); }
-            else { orgArea.style.display = 'none'; subsArea.style.display = ''; loadSubs().catch(() => {}); }
+            if (mode === 'orgs') { orgArea.style.display = ''; subsArea.style.display = 'none'; document.getElementById('packagesArea').style.display = 'none'; loadOrgs().catch(() => {}); }
+            else if (mode === 'subs') { orgArea.style.display = 'none'; subsArea.style.display = ''; document.getElementById('packagesArea').style.display = 'none'; loadSubs().catch(() => {}); }
+            else { orgArea.style.display = 'none'; subsArea.style.display = 'none'; document.getElementById('packagesArea').style.display = ''; loadPackages().catch(() => {}); }
         });
 
         let mode = 'orgs';
@@ -326,6 +333,53 @@
                 const json = await api(`/portal/api/organizations/${id}/subscription`, { method: 'POST', body: JSON.stringify(body) });
                 toast(json.message || 'Updated', true);
                 await loadSubs();
+            } catch (e) { toast(e.message, false); }
+        }
+
+        async function loadPackages() {
+            const { packages } = await api('/portal/api/packages');
+            const box = document.getElementById('packagesArea');
+            box.innerHTML = packages.map(p => `
+                <div class="org">
+                    <h3>${esc(p.name)} <span style="color:var(--muted);font-weight:600;font-size:12px">${esc(p.code)}</span></h3>
+                    <label class="plabel">Package name</label>
+                    <input class="pfield" id="pk_name_${p.id}" value="${esc(p.name)}">
+                    <label class="plabel">Tagline</label>
+                    <input class="pfield" id="pk_tag_${p.id}" value="${esc(p.tagline || '')}">
+                    <label class="plabel">Price label (e.g. TZS 50,000/mo)</label>
+                    <input class="pfield" id="pk_price_${p.id}" value="${esc(p.price_label || '')}">
+                    <label class="plabel">Employee limit (blank = unlimited)</label>
+                    <input class="pfield" id="pk_emp_${p.id}" type="number" min="1" value="${p.employee_limit == null ? '' : p.employee_limit}">
+                    <label class="plabel">Branch limit (blank = unlimited)</label>
+                    <input class="pfield" id="pk_br_${p.id}" type="number" min="1" value="${p.branch_limit == null ? '' : p.branch_limit}">
+                    <label class="plabel">Features (one per line)</label>
+                    <textarea class="pfield" id="pk_feat_${p.id}" rows="5">${esc((p.features || []).join('\n'))}</textarea>
+                    <label class="switch"><input type="checkbox" id="pk_active_${p.id}" ${p.active ? 'checked' : ''}> Active (offered in registration & upgrades)</label>
+                    <div class="actions" style="margin-top:12px">
+                        <button class="btn primary" onclick="savePackage(${p.id})">Save Package</button>
+                    </div>
+                </div>`).join('');
+        }
+
+        async function savePackage(id) {
+            const val = (x) => document.getElementById(x)?.value.trim();
+            const featRaw = val('pk_feat_' + id);
+            const empRaw = val('pk_emp_' + id);
+            const brRaw = val('pk_br_' + id);
+            const body = {
+                name: val('pk_name_' + id) || document.getElementById('pk_name_' + id).value,
+                tagline: val('pk_tag_' + id) || null,
+                price_label: val('pk_price_' + id) || null,
+                features: featRaw ? featRaw.split('\n').map(s => s.trim()).filter(Boolean) : [],
+                employee_limit: empRaw ? parseInt(empRaw, 10) : null,
+                branch_limit: brRaw ? parseInt(brRaw, 10) : null,
+                active: document.getElementById('pk_active_' + id).checked,
+                position: 0,
+            };
+            try {
+                const json = await api('/portal/api/packages/' + id, { method: 'PUT', body: JSON.stringify(body) });
+                toast(json.message || 'Package saved', true);
+                await loadPackages();
             } catch (e) { toast(e.message, false); }
         }
 

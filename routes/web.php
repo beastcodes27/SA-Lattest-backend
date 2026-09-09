@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\PackagesController;
 use App\Http\Controllers\Api\SystemController;
 use App\Http\Controllers\PortalController;
 use Illuminate\Support\Facades\Route;
@@ -19,6 +20,9 @@ Route::prefix('portal')->group(function () {
             Route::post('organizations/{organization}/approve', [SystemController::class, 'approve']);
             Route::post('organizations/{organization}/status', [SystemController::class, 'setStatus']);
             Route::post('organizations/{organization}/subscription', [SystemController::class, 'updateSubscription']);
+
+            Route::get('packages', [PackagesController::class, 'systemIndex']);
+            Route::put('packages/{package}', [PackagesController::class, 'update']);
         });
     });
 });

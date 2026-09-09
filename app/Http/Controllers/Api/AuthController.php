@@ -25,7 +25,7 @@ class AuthController extends Controller
             'organization.website' => ['nullable', 'string', 'max:255'],
             'organization.tin' => ['required', 'string', 'max:120'],
             'organization.employee_id_prefix' => ['nullable', 'string', 'max:20'],
-            'organization.plan' => ['required', Rule::in(['starter', 'business', 'enterprise'])],
+            'organization.plan' => ['required', Rule::exists('packages', 'code')->where('active', true)],
             'admin.name' => ['required', 'string', 'max:255'],
             'admin.email' => ['required', 'email', 'max:255', 'unique:users,email'],
             'admin.employee_id' => ['required', 'string', 'max:60', 'unique:users,employee_id'],

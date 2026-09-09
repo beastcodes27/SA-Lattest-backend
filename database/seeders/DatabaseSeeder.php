@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use App\Models\Branch;
 use App\Models\Organization;
+use App\Models\Package;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 
@@ -13,6 +14,10 @@ class DatabaseSeeder extends Seeder
 
     public function run(): void
     {
+        foreach ($this->packages() as $p) {
+            Package::updateOrCreate(['code' => $p['code']], $p);
+        }
+
         User::create([
             'name' => 'System Admin',
             'email' => 'system@smartattend.co.tz',
@@ -68,5 +73,44 @@ class DatabaseSeeder extends Seeder
             'branch_id' => $branch->id,
             'active' => true,
         ]);
+    }
+
+    private function packages(): array
+    {
+        return [
+            [
+                'code' => 'starter',
+                'name' => 'Starter',
+                'tagline' => 'For small teams getting started',
+                'price_label' => null,
+                'features' => ['1 active branch', 'Up to 50 employees', 'Check-ins & reports'],
+                'employee_limit' => 50,
+                'branch_limit' => 1,
+                'active' => true,
+                'position' => 1,
+            ],
+            [
+                'code' => 'business',
+                'name' => 'Business',
+                'tagline' => 'For growing organizations',
+                'price_label' => null,
+                'features' => ['Up to 5 branches', 'Up to 500 employees', 'Attendance analytics', 'Priority support'],
+                'employee_limit' => 500,
+                'branch_limit' => 5,
+                'active' => true,
+                'position' => 2,
+            ],
+            [
+                'code' => 'enterprise',
+                'name' => 'Enterprise',
+                'tagline' => 'For large institutions',
+                'price_label' => null,
+                'features' => ['Unlimited branches', 'Unlimited employees', 'SSO & API access', 'Dedicated manager'],
+                'employee_limit' => null,
+                'branch_limit' => null,
+                'active' => true,
+                'position' => 3,
+            ],
+        ];
     }
 }

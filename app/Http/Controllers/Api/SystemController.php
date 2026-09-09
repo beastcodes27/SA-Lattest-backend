@@ -110,7 +110,7 @@ class SystemController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'action' => ['required', Rule::in(['set_plan', 'extend_trial', 'cancel', 'reactivate'])],
-            'plan' => ['nullable', Rule::in(['starter', 'business', 'enterprise'])],
+            'plan' => ['nullable', Rule::exists('packages', 'code')->where('active', true)],
             'days' => ['nullable', 'integer', 'between:1,365'],
         ]);
 

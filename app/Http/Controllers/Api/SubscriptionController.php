@@ -11,12 +11,6 @@ use Illuminate\Validation\Rule;
 
 class SubscriptionController extends Controller
 {
-    private const PLANS = [
-        'starter' => ['name' => 'Starter', 'seats' => 'Up to 50 employees'],
-        'business' => ['name' => 'Business', 'seats' => 'Up to 500 employees'],
-        'enterprise' => ['name' => 'Enterprise', 'seats' => 'Unlimited employees'],
-    ];
-
     public function details(Request $request): JsonResponse
     {
         return response()->json(['subscription' => $this->payload($request->user()->organization)]);
@@ -27,7 +21,7 @@ class SubscriptionController extends Controller
         $org = $request->user()->organization;
 
         $validator = Validator::make($request->all(), [
-            'plan' => ['required', Rule::in(array_keys(self::PLANS))],
+            'plan' => ['required', Rule::exists('packages', 'code')->where('active', true)],
         ]);
 
         if ($validator->fails()) {
@@ -35,6 +29,7 @@ class SubscriptionController extends Controller
         }
 
         $plan = $validator->validated()['plan'];
+        $package = PlanLimits::package($plan);
 
         $org->forceFill([
             'plan' => $plan,
@@ -43,7 +38,7 @@ class SubscriptionController extends Controller
         ])->save();
 
         return response()->json([
-            'message' => "You are now on the ".self::PLANS[$plan]['name']." plan.",
+            'message' => "You are now on the ".($package?->name ?? ucfirst($plan))." plan.",
             'subscription' => $this->payload($org->fresh()),
         ]);
     }
@@ -80,7 +75,8 @@ class SubscriptionController extends Controller
 
         return [
             'plan' => $org->plan,
-            'plan_label' => self::PLANS[$org->plan]['name'] ?? ucfirst($org->plan),
+            'plan_label' => PlanLimits::package($org->plan)?->name ?? ucfirst($org->plan),
+            'price_label' => PlanLimits::package($org->plan)?->price_label,
             'status' => $status,
             'on_trial' => $onTrial,
             'trial_days_left' => $org->trialDaysLeft(),

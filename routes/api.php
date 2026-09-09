@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\AdminController;
 use App\Http\Controllers\Api\AttendanceController;
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\PackagesController;
 use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Api\SubscriptionController;
 use App\Http\Controllers\Api\SystemController;
@@ -12,6 +13,8 @@ Route::prefix('auth')->group(function () {
     Route::post('register-organization', [AuthController::class, 'registerOrganization']);
     Route::post('login', [AuthController::class, 'login']);
 });
+
+Route::get('packages', [PackagesController::class, 'publicList']);
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('auth/logout', [AuthController::class, 'logout']);
