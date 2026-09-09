@@ -42,6 +42,7 @@ Route::middleware(['auth:sanctum', 'org-admin'])->prefix('admin')->group(functio
     Route::post('branches', [AdminController::class, 'storeBranch']);
     Route::patch('organization', [AdminController::class, 'updateOrganization']);
     Route::post('promo/redeem', [PromoController::class, 'redeem']);
+    Route::get('promos/available', [PromoController::class, 'available']);
 });
 
 Route::middleware(['auth:sanctum', 'org-admin'])->prefix('admin')->group(function () {

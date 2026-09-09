@@ -10,6 +10,34 @@ use Illuminate\Support\Facades\DB;
 
 class PromoController extends Controller
 {
+    public function available(Request $request): JsonResponse
+    {
+        $org = $request->user()->organization;
+        $used = PromoRedemption::where('org_id', $org->id)->pluck('promo_id')->all();
+
+        $promos = Promo::query()
+            ->where('active', true)
+            ->orderByDesc('created_at')
+            ->get()
+            ->map(function (Promo $promo) use ($used, $org) {
+                $redeemed = in_array($promo->id, $used, true);
+
+                return [
+                    'id' => $promo->id,
+                    'code' => $promo->code,
+                    'title' => $promo->title,
+                    'description' => $promo->description,
+                    'label' => $promo->label(),
+                    'ends_at' => $promo->ends_at?->toIso8601String(),
+                    'redeemed' => $redeemed,
+                    'redeemable' => ! $redeemed && $promo->isRedeemable(),
+                ];
+            })
+            ->values();
+
+        return response()->json(['promos' => $promos]);
+    }
+
     public function redeem(Request $request): JsonResponse
     {
         $org = $request->user()->organization;

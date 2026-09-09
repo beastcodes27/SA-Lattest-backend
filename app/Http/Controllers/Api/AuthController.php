@@ -26,6 +26,7 @@ class AuthController extends Controller
             'organization.tin' => ['required', 'string', 'max:120'],
             'organization.employee_id_prefix' => ['nullable', 'string', 'max:20'],
             'organization.plan' => ['required', Rule::exists('packages', 'code')->where('active', true)],
+            'organization.promo_code' => ['nullable', 'string', 'max:40'],
             'admin.name' => ['required', 'string', 'max:255'],
             'admin.email' => ['required', 'email', 'max:255', 'unique:users,email'],
             'admin.employee_id' => ['required', 'string', 'max:60', 'unique:users,employee_id'],
@@ -43,6 +44,21 @@ class AuthController extends Controller
         }
 
         $data = $validator->validated();
+
+        $promoCode = strtoupper(trim((string) ($data['organization']['promo_code'] ?? '')));
+        $promo = null;
+
+        if ($promoCode !== '') {
+            $promo = \App\Models\Promo::where('code', $promoCode)->first();
+
+            if (! $promo || ! $promo->isRedeemable()) {
+                return response()->json(['message' => 'This promo code is invalid or no longer available.'], 422);
+            }
+
+            if ($promo->type === 'trial_days') {
+                return response()->json(['message' => 'Trial promos are redeemed later, after your organization is approved.'], 422);
+            }
+        }
 
         $organization = Organization::create([
             'name' => $data['organization']['name'],
@@ -78,6 +94,12 @@ class AuthController extends Controller
             'password' => $data['admin']['password'],
         ]);
         $admin->save();
+
+        if ($promo) {
+            \App\Models\PromoRedemption::create(['promo_id' => $promo->id, 'org_id' => $organization->id]);
+            $organization->forceFill(['discount_percent' => min(90, (int) $promo->value)])->save();
+            $promo->increment('uses_count');
+        }
 
         return response()->json([
             'message' => 'Your registration request has been received. You will be notified once it is approved.',
