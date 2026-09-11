@@ -32,4 +32,4 @@ Route::prefix('portal')->group(function () {
     });
 });
 
-Route::get('/', fn () => redirect()->route('portal.login'));
+Route::get('/', [PortalController::class, 'showLogin'])->name('home');
