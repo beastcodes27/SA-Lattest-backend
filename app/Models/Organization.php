@@ -99,4 +99,9 @@ class Organization extends Model
     {
         return $this->hasMany(User::class, 'org_id');
     }
+
+    public function permissionRequests(): HasMany
+    {
+        return $this->hasMany(PermissionRequest::class, 'organization_id');
+    }
 }

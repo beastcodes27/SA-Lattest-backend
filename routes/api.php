@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\AdminController;
 use App\Http\Controllers\Api\AttendanceController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\PackagesController;
+use App\Http\Controllers\Api\PermissionController;
 use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Api\PromoController;
 use App\Http\Controllers\Api\SubscriptionController;
@@ -30,6 +31,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('attendance/sync', [AttendanceController::class, 'sync']);
     Route::get('attendance', [AttendanceController::class, 'index']);
     Route::get('attendance/today', [AttendanceController::class, 'today']);
+
+    Route::get('permissions', [PermissionController::class, 'index']);
+    Route::post('permissions', [PermissionController::class, 'store']);
+    Route::post('permissions/{id}/cancel', [PermissionController::class, 'cancel']);
 });
 
 Route::middleware(['auth:sanctum', 'org-admin'])->prefix('admin')->group(function () {
@@ -43,6 +48,9 @@ Route::middleware(['auth:sanctum', 'org-admin'])->prefix('admin')->group(functio
     Route::get('branches', [AdminController::class, 'branches']);
     Route::post('branches', [AdminController::class, 'storeBranch']);
     Route::patch('organization', [AdminController::class, 'updateOrganization']);
+    Route::get('permissions', [PermissionController::class, 'adminIndex']);
+    Route::post('permissions/{id}/approve', [PermissionController::class, 'adminApprove']);
+    Route::post('permissions/{id}/reject', [PermissionController::class, 'adminReject']);
     Route::post('promo/redeem', [PromoController::class, 'redeem']);
     Route::get('promos/available', [PromoController::class, 'available']);
 });

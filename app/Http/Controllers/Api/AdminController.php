@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Models\Attendance;
 use App\Models\Branch;
 use App\Models\Organization;
+use App\Models\PermissionRequest;
 use App\Models\User;
 use App\Support\PlanLimits;
 use Carbon\Carbon;
@@ -80,6 +81,10 @@ class AdminController extends Controller
             }
         }
 
+        $pendingPermissions = PermissionRequest::where('organization_id', $org->id)
+            ->where('status', PermissionRequest::STATUS_PENDING)
+            ->count();
+
         return response()->json([
             'stats' => [
                 'employees_total' => $employees->count(),
@@ -87,6 +92,7 @@ class AdminController extends Controller
                 'checked_in_today' => $checkedIn,
                 'late_today' => $late,
                 'absent_today' => $active->count() - $records->keys()->count(),
+                'pending_permissions' => $pendingPermissions,
                 'branches_total' => $org->branches()->count(),
                 'org' => [
                     'name' => $org->name,
