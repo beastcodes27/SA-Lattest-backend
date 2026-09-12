@@ -18,6 +18,8 @@ class AttendanceController extends Controller
         $validator = Validator::make($request->all(), [
             'lat' => ['required', 'numeric', 'between:-90,90'],
             'lng' => ['required', 'numeric', 'between:-180,180'],
+            'type' => ['nullable', 'in:in,out'],
+            'occurred_at' => ['nullable', 'date'],
         ]);
 
         if ($validator->fails()) {
@@ -68,7 +70,8 @@ class AttendanceController extends Controller
             ->orderByDesc('occurred_at')
             ->first();
 
-        $type = $lastToday && $lastToday->type === 'in' ? 'out' : 'in';
+        $type = $request->filled('type') ? $request->type : ($lastToday && $lastToday->type === 'in' ? 'out' : 'in');
+        $occurredAt = $request->filled('occurred_at') ? \Carbon\Carbon::parse($request->occurred_at) : now();
 
         $attendance = new Attendance([
             'user_id' => $user->id,
@@ -76,7 +79,7 @@ class AttendanceController extends Controller
             'type' => $type,
             'lat' => $request->lat,
             'lng' => $request->lng,
-            'occurred_at' => now(),
+            'occurred_at' => $occurredAt,
         ]);
         $attendance->save();
 
@@ -91,6 +94,56 @@ class AttendanceController extends Controller
                 'radius_meters' => (int) $branch->radius_meters,
             ],
             'today' => $todayRecords,
+        ]);
+    }
+
+    public function sync(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'records' => ['required', 'array', 'min:1'],
+            'records.*.lat' => ['required', 'numeric', 'between:-90,90'],
+            'records.*.lng' => ['required', 'numeric', 'between:-180,180'],
+            'records.*.type' => ['nullable', 'in:in,out'],
+            'records.*.occurred_at' => ['nullable', 'date'],
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['message' => 'Invalid sync data.', 'errors' => $validator->errors()], 422);
+        }
+
+        $user = $request->user();
+        $org = $user->organization;
+
+        if (! $org || $org->status !== 'active' || ! $org->isAccessible()) {
+            return response()->json(['message' => 'Organization is not accessible.'], 403);
+        }
+
+        $branch = $user->branch ?? $org->activeBranches()->orderBy('id')->first();
+        if (! $branch) {
+            return response()->json(['message' => 'No active branch found.'], 422);
+        }
+
+        $synced = [];
+        foreach ($request->records as $r) {
+            $occurredAt = !empty($r['occurred_at']) ? \Carbon\Carbon::parse($r['occurred_at']) : now();
+            $type = !empty($r['type']) ? $r['type'] : 'in';
+
+            $attendance = new Attendance([
+                'user_id' => $user->id,
+                'branch_id' => $branch->id,
+                'type' => $type,
+                'lat' => $r['lat'],
+                'lng' => $r['lng'],
+                'occurred_at' => $occurredAt,
+            ]);
+            $attendance->save();
+            $synced[] = AuthController::attendancePayload($attendance->refresh());
+        }
+
+        return response()->json([
+            'message' => count($synced).' offline record(s) synced successfully.',
+            'synced' => $synced,
+            'today' => $this->todayRecordsFor($user),
         ]);
     }
 

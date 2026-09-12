@@ -27,6 +27,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::put('me/password/force', [ProfileController::class, 'forceChangePassword']);
 
     Route::post('attendance/toggle', [AttendanceController::class, 'toggle']);
+    Route::post('attendance/sync', [AttendanceController::class, 'sync']);
     Route::get('attendance', [AttendanceController::class, 'index']);
     Route::get('attendance/today', [AttendanceController::class, 'today']);
 });
