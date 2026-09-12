@@ -47,6 +47,7 @@ Route::middleware(['auth:sanctum', 'org-admin'])->prefix('admin')->group(functio
     Route::get('reports', [AdminController::class, 'reports']);
     Route::get('branches', [AdminController::class, 'branches']);
     Route::post('branches', [AdminController::class, 'storeBranch']);
+    Route::patch('branches/{branch}', [AdminController::class, 'updateBranch']);
     Route::patch('organization', [AdminController::class, 'updateOrganization']);
     Route::get('permissions', [PermissionController::class, 'adminIndex']);
     Route::post('permissions/{id}/approve', [PermissionController::class, 'adminApprove']);

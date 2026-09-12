@@ -58,7 +58,7 @@ class AdminController extends Controller
     {
         $org = $request->user()->organization;
 
-        $employees = $org->users()->where('role', 'employee')->get();
+        $employees = $org->users()->where('role', 'employee')->with('branch')->get();
         $active = $employees->filter(fn (User $u) => $u->active);
         [$start, $end] = AuthController::todayRange();
 
@@ -68,6 +68,7 @@ class AdminController extends Controller
             ->get()
             ->groupBy('user_id');
 
+        $employeesById = $active->keyBy('id');
         $checkedIn = 0;
         $late = 0;
         foreach ($records as $userId => $userRecords) {
@@ -76,7 +77,9 @@ class AdminController extends Controller
             if ($last->type === 'in') {
                 $checkedIn++;
             }
-            if ($firstIn && $this->minutesInDay($firstIn) > self::START_MINUTES) {
+            $emp = $employeesById->get($userId);
+            $lateLimit = $emp?->branch ? $emp->branch->lateThresholdMinutes() : (self::START_MINUTES + 15);
+            if ($firstIn && $this->minutesInDay($firstIn) > $lateLimit) {
                 $late++;
             }
         }
@@ -273,7 +276,8 @@ class AdminController extends Controller
                 if ($last->type === 'in') {
                     $status = 'present';
                 } else {
-                    $status = $firstIn && $this->minutesInDay($firstIn) > self::START_MINUTES ? 'late' : 'present';
+                    $lateLimit = $employee->branch ? $employee->branch->lateThresholdMinutes() : (self::START_MINUTES + 15);
+                    $status = $firstIn && $this->minutesInDay($firstIn) > $lateLimit ? 'late' : 'present';
                 }
             }
 
@@ -310,6 +314,9 @@ class AdminController extends Controller
                 'lat' => (float) $b->lat,
                 'lng' => (float) $b->lng,
                 'radius_meters' => (int) $b->radius_meters,
+                'check_in_time' => $b->check_in_time ?: '09:00',
+                'grace_period_minutes' => (int) ($b->grace_period_minutes ?? 15),
+                'check_out_time' => $b->check_out_time ?: '17:00',
                 'active' => $b->active,
                 'employee_count' => (int) $b->employee_count,
             ])
@@ -335,6 +342,9 @@ class AdminController extends Controller
             'lat' => ['required', 'numeric', 'between:-90,90'],
             'lng' => ['required', 'numeric', 'between:-180,180'],
             'radius_meters' => ['required', 'integer', 'between:10,5000'],
+            'check_in_time' => ['nullable', 'string', 'max:10'],
+            'grace_period_minutes' => ['nullable', 'integer', 'between:0,180'],
+            'check_out_time' => ['nullable', 'string', 'max:10'],
         ]);
 
         if ($validator->fails()) {
@@ -348,6 +358,9 @@ class AdminController extends Controller
             'lat' => $data['lat'],
             'lng' => $data['lng'],
             'radius_meters' => $data['radius_meters'],
+            'check_in_time' => $data['check_in_time'] ?? '09:00',
+            'grace_period_minutes' => $data['grace_period_minutes'] ?? 15,
+            'check_out_time' => $data['check_out_time'] ?? '17:00',
             'active' => true,
         ]);
 
@@ -359,10 +372,54 @@ class AdminController extends Controller
                 'lat' => (float) $branch->lat,
                 'lng' => (float) $branch->lng,
                 'radius_meters' => (int) $branch->radius_meters,
+                'check_in_time' => $branch->check_in_time ?: '09:00',
+                'grace_period_minutes' => (int) ($branch->grace_period_minutes ?? 15),
+                'check_out_time' => $branch->check_out_time ?: '17:00',
                 'active' => $branch->active,
                 'employee_count' => 0,
             ],
         ], 201);
+    }
+
+    public function updateBranch(Request $request, Branch $branch): JsonResponse
+    {
+        $org = $request->user()->organization;
+        if ($branch->org_id !== $org->id) {
+            return response()->json(['message' => 'Branch not found.'], 404);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'name' => ['sometimes', 'required', 'string', 'max:255'],
+            'lat' => ['sometimes', 'required', 'numeric', 'between:-90,90'],
+            'lng' => ['sometimes', 'required', 'numeric', 'between:-180,180'],
+            'radius_meters' => ['sometimes', 'required', 'integer', 'between:10,5000'],
+            'check_in_time' => ['nullable', 'string', 'max:10'],
+            'grace_period_minutes' => ['nullable', 'integer', 'between:0,180'],
+            'check_out_time' => ['nullable', 'string', 'max:10'],
+            'active' => ['sometimes', 'boolean'],
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['message' => 'The given data was invalid.', 'errors' => $validator->errors()], 422);
+        }
+
+        $branch->update($validator->validated());
+
+        return response()->json([
+            'message' => 'Branch updated.',
+            'branch' => [
+                'id' => $branch->id,
+                'name' => $branch->name,
+                'lat' => (float) $branch->lat,
+                'lng' => (float) $branch->lng,
+                'radius_meters' => (int) $branch->radius_meters,
+                'check_in_time' => $branch->check_in_time ?: '09:00',
+                'grace_period_minutes' => (int) ($branch->grace_period_minutes ?? 15),
+                'check_out_time' => $branch->check_out_time ?: '17:00',
+                'active' => $branch->active,
+                'employee_count' => $branch->users()->where('role', 'employee')->count(),
+            ],
+        ]);
     }
 
     private function minutesInDay(Attendance $attendance): int

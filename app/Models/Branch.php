@@ -13,6 +13,9 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     'lat',
     'lng',
     'radius_meters',
+    'check_in_time',
+    'grace_period_minutes',
+    'check_out_time',
     'active',
 ])]
 class Branch extends Model
@@ -22,8 +25,21 @@ class Branch extends Model
         return [
             'lat' => 'decimal:7',
             'lng' => 'decimal:7',
+            'radius_meters' => 'integer',
+            'grace_period_minutes' => 'integer',
             'active' => 'boolean',
         ];
+    }
+
+    public function lateThresholdMinutes(): int
+    {
+        $time = $this->check_in_time ?: '09:00';
+        $parts = explode(':', $time);
+        $hours = isset($parts[0]) ? (int) $parts[0] : 9;
+        $minutes = isset($parts[1]) ? (int) $parts[1] : 0;
+        $grace = (int) ($this->grace_period_minutes ?? 15);
+
+        return ($hours * 60 + $minutes) + $grace;
     }
 
     public function organization(): BelongsTo
