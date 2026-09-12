@@ -185,6 +185,33 @@ class AdminController extends Controller
         ]);
     }
 
+    public function resetEmployeePassword(Request $request, User $employee): JsonResponse
+    {
+        $org = $request->user()->organization;
+
+        if ($employee->org_id !== $org->id || $employee->role !== 'employee') {
+            return response()->json(['message' => 'Employee not found.'], 404);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'password' => ['required', 'string', 'min:6'],
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['message' => 'Password must be at least 6 characters.', 'errors' => $validator->errors()], 422);
+        }
+
+        $employee->forceFill([
+            'password' => $request->password,
+            'must_change_password' => true,
+        ])->save();
+
+        return response()->json([
+            'message' => "Password reset successfully for {$employee->name}.",
+            'employee' => $this->employeePayload($employee->load('branch:id,name')->refresh()),
+        ]);
+    }
+
     public function reports(Request $request): JsonResponse
     {
         $org = $request->user()->organization;
