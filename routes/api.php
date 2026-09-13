@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\AdminController;
+use App\Http\Controllers\Api\AppVersionController;
 use App\Http\Controllers\Api\AttendanceController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\PackagesController;
@@ -10,6 +11,8 @@ use App\Http\Controllers\Api\PromoController;
 use App\Http\Controllers\Api\SubscriptionController;
 use App\Http\Controllers\Api\SystemController;
 use Illuminate\Support\Facades\Route;
+
+Route::get('app/version', [AppVersionController::class, 'check']);
 
 Route::prefix('auth')->group(function () {
     Route::post('register-organization', [AuthController::class, 'registerOrganization']);
@@ -67,4 +70,6 @@ Route::middleware(['auth:sanctum', 'system-admin'])->prefix('system')->group(fun
     Route::get('organizations', [SystemController::class, 'organizations']);
     Route::post('organizations/{organization}/approve', [SystemController::class, 'approve']);
     Route::post('organizations/{organization}/status', [SystemController::class, 'setStatus']);
+    Route::get('app-version', [AppVersionController::class, 'adminShow']);
+    Route::post('app-version', [AppVersionController::class, 'adminUpdate']);
 });
