@@ -32,6 +32,45 @@ class PackagesController extends Controller
         ]);
     }
 
+    public function store(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'code' => ['required', 'string', 'max:40', 'regex:/^[A-Za-z0-9_\\-]+$/', 'unique:packages,code'],
+            'name' => ['required', 'string', 'max:60'],
+            'tagline' => ['nullable', 'string', 'max:120'],
+            'price_label' => ['nullable', 'string', 'max:40'],
+            'features' => ['nullable', 'array'],
+            'features.*' => ['string', 'max:120'],
+            'employee_limit' => ['nullable', 'integer', 'min:1'],
+            'branch_limit' => ['nullable', 'integer', 'min:1'],
+            'active' => ['required', 'boolean'],
+            'position' => ['nullable', 'integer', 'min:0'],
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['message' => 'The given data was invalid.', 'errors' => $validator->errors()], 422);
+        }
+
+        $data = $validator->validated();
+
+        $package = Package::create([
+            'code' => strtolower(trim($data['code'])),
+            'name' => trim($data['name']),
+            'tagline' => isset($data['tagline']) ? trim($data['tagline']) : null,
+            'price_label' => isset($data['price_label']) ? trim($data['price_label']) : null,
+            'features' => $data['features'] ?? [],
+            'employee_limit' => $data['employee_limit'] ?? null,
+            'branch_limit' => $data['branch_limit'] ?? null,
+            'active' => (bool) $data['active'],
+            'position' => $data['position'] ?? (Package::max('position') + 1),
+        ]);
+
+        return response()->json([
+            'message' => 'Package '.$package->name.' created successfully.',
+            'package' => $this->payload($package),
+        ], 201);
+    }
+
     public function update(Request $request, Package $package): JsonResponse
     {
         $validator = Validator::make($request->all(), [

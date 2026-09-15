@@ -132,10 +132,9 @@ class AuthController extends Controller
             return response()->json(['message' => 'Your account has been deactivated.'], 403);
         }
 
-        if ($user->role === 'superadmin') {
-            return response()->json([
-                'message' => 'System admin access is managed from the SmartAttend web portal.',
-            ], 403);
+        if (in_array($user->role, ['superadmin', 'minor_admin', 'sysadmin'])) {
+            $token = $user->createToken('mobile')->plainTextToken;
+            return response()->json(['token' => $token, 'user' => $this->userPayload($user)]);
         }
 
         if (! $user->organization) {

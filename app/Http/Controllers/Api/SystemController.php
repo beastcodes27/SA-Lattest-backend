@@ -4,10 +4,12 @@ namespace App\Http\Controllers\Api;
 
 use App\Models\Attendance;
 use App\Models\Organization;
+use App\Models\User;
 use App\Support\PlanLimits;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 
@@ -214,6 +216,136 @@ class SystemController extends Controller
                 ? $organization->name.' reactivated.'
                 : $organization->name.' suspended. Users can no longer sign in.',
             'organization' => $this->payload($organization->fresh()),
+        ]);
+    }
+
+    public function minorAdmins(Request $request): JsonResponse
+    {
+        $admins = User::query()
+            ->whereIn('role', ['superadmin', 'minor_admin', 'sysadmin'])
+            ->orWhere(function ($q) {
+                $q->whereNull('org_id')->whereNotIn('role', ['employee']);
+            })
+            ->orderBy('id')
+            ->get()
+            ->map(fn (User $u) => [
+                'id' => $u->id,
+                'name' => $u->name,
+                'email' => $u->email,
+                'employee_id' => $u->employee_id,
+                'phone' => $u->phone,
+                'role' => $u->role,
+                'active' => (bool) $u->active,
+                'created_at' => $u->created_at?->toIso8601String(),
+            ])
+            ->values();
+
+        return response()->json(['admins' => $admins]);
+    }
+
+    public function storeMinorAdmin(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'name' => ['required', 'string', 'max:255'],
+            'email' => ['required', 'email', 'max:255', 'unique:users,email'],
+            'employee_id' => ['required', 'string', 'max:60', 'unique:users,employee_id'],
+            'password' => ['required', 'string', 'min:6'],
+            'phone' => ['nullable', 'string', 'max:40'],
+            'role' => ['nullable', Rule::in(['minor_admin', 'sysadmin', 'superadmin'])],
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['message' => 'The given data was invalid.', 'errors' => $validator->errors()], 422);
+        }
+
+        $data = $validator->validated();
+
+        $admin = User::create([
+            'name' => trim($data['name']),
+            'email' => strtolower(trim($data['email'])),
+            'employee_id' => trim($data['employee_id']),
+            'password' => $data['password'],
+            'phone' => isset($data['phone']) ? trim($data['phone']) : null,
+            'role' => $data['role'] ?? 'minor_admin',
+            'org_id' => null,
+            'branch_id' => null,
+            'active' => true,
+        ]);
+
+        return response()->json([
+            'message' => "Admin {$admin->name} added successfully.",
+            'admin' => [
+                'id' => $admin->id,
+                'name' => $admin->name,
+                'email' => $admin->email,
+                'employee_id' => $admin->employee_id,
+                'phone' => $admin->phone,
+                'role' => $admin->role,
+                'active' => (bool) $admin->active,
+                'created_at' => $admin->created_at?->toIso8601String(),
+            ],
+        ], 201);
+    }
+
+    public function toggleMinorAdmin(Request $request, User $user): JsonResponse
+    {
+        if ($user->id === $request->user()->id) {
+            return response()->json(['message' => 'You cannot deactivate your own account.'], 422);
+        }
+
+        if ($user->employee_id === 'SYSTEM_SUPERADMIN' || $user->employee_id === 'SUPERADMIN') {
+            return response()->json(['message' => 'Cannot modify the root superadmin account.'], 422);
+        }
+
+        $user->forceFill(['active' => ! $user->active])->save();
+
+        return response()->json([
+            'message' => $user->active ? "Admin {$user->name} activated." : "Admin {$user->name} deactivated.",
+            'admin' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'employee_id' => $user->employee_id,
+                'phone' => $user->phone,
+                'role' => $user->role,
+                'active' => (bool) $user->active,
+                'created_at' => $user->created_at?->toIso8601String(),
+            ],
+        ]);
+    }
+
+    public function resetMinorAdminPassword(Request $request, User $user): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'password' => ['required', 'string', 'min:6'],
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['message' => 'The given data was invalid.', 'errors' => $validator->errors()], 422);
+        }
+
+        $user->forceFill(['password' => $request->password])->save();
+
+        return response()->json([
+            'message' => "Password for {$user->name} has been reset successfully.",
+        ]);
+    }
+
+    public function deleteMinorAdmin(Request $request, User $user): JsonResponse
+    {
+        if ($user->id === $request->user()->id) {
+            return response()->json(['message' => 'You cannot delete your own account.'], 422);
+        }
+
+        if ($user->employee_id === 'SYSTEM_SUPERADMIN' || $user->employee_id === 'SUPERADMIN') {
+            return response()->json(['message' => 'Cannot delete the root superadmin account.'], 422);
+        }
+
+        $name = $user->name;
+        $user->delete();
+
+        return response()->json([
+            'message' => "Admin {$name} deleted successfully.",
         ]);
     }
 

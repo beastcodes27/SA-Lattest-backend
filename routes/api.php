@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\PackagesController;
 use App\Http\Controllers\Api\PermissionController;
 use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Api\PromoController;
+use App\Http\Controllers\Api\PromoManagerController;
 use App\Http\Controllers\Api\SubscriptionController;
 use App\Http\Controllers\Api\SystemController;
 use Illuminate\Support\Facades\Route;
@@ -68,8 +69,27 @@ Route::middleware(['auth:sanctum', 'org-admin'])->prefix('admin')->group(functio
 Route::middleware(['auth:sanctum', 'system-admin'])->prefix('system')->group(function () {
     Route::get('stats', [SystemController::class, 'stats']);
     Route::get('organizations', [SystemController::class, 'organizations']);
+    Route::get('organizations/{organization}', [SystemController::class, 'organization']);
     Route::post('organizations/{organization}/approve', [SystemController::class, 'approve']);
     Route::post('organizations/{organization}/status', [SystemController::class, 'setStatus']);
+    Route::post('organizations/{organization}/subscription', [SystemController::class, 'updateSubscription']);
+
+    Route::get('packages', [PackagesController::class, 'systemIndex']);
+    Route::post('packages', [PackagesController::class, 'store']);
+    Route::put('packages/{package}', [PackagesController::class, 'update']);
+    Route::patch('packages/{package}', [PackagesController::class, 'update']);
+
+    Route::get('promos', [PromoManagerController::class, 'index']);
+    Route::post('promos', [PromoManagerController::class, 'store']);
+    Route::put('promos/{promo}', [PromoManagerController::class, 'update']);
+    Route::patch('promos/{promo}', [PromoManagerController::class, 'update']);
+
+    Route::get('minor-admins', [SystemController::class, 'minorAdmins']);
+    Route::post('minor-admins', [SystemController::class, 'storeMinorAdmin']);
+    Route::patch('minor-admins/{user}', [SystemController::class, 'toggleMinorAdmin']);
+    Route::post('minor-admins/{user}/reset-password', [SystemController::class, 'resetMinorAdminPassword']);
+    Route::delete('minor-admins/{user}', [SystemController::class, 'deleteMinorAdmin']);
+
     Route::get('app-version', [AppVersionController::class, 'adminShow']);
     Route::post('app-version', [AppVersionController::class, 'adminUpdate']);
 });

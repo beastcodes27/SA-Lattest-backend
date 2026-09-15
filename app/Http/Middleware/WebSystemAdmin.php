@@ -12,7 +12,7 @@ class WebSystemAdmin
     {
         $user = $request->user();
 
-        if (! $user || $user->role !== 'superadmin') {
+        if (! $user || ! in_array($user->role, ['superadmin', 'minor_admin', 'sysadmin'])) {
             if ($request->expectsJson() || $request->is('*/api/*')) {
                 return response()->json(['message' => 'Unauthenticated.'], 401);
             }

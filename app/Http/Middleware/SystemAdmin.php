@@ -12,7 +12,7 @@ class SystemAdmin
     {
         $user = $request->user();
 
-        if (! $user || $user->role !== 'superadmin' || ! $user->active) {
+        if (! $user || ! in_array($user->role, ['superadmin', 'minor_admin', 'sysadmin']) || ! $user->active) {
             return response()->json(['message' => 'System admin access required.'], 403);
         }
 

@@ -23,6 +23,7 @@ Route::prefix('portal')->group(function () {
             Route::post('organizations/{organization}/subscription', [SystemController::class, 'updateSubscription']);
 
             Route::get('packages', [PackagesController::class, 'systemIndex']);
+            Route::post('packages', [PackagesController::class, 'store']);
             Route::put('packages/{package}', [PackagesController::class, 'update']);
 
             Route::get('promos', [PromoManagerController::class, 'index']);
