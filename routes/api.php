@@ -47,6 +47,7 @@ Route::middleware(['auth:sanctum', 'org-admin'])->prefix('admin')->group(functio
     Route::post('employees', [AdminController::class, 'storeEmployee']);
     Route::get('employees/next', [AdminController::class, 'nextEmployeeId']);
     Route::patch('employees/{employee}', [AdminController::class, 'toggleEmployee']);
+    Route::patch('employees/{employee}/transfer-branch', [AdminController::class, 'transferBranch']);
     Route::post('employees/{employee}/reset-password', [AdminController::class, 'resetEmployeePassword']);
     Route::get('reports', [AdminController::class, 'reports']);
     Route::get('branches', [AdminController::class, 'branches']);
