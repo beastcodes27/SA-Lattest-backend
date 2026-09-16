@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     'website',
     'tin',
     'employee_id_prefix',
+    'default_employee_password',
     'plan',
     'status',
     'trial_started_at',
