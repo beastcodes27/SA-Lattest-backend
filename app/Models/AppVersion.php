@@ -40,3 +40,4 @@ class AppVersion extends Model
         );
     }
 }
+

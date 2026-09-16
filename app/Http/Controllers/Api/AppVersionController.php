@@ -94,3 +94,4 @@ class AppVersionController extends Controller
         ]);
     }
 }
+
