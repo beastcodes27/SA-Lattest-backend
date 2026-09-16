@@ -33,23 +33,35 @@ class AdminController extends Controller
         $org = $request->user()->organization;
 
         $validator = Validator::make($request->all(), [
-            'employee_id_prefix' => ['required', 'string', 'max:20', 'regex:/^[A-Za-z0-9]+$/'],
+            'employee_id_prefix' => ['nullable', 'string', 'max:20', 'regex:/^[A-Za-z0-9]+$/'],
+            'default_employee_password' => ['nullable', 'string', 'min:6', 'max:60'],
         ]);
 
         if ($validator->fails()) {
-            return response()->json(['message' => 'Prefix must be letters or numbers only (no spaces).'], 422);
+            return response()->json(['message' => 'The given data was invalid.', 'errors' => $validator->errors()], 422);
         }
 
-        $prefix = strtoupper($validator->validated()['employee_id_prefix']);
-        $org->forceFill(['employee_id_prefix' => $prefix])->save();
+        $data = $validator->validated();
+
+        if (isset($data['employee_id_prefix'])) {
+            $prefix = strtoupper($data['employee_id_prefix']);
+            $org->forceFill(['employee_id_prefix' => $prefix]);
+        }
+
+        if (isset($data['default_employee_password'])) {
+            $org->forceFill(['default_employee_password' => trim($data['default_employee_password'])]);
+        }
+
+        $org->save();
 
         return response()->json([
-            'message' => "Employee IDs will use the $prefix prefix.",
+            'message' => 'Organization settings updated successfully.',
             'org' => [
                 'id' => $org->id,
                 'name' => $org->name,
                 'status' => $org->status,
                 'employee_id_prefix' => $org->employee_id_prefix,
+                'default_employee_password' => $org->default_employee_password ?? 'SmartAttend@123',
             ],
         ]);
     }
@@ -101,6 +113,8 @@ class AdminController extends Controller
                     'name' => $org->name,
                     'plan' => $org->plan,
                     'status' => $org->status,
+                    'employee_id_prefix' => $org->employee_id_prefix,
+                    'default_employee_password' => $org->default_employee_password ?? 'SmartAttend@123',
                 ],
             ],
         ]);
@@ -134,7 +148,7 @@ class AdminController extends Controller
         $validator = Validator::make($request->all(), [
             'name' => ['required', 'string', 'max:255'],
             'employee_id' => ['nullable', 'string', 'max:60', 'unique:users,employee_id'],
-            'password' => ['required', 'string', 'min:6'],
+            'password' => ['nullable', 'string', 'min:6'],
             'phone' => ['nullable', 'string', 'max:40'],
             'email' => ['nullable', 'email', 'max:255', 'unique:users,email'],
             'branch_id' => [
@@ -149,11 +163,14 @@ class AdminController extends Controller
         }
 
         $data = $validator->validated();
+        $password = !empty($data['password'])
+            ? $data['password']
+            : ($org->default_employee_password ?: 'SmartAttend@123');
 
         $employee = new User([
             'name' => $data['name'],
             'employee_id' => $data['employee_id'] ?? $this->nextEmployeeIdFor($org),
-            'password' => $data['password'],
+            'password' => $password,
             'phone' => $data['phone'] ?? null,
             'email' => $data['email'] ?? null,
             'branch_id' => $data['branch_id'] ?? null,
@@ -168,6 +185,38 @@ class AdminController extends Controller
             'message' => 'Employee added.',
             'employee' => $this->employeePayload($employee->load('branch:id,name')->refresh()),
         ], 201);
+    }
+
+    public function transferBranch(Request $request, User $employee): JsonResponse
+    {
+        $org = $request->user()->organization;
+
+        if ($employee->org_id !== $org->id || $employee->role !== 'employee') {
+            return response()->json(['message' => 'Employee not found.'], 404);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'branch_id' => [
+                'required',
+                'integer',
+                Rule::exists('branches', 'id')->where('org_id', $org->id),
+            ],
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['message' => 'Please select a valid branch for your organization.', 'errors' => $validator->errors()], 422);
+        }
+
+        $employee->forceFill([
+            'branch_id' => $request->branch_id,
+        ])->save();
+
+        $branch = Branch::find($request->branch_id);
+
+        return response()->json([
+            'message' => "{$employee->name} has been transferred to {$branch->name}.",
+            'employee' => $this->employeePayload($employee->load('branch:id,name')->refresh()),
+        ]);
     }
 
     public function toggleEmployee(Request $request, User $employee): JsonResponse
@@ -466,7 +515,10 @@ class AdminController extends Controller
             'employee_id' => $user->employee_id,
             'email' => $user->email,
             'phone' => $user->phone,
-            'active' => $user->active,
+            'avatar_path' => $user->avatar_path,
+            'avatar_url' => $user->avatar_path ? asset('storage/'.$user->avatar_path) : null,
+            'active' => (bool) $user->active,
+            'must_change_password' => (bool) $user->must_change_password,
             'branch' => $user->branch?->name ?? 'Unassigned',
             'branch_id' => $user->branch_id,
             'created_at' => $user->created_at?->toIso8601String(),
