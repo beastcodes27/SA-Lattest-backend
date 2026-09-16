@@ -102,21 +102,39 @@ class ProfileController extends Controller
 
         $validator = Validator::make($request->all(), [
             'new_password' => ['required', 'string', 'min:6'],
+            'email' => ['nullable', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user->id)],
+            'phone' => ['nullable', 'string', 'max:40'],
         ]);
 
         if ($validator->fails()) {
-            return response()->json(['message' => 'Password must be at least 6 characters.'], 422);
+            return response()->json(['message' => 'The given data was invalid.', 'errors' => $validator->errors()], 422);
         }
 
-        if (Hash::check($request->new_password, $user->password)) {
-            return response()->json(['message' => 'New password must be different from the temporary one.'], 422);
+        $orgDefaultPassword = $user->organization?->default_employee_password ?: 'SmartAttend@123';
+
+        if (Hash::check($request->new_password, $user->password) || $request->new_password === $orgDefaultPassword) {
+            return response()->json([
+                'message' => 'New password cannot be the organization default or temporary password. Please choose a unique password.',
+            ], 422);
         }
 
-        $user->forceFill([
+        $updates = [
             'password' => $request->new_password,
             'must_change_password' => false,
-        ])->save();
+        ];
 
-        return response()->json(['message' => 'Password set. You can now check in.', 'user' => AuthController::userPayload($user->fresh())]);
+        if ($request->has('email')) {
+            $updates['email'] = $request->email ?: null;
+        }
+        if ($request->has('phone')) {
+            $updates['phone'] = $request->phone ?: null;
+        }
+
+        $user->forceFill($updates)->save();
+
+        return response()->json([
+            'message' => 'Account setup complete. You can now check in.',
+            'user' => AuthController::userPayload($user->fresh()),
+        ]);
     }
 }
