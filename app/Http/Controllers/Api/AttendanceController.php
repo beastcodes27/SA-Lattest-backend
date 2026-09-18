@@ -155,6 +155,7 @@ class AttendanceController extends Controller
     public function index(Request $request): JsonResponse
     {
         $records = Attendance::where('user_id', $request->user()->id)
+            ->with('branch')
             ->orderByDesc('occurred_at')
             ->limit(500)
             ->get()
@@ -169,6 +170,7 @@ class AttendanceController extends Controller
         [$start, $end] = AuthController::todayRange();
 
         return Attendance::where('user_id', $user->id)
+            ->with('branch')
             ->whereBetween('occurred_at', [$start, $end])
             ->orderBy('occurred_at')
             ->get()

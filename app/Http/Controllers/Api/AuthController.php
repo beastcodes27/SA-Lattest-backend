@@ -214,10 +214,27 @@ class AuthController extends Controller
 
     public static function attendancePayload(Attendance $attendance): array
     {
+        $tz = 'Africa/Dar_es_Salaam';
+        $occurredAt = $attendance->occurred_at ? $attendance->occurred_at->copy()->setTimezone($tz) : null;
+        $isLate = false;
+        $lateMinutes = 0;
+
+        if ($attendance->type === 'in' && $occurredAt) {
+            $branch = $attendance->branch ?? $attendance->user?->branch;
+            $threshold = $branch ? $branch->lateThresholdMinutes() : (9 * 60 + 15);
+            $currentMinutes = ((int) $occurredAt->format('H') * 60) + (int) $occurredAt->format('i');
+            if ($currentMinutes > $threshold) {
+                $isLate = true;
+                $lateMinutes = $currentMinutes - $threshold;
+            }
+        }
+
         return [
             'id' => $attendance->id,
             'type' => $attendance->type,
             'occurred_at' => $attendance->occurred_at?->toIso8601String(),
+            'is_late' => $isLate,
+            'late_minutes' => $lateMinutes,
         ];
     }
 

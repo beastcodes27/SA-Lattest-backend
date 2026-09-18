@@ -44,22 +44,45 @@ class ProfileController extends Controller
     public function uploadAvatar(Request $request): JsonResponse
     {
         $user = $request->user();
+        $path = null;
 
-        $validator = Validator::make($request->all(), [
-            'avatar' => ['required', 'image', 'mimes:jpeg,png,webp', 'max:5120'],
-        ]);
+        if ($request->hasFile('avatar')) {
+            $validator = Validator::make($request->all(), [
+                'avatar' => ['required', 'image', 'mimes:jpeg,png,webp,jpg', 'max:5120'],
+            ]);
 
-        if ($validator->fails()) {
-            return response()->json(['message' => 'Please upload a JPEG, PNG or WebP image under 5 MB.'], 422);
+            if ($validator->fails()) {
+                return response()->json(['message' => 'Please upload a JPEG, PNG or WebP image under 5 MB.'], 422);
+            }
+
+            $path = $request->file('avatar')->store('avatars', 'public');
+        } elseif ($request->filled('avatar_base64')) {
+            $base64Data = $request->input('avatar_base64');
+            $type = 'jpg';
+            if (preg_match('/^data:image\/(\w+);base64,/', $base64Data, $matches)) {
+                $base64Data = substr($base64Data, strpos($base64Data, ',') + 1);
+                $matchedType = strtolower($matches[1]);
+                if (in_array($matchedType, ['jpg', 'jpeg', 'png', 'webp'])) {
+                    $type = $matchedType === 'jpeg' ? 'jpg' : $matchedType;
+                }
+            }
+            $imageBinary = base64_decode($base64Data);
+            if ($imageBinary === false) {
+                return response()->json(['message' => 'Invalid image data.'], 422);
+            }
+            $filename = 'avatars/' . uniqid('avatar_', true) . '.' . $type;
+            Storage::disk('public')->put($filename, $imageBinary);
+            $path = $filename;
+        } else {
+            return response()->json(['message' => 'Please select a valid image to upload.'], 422);
         }
 
-        $path = $request->file('avatar')->store('avatars', 'public');
-
-        if ($user->avatar_path && $user->avatar_path !== $path) {
-            Storage::disk('public')->delete($user->avatar_path);
+        if ($path) {
+            if ($user->avatar_path && $user->avatar_path !== $path) {
+                Storage::disk('public')->delete($user->avatar_path);
+            }
+            $user->forceFill(['avatar_path' => $path])->save();
         }
-
-        $user->forceFill(['avatar_path' => $path])->save();
 
         return response()->json([
             'message' => 'Profile photo updated.',
