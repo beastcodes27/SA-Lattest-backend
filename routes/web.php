@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\PackagesController;
 use App\Http\Controllers\Api\PromoManagerController;
 use App\Http\Controllers\Api\SystemController;
@@ -29,6 +30,9 @@ Route::prefix('portal')->group(function () {
             Route::get('promos', [PromoManagerController::class, 'index']);
             Route::post('promos', [PromoManagerController::class, 'store']);
             Route::put('promos/{promo}', [PromoManagerController::class, 'update']);
+
+            Route::get('notifications/history', [NotificationController::class, 'systemHistory']);
+            Route::post('notifications/broadcast', [NotificationController::class, 'systemBroadcast']);
         });
     });
 });

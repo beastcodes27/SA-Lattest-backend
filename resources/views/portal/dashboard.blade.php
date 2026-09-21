@@ -72,6 +72,7 @@
             <button class="nav" data-mode="subs">Subscriptions</button>
             <button class="nav" data-mode="packages">Packages</button>
             <button class="nav" data-mode="promos">Promos</button>
+            <button class="nav" data-mode="notifications">Notifications</button>
         </nav>
 
         <div id="orgArea">
@@ -90,6 +91,8 @@
         <div id="packagesArea" style="display:none"></div>
 
         <div id="promosArea" style="display:none"></div>
+
+        <div id="notificationsArea" style="display:none"></div>
     </div>
 
     <div class="msg" id="msg"></div>
@@ -297,10 +300,21 @@
             document.querySelectorAll('.nav').forEach(n => n.classList.toggle('active', n.dataset.mode === mode));
             const orgArea = document.getElementById('orgArea');
             const subsArea = document.getElementById('subsArea');
-            if (mode === 'orgs') { orgArea.style.display = ''; subsArea.style.display = 'none'; document.getElementById('packagesArea').style.display = 'none'; document.getElementById('promosArea').style.display = 'none'; loadOrgs().catch(() => {}); }
-            else if (mode === 'subs') { orgArea.style.display = 'none'; subsArea.style.display = ''; document.getElementById('packagesArea').style.display = 'none'; document.getElementById('promosArea').style.display = 'none'; loadSubs().catch(() => {}); }
-            else if (mode === 'packages') { orgArea.style.display = 'none'; subsArea.style.display = 'none'; document.getElementById('packagesArea').style.display = ''; document.getElementById('promosArea').style.display = 'none'; loadPackages().catch(() => {}); }
-            else { orgArea.style.display = 'none'; subsArea.style.display = 'none'; document.getElementById('packagesArea').style.display = 'none'; document.getElementById('promosArea').style.display = ''; loadPromos().catch(() => {}); }
+            const pkArea = document.getElementById('packagesArea');
+            const prArea = document.getElementById('promosArea');
+            const notifArea = document.getElementById('notificationsArea');
+            
+            orgArea.style.display = mode === 'orgs' ? '' : 'none';
+            subsArea.style.display = mode === 'subs' ? '' : 'none';
+            pkArea.style.display = mode === 'packages' ? '' : 'none';
+            prArea.style.display = mode === 'promos' ? '' : 'none';
+            notifArea.style.display = mode === 'notifications' ? '' : 'none';
+
+            if (mode === 'orgs') loadOrgs().catch(() => {});
+            else if (mode === 'subs') loadSubs().catch(() => {});
+            else if (mode === 'packages') loadPackages().catch(() => {});
+            else if (mode === 'promos') loadPromos().catch(() => {});
+            else if (mode === 'notifications') loadNotifications().catch(() => {});
         });
 
         let mode = 'orgs';
@@ -474,6 +488,129 @@
                 toast(json.message || 'Promo saved', true);
                 await loadPromos();
             } catch (e) { toast(e.message, false); }
+        }
+
+        async function loadNotifications() {
+            const data = await api('/portal/api/notifications/history');
+            const box = document.getElementById('notificationsArea');
+            const stats = data.stats || {};
+            const orgs = data.organizations || [];
+            const broadcasts = data.recent_broadcasts || [];
+
+            const statsHtml = `
+                <div class="stats" style="grid-template-columns:repeat(auto-fit,minmax(140px,1fr))">
+                    <div class="stat"><b>${stats.total_devices || 0}</b><span>Active Devices</span><small style="color:var(--muted);font-size:11px;display:block;margin-top:2px">${stats.android_devices || 0} Android &middot; ${stats.ios_devices || 0} iOS</small></div>
+                    <div class="stat"><b>${stats.total_users || 0}</b><span>Total App Users</span><small style="color:var(--muted);font-size:11px;display:block;margin-top:2px">Eligible recipients</small></div>
+                    <div class="stat"><b>${stats.broadcasts_count || 0}</b><span>Broadcasts Sent</span><small style="color:var(--muted);font-size:11px;display:block;margin-top:2px">All-time dispatched</small></div>
+                </div>`;
+
+            const orgOptions = orgs.map(o => `<option value="${o.id}">${esc(o.name)}</option>`).join('');
+
+            const composerHtml = `
+                <div class="org" style="margin-bottom:20px">
+                    <h3 style="display:flex;align-items:center;gap:8px">📣 Dispatch Push Notification</h3>
+                    <p style="color:var(--muted);font-size:13px;margin:4px 0 14px">Broadcast instant push alerts with sound and heads-up banner to app users.</p>
+                    
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+                        <div>
+                            <label class="plabel">Target Audience</label>
+                            <select class="pfield" id="nb_audience" onchange="toggleNotifOrgSelect(this.value)">
+                                <option value="all">All Active Users</option>
+                                <option value="org_admin">Organization Admins Only</option>
+                                <option value="employee">Employees Only</option>
+                                <option value="org">Specific Organization</option>
+                            </select>
+                        </div>
+                        <div id="nb_org_wrap" style="display:none">
+                            <label class="plabel">Target Organization</label>
+                            <select class="pfield" id="nb_org_id">
+                                ${orgOptions}
+                            </select>
+                        </div>
+                    </div>
+
+                    <label class="plabel">Notification Title</label>
+                    <input class="pfield" id="nb_title" maxlength="100" placeholder="e.g. Critical System Maintenance">
+
+                    <label class="plabel">Message Body</label>
+                    <textarea class="pfield" id="nb_body" rows="3" maxlength="500" placeholder="Enter broadcast announcement message..."></textarea>
+
+                    <div class="actions" style="margin-top:14px">
+                        <button class="btn primary" id="nb_submit_btn" onclick="sendBroadcast()">Dispatch Push Broadcast</button>
+                    </div>
+                </div>`;
+
+            const historyRows = broadcasts.length === 0
+                ? '<p style="color:var(--muted);margin-top:10px">No push broadcasts sent yet.</p>'
+                : `<table class="emps" style="margin-top:12px;background:#fff;border-radius:12px;overflow:hidden;border:1px solid rgba(32,15,53,.1)">
+                    <thead>
+                        <tr>
+                            <th>Title &amp; Message</th>
+                            <th>Audience</th>
+                            <th>Sent By</th>
+                            <th>Date &amp; Time</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${broadcasts.map(b => `
+                            <tr>
+                                <td style="max-width:320px">
+                                    <div style="font-weight:800;color:var(--ink)">${esc(b.title)}</div>
+                                    <div style="color:var(--muted);font-size:12px;margin-top:2px">${esc(b.body)}</div>
+                                </td>
+                                <td><span class="pill" style="color:var(--ink);background:rgba(32,15,53,.07)">${esc(b.organization?.name || 'System Wide')}</span></td>
+                                <td style="color:var(--muted)">${esc(b.sender?.name || 'Admin')}</td>
+                                <td style="color:var(--muted);white-space:nowrap">${fmtDateTime(b.created_at)}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>`;
+
+            const historyHtml = `
+                <div style="margin-top:16px">
+                    <h3 style="font-size:16px;margin-bottom:8px">Recent Push Broadcasts</h3>
+                    ${historyRows}
+                </div>`;
+
+            box.innerHTML = statsHtml + composerHtml + historyHtml;
+        }
+
+        function toggleNotifOrgSelect(audience) {
+            const wrap = document.getElementById('nb_org_wrap');
+            if (wrap) wrap.style.display = audience === 'org' ? '' : 'none';
+        }
+
+        async function sendBroadcast() {
+            const title = document.getElementById('nb_title')?.value.trim();
+            const body = document.getElementById('nb_body')?.value.trim();
+            const audience = document.getElementById('nb_audience')?.value || 'all';
+            const orgId = audience === 'org' ? document.getElementById('nb_org_id')?.value : null;
+
+            if (!title) { toast('Please enter a notification title.', false); return; }
+            if (!body) { toast('Please enter a message body.', false); return; }
+
+            if (!confirm(`Dispatch this push broadcast to ${audience === 'all' ? 'all users' : audience}?`)) return;
+
+            const btn = document.getElementById('nb_submit_btn');
+            if (btn) { btn.disabled = true; btn.textContent = 'Sending...'; }
+
+            try {
+                const payload = {
+                    title,
+                    body,
+                    org_id: orgId ? parseInt(orgId, 10) : undefined,
+                    role: ['all', 'org'].includes(audience) ? undefined : audience,
+                };
+                const json = await api('/portal/api/notifications/broadcast', {
+                    method: 'POST',
+                    body: JSON.stringify(payload),
+                });
+                toast(json.message || 'Push broadcast sent successfully!', true);
+                await loadNotifications();
+            } catch (e) {
+                toast(e.message || 'Failed to dispatch notification.', false);
+                if (btn) { btn.disabled = false; btn.textContent = 'Dispatch Push Broadcast'; }
+            }
         }
 
         document.getElementById('filters').addEventListener('click', (e) => {
