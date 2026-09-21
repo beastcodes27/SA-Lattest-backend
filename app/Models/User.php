@@ -27,6 +27,8 @@ use Laravel\Sanctum\HasApiTokens;
     'face_enrolled',
     'face_signature',
     'face_photo_path',
+    'expo_push_token',
+    'device_type',
 ])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
@@ -68,5 +70,10 @@ class User extends Authenticatable
     public function permissionRequests(): HasMany
     {
         return $this->hasMany(PermissionRequest::class);
+    }
+
+    public function notifications(): HasMany
+    {
+        return $this->hasMany(AppNotification::class)->latest();
     }
 }

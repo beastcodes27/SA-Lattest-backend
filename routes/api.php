@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\AdminController;
 use App\Http\Controllers\Api\AppVersionController;
 use App\Http\Controllers\Api\AttendanceController;
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\PackagesController;
 use App\Http\Controllers\Api\PermissionController;
 use App\Http\Controllers\Api\ProfileController;
@@ -30,6 +31,13 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('me/avatar', [ProfileController::class, 'uploadAvatar']);
     Route::put('me/password', [ProfileController::class, 'changePassword']);
     Route::put('me/password/force', [ProfileController::class, 'forceChangePassword']);
+    Route::post('me/push-token', [NotificationController::class, 'updatePushToken']);
+    Route::post('profile/push-token', [NotificationController::class, 'updatePushToken']);
+
+    Route::get('notifications', [NotificationController::class, 'index']);
+    Route::patch('notifications/{id}/read', [NotificationController::class, 'markAsRead']);
+    Route::post('notifications/read-all', [NotificationController::class, 'markAllAsRead']);
+    Route::delete('notifications/{id}', [NotificationController::class, 'destroy']);
 
     Route::post('attendance/toggle', [AttendanceController::class, 'toggle']);
     Route::post('attendance/sync', [AttendanceController::class, 'sync']);
@@ -59,6 +67,7 @@ Route::middleware(['auth:sanctum', 'org-admin'])->prefix('admin')->group(functio
     Route::post('permissions/{id}/reject', [PermissionController::class, 'adminReject']);
     Route::post('promo/redeem', [PromoController::class, 'redeem']);
     Route::get('promos/available', [PromoController::class, 'available']);
+    Route::post('notifications/broadcast', [NotificationController::class, 'orgBroadcast']);
 });
 
 Route::middleware(['auth:sanctum', 'org-admin'])->prefix('admin')->group(function () {
@@ -93,4 +102,5 @@ Route::middleware(['auth:sanctum', 'system-admin'])->prefix('system')->group(fun
 
     Route::get('app-version', [AppVersionController::class, 'adminShow']);
     Route::post('app-version', [AppVersionController::class, 'adminUpdate']);
+    Route::post('notifications/broadcast', [NotificationController::class, 'systemBroadcast']);
 });

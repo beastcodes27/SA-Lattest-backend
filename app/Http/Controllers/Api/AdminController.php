@@ -213,6 +213,23 @@ class AdminController extends Controller
 
         $branch = Branch::find($request->branch_id);
 
+        // Notify Employee of Branch Reassignment
+        try {
+            \App\Services\ExpoPushService::notifyUser(
+                $employee,
+                'Branch Assignment Updated',
+                "You have been assigned to {$branch->name}. Please check in at this branch for your future attendance.",
+                'branch_transfer',
+                [
+                    'branch_id' => $branch->id,
+                    'branch_name' => $branch->name,
+                ],
+                $request->user()
+            );
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Failed to send employee transfer notification: ' . $e->getMessage());
+        }
+
         return response()->json([
             'message' => "{$employee->name} has been transferred to {$branch->name}.",
             'employee' => $this->employeePayload($employee->load('branch:id,name')->refresh()),

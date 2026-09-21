@@ -80,6 +80,29 @@ class PermissionController extends Controller
             'status' => PermissionRequest::STATUS_PENDING,
         ]);
 
+        // Notify Organization Admins of new leave request
+        try {
+            $orgAdmins = \App\Models\User::where('org_id', $org->id)
+                ->where('role', 'org_admin')
+                ->where('active', true)
+                ->get();
+
+            \App\Services\ExpoPushService::notifyUsers(
+                $orgAdmins,
+                "New Request: {$user->name}",
+                "{$user->name} submitted a {$permission->category_label} request ({$permission->start_date} to {$permission->end_date}).",
+                'leave_request',
+                [
+                    'permission_id' => $permission->id,
+                    'employee_id' => $user->id,
+                    'employee_name' => $user->name,
+                ],
+                $user
+            );
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Failed to send admin notification for request: ' . $e->getMessage());
+        }
+
         return response()->json([
             'message' => 'Permission request submitted successfully.',
             'request' => $permission->refresh()->toPayload(),
@@ -171,6 +194,7 @@ class PermissionController extends Controller
         $admin = $request->user();
         $permission = PermissionRequest::where('id', $id)
             ->where('organization_id', $admin->org_id)
+            ->with('user')
             ->first();
 
         if (! $permission) {
@@ -182,6 +206,26 @@ class PermissionController extends Controller
         $permission->actioned_at = now();
         $permission->admin_remarks = $request->input('remarks');
         $permission->save();
+
+        // Notify Employee of approval
+        try {
+            if ($permission->user) {
+                \App\Services\ExpoPushService::notifyUser(
+                    $permission->user,
+                    'Request Approved',
+                    "Your {$permission->category_label} request ({$permission->start_date} to {$permission->end_date}) was approved.",
+                    'leave_approved',
+                    [
+                        'permission_id' => $permission->id,
+                        'status' => 'approved',
+                        'admin_remarks' => $permission->admin_remarks,
+                    ],
+                    $admin
+                );
+            }
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Failed to send employee approval notification: ' . $e->getMessage());
+        }
 
         return response()->json([
             'message' => 'Permission request approved successfully.',
@@ -197,6 +241,7 @@ class PermissionController extends Controller
         $admin = $request->user();
         $permission = PermissionRequest::where('id', $id)
             ->where('organization_id', $admin->org_id)
+            ->with('user')
             ->first();
 
         if (! $permission) {
@@ -208,6 +253,26 @@ class PermissionController extends Controller
         $permission->actioned_at = now();
         $permission->admin_remarks = $request->input('remarks');
         $permission->save();
+
+        // Notify Employee of rejection
+        try {
+            if ($permission->user) {
+                \App\Services\ExpoPushService::notifyUser(
+                    $permission->user,
+                    'Request Declined',
+                    "Your {$permission->category_label} request was declined." . ($permission->admin_remarks ? " Reason: {$permission->admin_remarks}" : ''),
+                    'leave_rejected',
+                    [
+                        'permission_id' => $permission->id,
+                        'status' => 'rejected',
+                        'admin_remarks' => $permission->admin_remarks,
+                    ],
+                    $admin
+                );
+            }
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Failed to send employee rejection notification: ' . $e->getMessage());
+        }
 
         return response()->json([
             'message' => 'Permission request rejected.',
