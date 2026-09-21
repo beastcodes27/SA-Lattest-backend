@@ -102,5 +102,6 @@ Route::middleware(['auth:sanctum', 'system-admin'])->prefix('system')->group(fun
 
     Route::get('app-version', [AppVersionController::class, 'adminShow']);
     Route::post('app-version', [AppVersionController::class, 'adminUpdate']);
+    Route::get('notifications/history', [NotificationController::class, 'systemHistory']);
     Route::post('notifications/broadcast', [NotificationController::class, 'systemBroadcast']);
 });

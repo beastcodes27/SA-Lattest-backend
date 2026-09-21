@@ -220,5 +220,49 @@ class NotificationController extends Controller
             'recipients_count' => $notifiedCount,
         ]);
     }
+
+    /**
+     * System admin notifications history and push token device statistics.
+     */
+    public function systemHistory(Request $request): JsonResponse
+    {
+        $totalDevices = User::whereNotNull('expo_push_token')
+            ->where('expo_push_token', '!=', '')
+            ->count();
+
+        $androidDevices = User::whereNotNull('expo_push_token')
+            ->where('expo_push_token', '!=', '')
+            ->where('device_type', 'android')
+            ->count();
+
+        $iosDevices = User::whereNotNull('expo_push_token')
+            ->where('expo_push_token', '!=', '')
+            ->where('device_type', 'ios')
+            ->count();
+
+        $totalUsers = User::where('active', true)->count();
+
+        $recentBroadcasts = AppNotification::where('type', 'system_broadcast')
+            ->with(['sender:id,name,role', 'organization:id,name'])
+            ->latest()
+            ->take(30)
+            ->get();
+
+        $organizations = \App\Models\Organization::select('id', 'name', 'status')
+            ->orderBy('name')
+            ->get();
+
+        return response()->json([
+            'stats' => [
+                'total_devices' => $totalDevices,
+                'android_devices' => $androidDevices,
+                'ios_devices' => $iosDevices,
+                'total_users' => $totalUsers,
+                'broadcasts_count' => AppNotification::where('type', 'system_broadcast')->count(),
+            ],
+            'recent_broadcasts' => $recentBroadcasts,
+            'organizations' => $organizations,
+        ]);
+    }
 }
 
