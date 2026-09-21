@@ -45,6 +45,7 @@ class ExpoPushService
                 'sound' => 'default',
                 'priority' => 'high',
                 'channelId' => 'default',
+                '_displayInForeground' => true,
                 'data' => array_merge($data, [
                     'title' => $title,
                     'body' => $body,
@@ -165,3 +166,4 @@ class ExpoPushService
         return $count;
     }
 }
+
