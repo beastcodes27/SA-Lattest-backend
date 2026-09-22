@@ -281,6 +281,23 @@ class AdminController extends Controller
             'must_change_password' => true,
         ])->save();
 
+        // Notify Employee of Password Reset
+        try {
+            \App\Services\ExpoPushService::notifyUser(
+                $employee,
+                'Security Alert: Password Reset',
+                "Your account password has been reset by your organization administrator. You will be prompted to set a new password upon login.",
+                'security_alert',
+                [
+                    'type' => 'password_reset',
+                    'timestamp' => now()->toISOString(),
+                ],
+                $request->user()
+            );
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Failed to send employee password reset notification: ' . $e->getMessage());
+        }
+
         return response()->json([
             'message' => "Password reset successfully for {$employee->name}.",
             'employee' => $this->employeePayload($employee->load('branch:id,name')->refresh()),
