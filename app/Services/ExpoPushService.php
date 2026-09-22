@@ -107,11 +107,17 @@ class ExpoPushService
                 ->where('is_read', false)
                 ->count();
 
+            $payloadData = array_merge($data, [
+                'notification_id' => $notification->id,
+                'type' => $type,
+                'category' => $type === 'security_alert' ? 'security' : 'general',
+            ]);
+
             self::sendPushNotification(
                 $user->expo_push_token,
                 $title,
                 $body,
-                array_merge($data, ['notification_id' => $notification->id, 'type' => $type]),
+                $payloadData,
                 $unreadCount
             );
         }
