@@ -4,598 +4,105 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>SmartAttend &middot; System Admin Console</title>
+    <title>SmartAttend Admin &middot; Dashboard</title>
     <style>
-        :root {
-            --bg: #D7FFE0;
-            --ink: #200F35;
-            --text: #1A1231;
-            --muted: #55576B;
-            --green: #1F7A43;
-            --amber: #B8860B;
-            --red: #C23030;
-            --sidebar-bg: #FFFFFF;
-            --card-bg: #FFFFFF;
-            --border: rgba(32, 15, 53, 0.10);
-            --border-strong: rgba(32, 15, 53, 0.18);
-            --active-bg: rgba(32, 15, 53, 0.08);
-            --sidebar-width: 270px;
-            --header-height: 64px;
-        }
-        * { box-sizing: border-box; }
-        body {
-            margin: 0;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Helvetica Neue", Arial, sans-serif;
-            background: var(--bg);
-            color: var(--text);
-            min-height: 100vh;
-        }
-
-        /* SIDEBAR (Desktop/Laptop layout) */
-        .sidebar {
-            width: var(--sidebar-width);
-            background: var(--sidebar-bg);
-            border-right: 1px solid var(--border);
-            position: fixed;
-            top: 0;
-            bottom: 0;
-            left: 0;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-            padding: 20px 16px;
-            z-index: 120;
-            transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-            box-shadow: 2px 0 16px rgba(32, 15, 53, 0.03);
-        }
-
-        .sidebar-brand {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            padding: 8px 8px 18px;
-            border-bottom: 1px solid var(--border);
-        }
-        .brand-icon {
-            width: 40px;
-            height: 40px;
-            border-radius: 12px;
-            background: var(--ink);
-            color: var(--bg);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 20px;
-            font-weight: 800;
-            flex-shrink: 0;
-            box-shadow: 0 4px 10px rgba(32, 15, 53, 0.15);
-        }
-        .brand-text {
-            font-size: 16px;
-            font-weight: 800;
-            color: var(--ink);
-            line-height: 1.2;
-        }
-        .brand-sub {
-            font-size: 11px;
-            font-weight: 700;
-            color: var(--muted);
-            letter-spacing: 0.3px;
-        }
-
-        .user-badge-card {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            background: rgba(32, 15, 53, 0.04);
-            border: 1px solid var(--border);
-            border-radius: 14px;
-            padding: 10px 12px;
-            margin: 16px 0 12px;
-        }
-        .user-avatar {
-            width: 36px;
-            height: 36px;
-            border-radius: 50%;
-            background: var(--ink);
-            color: var(--bg);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 14px;
-            font-weight: 800;
-            flex-shrink: 0;
-        }
-        .user-info {
-            flex: 1;
-            min-width: 0;
-        }
-        .user-name {
-            font-size: 13px;
-            font-weight: 800;
-            color: var(--ink);
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-        .user-role {
-            font-size: 10px;
-            font-weight: 700;
-            color: var(--muted);
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        .nav-section-title {
-            font-size: 11px;
-            font-weight: 800;
-            color: var(--muted);
-            text-transform: uppercase;
-            letter-spacing: 0.8px;
-            padding: 10px 10px 6px;
-        }
-
-        .sidebar-menu {
-            flex: 1;
-            overflow-y: auto;
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-        }
-        .sidebar-item {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            padding: 11px 14px;
-            border-radius: 12px;
-            color: var(--muted);
-            font-size: 14px;
-            font-weight: 700;
-            cursor: pointer;
-            border: 0;
-            background: transparent;
-            text-align: left;
-            width: 100%;
-            transition: all 0.15s ease;
-            position: relative;
-        }
-        .sidebar-item:hover {
-            background: var(--active-bg);
-            color: var(--ink);
-        }
-        .sidebar-item.active {
-            background: var(--ink);
-            color: var(--bg);
-            box-shadow: 0 4px 12px rgba(32, 15, 53, 0.14);
-        }
-        .sidebar-item.active svg {
-            stroke: var(--bg);
-            color: var(--bg);
-        }
-        .sidebar-icon {
-            width: 20px;
-            height: 20px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            flex-shrink: 0;
-        }
-        .sidebar-badge {
-            margin-left: auto;
-            background: var(--red);
-            color: #fff;
-            font-size: 10px;
-            font-weight: 800;
-            padding: 2px 7px;
-            border-radius: 999px;
-        }
-        .sidebar-item.active .sidebar-badge {
-            background: var(--bg);
-            color: var(--ink);
-        }
-
-        .sidebar-broadcast-btn {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-            background: var(--ink);
-            color: var(--bg);
-            border: 0;
-            border-radius: 12px;
-            padding: 11px 14px;
-            font-size: 13px;
-            font-weight: 800;
-            cursor: pointer;
-            margin: 12px 0 8px;
-            box-shadow: 0 4px 10px rgba(32, 15, 53, 0.12);
-            transition: opacity 0.15s;
-        }
-        .sidebar-broadcast-btn:hover {
-            opacity: 0.88;
-        }
-
-        .sidebar-footer {
-            padding-top: 14px;
-            border-top: 1px solid var(--border);
-        }
-        .signout-btn {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-            width: 100%;
-            background: rgba(194, 48, 48, 0.08);
-            color: var(--red);
-            border: 0;
-            border-radius: 12px;
-            padding: 10px 14px;
-            font-size: 13px;
-            font-weight: 800;
-            cursor: pointer;
-            transition: background 0.15s;
-        }
-        .signout-btn:hover {
-            background: rgba(194, 48, 48, 0.16);
-        }
-
-        /* MOBILE TOP BAR */
-        .mobile-header {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: var(--header-height);
-            background: rgba(255, 255, 255, 0.96);
-            backdrop-filter: blur(10px);
-            border-bottom: 1px solid var(--border);
-            padding: 0 16px;
-            align-items: center;
-            justify-content: space-between;
-            z-index: 110;
-            box-shadow: 0 2px 8px rgba(32, 15, 53, 0.04);
-        }
-        .hamburger-btn {
-            width: 40px;
-            height: 40px;
-            border-radius: 10px;
-            background: rgba(32, 15, 53, 0.05);
-            border: 1px solid var(--border);
-            color: var(--ink);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-        }
-        .mobile-brand {
-            font-size: 16px;
-            font-weight: 800;
-            color: var(--ink);
-        }
-
-        /* BACKDROP */
-        .backdrop {
-            display: none;
-            position: fixed;
-            inset: 0;
-            background: rgba(32, 15, 53, 0.45);
-            z-index: 115;
-            opacity: 0;
-            transition: opacity 0.25s ease;
-        }
-        .backdrop.open {
-            display: block;
-            opacity: 1;
-        }
-
-        /* MAIN CONTENT AREA */
-        .main-content {
-            margin-left: var(--sidebar-width);
-            min-height: 100vh;
-            padding: 32px 36px 80px;
-            transition: margin-left 0.25s ease;
-        }
-        .content-wrap {
-            max-width: 1020px;
-            margin: 0 auto;
-        }
-
-        /* RESPONSIVE BREAKPOINT */
-        @media (max-width: 899px) {
-            .sidebar {
-                transform: translateX(-100%);
-            }
-            .sidebar.open {
-                transform: translateX(0);
-                box-shadow: 8px 0 24px rgba(0, 0, 0, 0.25);
-            }
-            .mobile-header {
-                display: flex;
-            }
-            .main-content {
-                margin-left: 0;
-                padding: calc(var(--header-height) + 16px) 16px 60px;
-            }
-        }
-
-        /* SHARED UI COMPONENTS */
-        .page-header-row {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 20px;
-            flex-wrap: wrap;
-            gap: 12px;
-        }
-        .page-title {
-            font-size: 24px;
-            font-weight: 800;
-            color: var(--ink);
-            margin: 0;
-        }
-        .page-subtitle {
-            font-size: 13px;
-            color: var(--muted);
-            margin-top: 2px;
-            font-weight: 600;
-        }
-
-        .stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:12px; margin-bottom:24px; }
-        .stat { background:#fff; border:1px solid var(--border); border-radius:16px; padding:16px; box-shadow:0 2px 6px rgba(32,15,53,.02); }
+        :root { --bg:#D7FFE0; --ink:#200F35; --text:#1A1231; --muted:#55576B; --green:#1F7A43; --amber:#B8860B; --red:#C23030; }
+        * { box-sizing:border-box; }
+        body { margin:0; font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif; background:var(--bg); color:var(--text); }
+        header { display:flex; align-items:center; justify-content:space-between; padding:18px 28px; }
+        .brand { font-size:20px; font-weight:800; color:var(--ink); }
+        .who { color:var(--muted); font-size:13px; }
+        .logout { color:var(--ink); font-weight:700; text-decoration:none; }
+        .wrap { max-width:960px; margin:0 auto; padding:0 24px 60px; }
+        .stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; margin-bottom:24px; }
+        .stat { background:#fff; border:1px solid rgba(32,15,53,.1); border-radius:14px; padding:14px; }
         .stat b { font-size:26px; color:var(--ink); display:block; }
-        .stat span { color:var(--muted); font-size:12px; font-weight:700; margin-top:2px; display:block; }
+        .stat span { color:var(--muted); font-size:12px; }
         .stat-btn { display:block; width:100%; text-align:left; font:inherit; cursor:pointer; transition:opacity .15s; }
         .stat-btn:hover { opacity:.75; }
-
         .filters { display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap; }
-        .filter { border:1px solid var(--border-strong); background:#fff; border-radius:999px; padding:8px 16px; cursor:pointer; font-weight:700; font-size:13px; color:var(--muted); }
+        .filter { border:1px solid rgba(32,15,53,.2); background:#fff; border-radius:999px; padding:8px 16px; cursor:pointer; font-weight:600; font-size:13px; }
         .filter.active { background:var(--ink); color:var(--bg); border-color:var(--ink); }
-
-        .org { background:#fff; border:1px solid var(--border); border-radius:18px; padding:18px 20px; margin-bottom:14px; box-shadow:0 2px 8px rgba(32,15,53,.02); }
-        .org h3 { margin:0 0 4px; font-size:16px; font-weight:800; color:var(--ink); }
+        .org { background:#fff; border:1px solid rgba(32,15,53,.1); border-radius:16px; padding:16px 18px; margin-bottom:12px; }
+        .org h3 { margin:0 0 2px; font-size:16px; }
         .org .contact { color:var(--muted); font-size:12px; margin-bottom:10px; }
         .meta { display:flex; gap:14px; font-size:12px; color:var(--muted); flex-wrap:wrap; }
         .pill { display:inline-flex; align-items:center; gap:6px; border-radius:999px; padding:4px 10px; font-size:12px; font-weight:800; }
         .actions { display:flex; gap:8px; margin-top:14px; flex-wrap:wrap; }
-        
-        .btn { border:0; border-radius:10px; padding:9px 16px; font-size:13px; font-weight:800; cursor:pointer; transition:opacity .15s; }
-        .btn:hover { opacity:.88; }
+        .btn { border:0; border-radius:10px; padding:9px 16px; font-size:13px; font-weight:800; cursor:pointer; }
         .btn.primary { background:var(--ink); color:var(--bg); }
         .btn.danger { background:rgba(194,48,48,.1); color:var(--red); }
         .btn.ghost { background:rgba(32,15,53,.05); color:var(--ink); }
         .btn[disabled]{ opacity:.5; cursor:default; }
-
-        .msg { position:fixed; left:50%; transform:translateX(-50%); top:20px; border-radius:12px; padding:12px 22px; font-weight:700; color:#fff; box-shadow:0 10px 30px rgba(0,0,0,.2); display:none; z-index:999; }
+        .msg { position:fixed; left:50%; transform:translateX(-50%); top:18px; border-radius:12px; padding:12px 18px; font-weight:700; color:#fff; box-shadow:0 10px 30px rgba(0,0,0,.2); display:none; }
         .msg.ok { background:var(--green); }
         .msg.err { background:var(--red); }
-
         .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; }
         .grid span { display:block; color:var(--muted); font-size:11px; text-transform:uppercase; letter-spacing:.5px; }
         .grid b { font-size:13px; word-break:break-word; }
-
-        .branch { background:rgba(32,15,53,.04); border:1px solid var(--border); border-radius:10px; padding:10px 12px; font-size:13px; font-weight:800; margin-bottom:8px; }
+        .branch { background:rgba(32,15,53,.04); border:1px solid rgba(32,15,53,.1); border-radius:10px; padding:10px 12px; font-size:13px; font-weight:800; margin-bottom:8px; }
         .branch span { font-weight:400; color:var(--muted); font-size:12px; }
-
         table.emps { width:100%; border-collapse:collapse; font-size:13px; }
-        table.emps th { text-align:left; background:rgba(32,15,53,.06); padding:9px 12px; color:var(--ink); font-size:11px; text-transform:uppercase; font-weight:800; }
-        table.emps td { padding:10px 12px; border-bottom:1px solid rgba(32,15,53,.08); }
-
-        select { padding:8px 10px; border-radius:8px; border:1px solid var(--border-strong); background:#fff; }
-        .pfield { width:100%; padding:9px 12px; border-radius:10px; border:1px solid var(--border-strong); font-size:13px; margin-top:4px; background:#fff; font-family:inherit; }
+        table.emps th { text-align:left; background:rgba(32,15,53,.06); padding:8px 10px; color:var(--ink); font-size:11px; text-transform:uppercase; }
+        table.emps td { padding:8px 10px; border-bottom:1px solid rgba(32,15,53,.08); }
+        nav { display:flex; gap:8px; margin-bottom:20px; }
+        .nav { background:#fff; border:1px solid rgba(32,15,53,.2); border-radius:12px; padding:10px 18px; font-weight:800; font-size:14px; cursor:pointer; }
+        .nav.active { background:var(--ink); color:var(--bg); border-color:var(--ink); }
+        select { padding:8px 10px; border-radius:8px; border:1px solid rgba(32,15,53,.2); background:#fff; }
+        .pfield { width:100%; padding:9px 11px; border-radius:8px; border:1px solid rgba(32,15,53,.2); font-size:13px; margin-top:4px; background:#fff; }
         .plabel { display:block; font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.5px; color:var(--ink); margin-top:10px; }
         .switch { display:inline-flex; align-items:center; gap:8px; font-weight:800; font-size:13px; cursor:pointer; margin-top:10px; }
     </style>
 </head>
 <body>
-
-    <!-- MOBILE TOP HEADER -->
-    <div class="mobile-header">
-        <button class="hamburger-btn" id="hamburgerBtn" onclick="toggleSidebar(true)" aria-label="Open Navigation">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
-        </button>
-        <div class="mobile-brand">SmartAttend &middot; Console</div>
-        <form method="POST" action="{{ route('portal.logout') }}" style="margin:0">
-            @csrf
-            <button class="btn ghost" type="submit" style="padding:6px 12px;font-size:12px">Logout</button>
-        </form>
-    </div>
-
-    <!-- MOBILE BACKDROP -->
-    <div class="backdrop" id="backdrop" onclick="toggleSidebar(false)"></div>
-
-    <!-- LEFT SIDEBAR NAVIGATION -->
-    <aside class="sidebar" id="sidebar">
+    <header>
+        <div class="brand">SmartAttend &middot; Admin</div>
         <div>
-            <!-- Brand -->
-            <div class="sidebar-brand">
-                <div class="brand-icon">
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
-                </div>
-                <div>
-                    <div class="brand-text">SmartAttend</div>
-                    <div class="brand-sub">System Web Portal</div>
-                </div>
-            </div>
-
-            <!-- Profile Info Card -->
-            <div class="user-badge-card">
-                <div class="user-avatar">{{ strtoupper(substr(auth()->user()->name ?? 'A', 0, 1)) }}</div>
-                <div class="user-info">
-                    <div class="user-name">{{ auth()->user()->name }}</div>
-                    <div class="user-role">System Administrator</div>
-                </div>
-            </div>
-
-            <!-- Quick Broadcast Trigger Button -->
-            <button class="sidebar-broadcast-btn" onclick="switchNav('notifications')">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
-                <span>New Broadcast</span>
-            </button>
-
-            <!-- Navigation Links -->
-            <div class="nav-section-title">Management</div>
-            <nav class="sidebar-menu" id="sidebarMenu">
-                <button class="sidebar-item active" data-mode="orgs" onclick="switchNav('orgs')">
-                    <div class="sidebar-icon">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path></svg>
-                    </div>
-                    <span>Organizations</span>
-                    <span class="sidebar-badge" id="sidebarPendingBadge" style="display:none">0</span>
-                </button>
-
-                <button class="sidebar-item" data-mode="subs" onclick="switchNav('subs')">
-                    <div class="sidebar-icon">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect><line x1="1" y1="10" x2="23" y2="10"></line></svg>
-                    </div>
-                    <span>Subscriptions</span>
-                </button>
-
-                <button class="sidebar-item" data-mode="packages" onclick="switchNav('packages')">
-                    <div class="sidebar-icon">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
-                    </div>
-                    <span>Packages</span>
-                </button>
-
-                <button class="sidebar-item" data-mode="promos" onclick="switchNav('promos')">
-                    <div class="sidebar-icon">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
-                    </div>
-                    <span>Promotions</span>
-                </button>
-
-                <button class="sidebar-item" data-mode="notifications" onclick="switchNav('notifications')">
-                    <div class="sidebar-icon">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
-                    </div>
-                    <span>Push Alerts</span>
-                </button>
-            </nav>
-        </div>
-
-        <!-- Sidebar Sign Out Footer -->
-        <div class="sidebar-footer">
-            <form method="POST" action="{{ route('portal.logout') }}" style="margin:0">
+            <span class="who">{{ auth()->user()->name }}</span>
+            <form method="POST" action="{{ route('portal.logout') }}" style="display:inline; margin-left:14px;">
                 @csrf
-                <button class="signout-btn" type="submit">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
-                    <span>Sign Out</span>
-                </button>
+                <button class="logout" type="submit" style="background:none;border:0;cursor:pointer;">Sign out</button>
             </form>
         </div>
-    </aside>
+    </header>
 
-    <!-- MAIN CONTENT PANE -->
-    <main class="main-content">
-        <div class="content-wrap">
-            <!-- ORGANIZATIONS AREA -->
-            <div id="orgArea">
-                <div class="page-header-row">
-                    <div>
-                        <h1 class="page-title">Organizations</h1>
-                        <div class="page-subtitle">Review new registrations, branch verification &amp; license status</div>
-                    </div>
-                </div>
+    <div class="wrap">
+        <nav id="nav">
+            <button class="nav active" data-mode="orgs">Organizations</button>
+            <button class="nav" data-mode="subs">Subscriptions</button>
+            <button class="nav" data-mode="packages">Packages</button>
+            <button class="nav" data-mode="promos">Promos</button>
+            <button class="nav" data-mode="notifications">Notifications</button>
+        </nav>
 
-                <div class="stats" id="stats"></div>
-
-                <div class="filters" id="filters">
-                    <button class="filter active" data-status="pending">Pending Review</button>
-                    <button class="filter" data-status="active">Active Organizations</button>
-                    <button class="filter" data-status="suspended">Suspended</button>
-                    <button class="filter" data-status="">All Organizations</button>
-                </div>
-                <div id="orgs"></div>
+        <div id="orgArea">
+            <div class="stats" id="stats"></div>
+            <div class="filters" id="filters">
+                <button class="filter active" data-status="pending">Pending</button>
+                <button class="filter" data-status="active">Active</button>
+                <button class="filter" data-status="suspended">Suspended</button>
+                <button class="filter" data-status="">All</button>
             </div>
-
-            <!-- SUBSCRIPTIONS AREA -->
-            <div id="subsArea" style="display:none">
-                <div class="page-header-row">
-                    <div>
-                        <h1 class="page-title">Subscriptions</h1>
-                        <div class="page-subtitle">Manage organization billing tiers, trial periods, and limits</div>
-                    </div>
-                </div>
-                <div id="subsContent"></div>
-            </div>
-
-            <!-- PACKAGES AREA -->
-            <div id="packagesArea" style="display:none">
-                <div class="page-header-row">
-                    <div>
-                        <h1 class="page-title">Subscription Packages</h1>
-                        <div class="page-subtitle">Configure public pricing tiers, branch quotas, and features</div>
-                    </div>
-                </div>
-                <div id="packagesContent"></div>
-            </div>
-
-            <!-- PROMOS AREA -->
-            <div id="promosArea" style="display:none">
-                <div class="page-header-row">
-                    <div>
-                        <h1 class="page-title">Promotions &amp; Vouchers</h1>
-                        <div class="page-subtitle">Create discount coupon codes and trial extension vouchers</div>
-                    </div>
-                </div>
-                <div id="promosContent"></div>
-            </div>
-
-            <!-- NOTIFICATIONS & BROADCASTS AREA -->
-            <div id="notificationsArea" style="display:none">
-                <div class="page-header-row">
-                    <div>
-                        <h1 class="page-title">Push Notifications</h1>
-                        <div class="page-subtitle">Broadcast real-time mobile push notifications to all users or specific organizations</div>
-                    </div>
-                </div>
-                <div id="notificationsContent"></div>
-            </div>
+            <div id="orgs"></div>
         </div>
-    </main>
+
+        <div id="subsArea" style="display:none"></div>
+
+        <div id="packagesArea" style="display:none"></div>
+
+        <div id="promosArea" style="display:none"></div>
+
+        <div id="notificationsArea" style="display:none"></div>
+    </div>
 
     <div class="msg" id="msg"></div>
 
     <script>
         const csrf = document.querySelector('meta[name="csrf-token"]').content;
-        let mode = 'orgs';
         let current = 'pending';
         const $msg = document.getElementById('msg');
         const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
         const cap = (s) => s ? s.charAt(0).toUpperCase() + s.slice(1) : '';
-
-        function toggleSidebar(open) {
-            const sidebar = document.getElementById('sidebar');
-            const backdrop = document.getElementById('backdrop');
-            sidebar.classList.toggle('open', open);
-            backdrop.classList.toggle('open', open);
-        }
-
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape') toggleSidebar(false);
-        });
-
-        function switchNav(targetMode) {
-            mode = targetMode;
-            document.querySelectorAll('.sidebar-item').forEach(n => {
-                n.classList.toggle('active', n.dataset.mode === mode);
-            });
-
-            document.getElementById('orgArea').style.display = mode === 'orgs' ? '' : 'none';
-            document.getElementById('subsArea').style.display = mode === 'subs' ? '' : 'none';
-            document.getElementById('packagesArea').style.display = mode === 'packages' ? '' : 'none';
-            document.getElementById('promosArea').style.display = mode === 'promos' ? '' : 'none';
-            document.getElementById('notificationsArea').style.display = mode === 'notifications' ? '' : 'none';
-
-            toggleSidebar(false);
-
-            if (mode === 'orgs') loadOrgs().catch(() => {});
-            else if (mode === 'subs') loadSubs().catch(() => {});
-            else if (mode === 'packages') loadPackages().catch(() => {});
-            else if (mode === 'promos') loadPromos().catch(() => {});
-            else if (mode === 'notifications') loadNotifications().catch(() => {});
-        }
 
         function setFilterButton() {
             document.querySelectorAll('.filter').forEach(f => {
@@ -624,24 +131,9 @@
 
         async function loadStats() {
             const { stats } = await api('/portal/api/stats');
-            const pendingBadge = document.getElementById('sidebarPendingBadge');
-            if (pendingBadge) {
-                if (stats.pending > 0) {
-                    pendingBadge.textContent = stats.pending;
-                    pendingBadge.style.display = 'inline-block';
-                } else {
-                    pendingBadge.style.display = 'none';
-                }
-            }
-
             const tiles = [
-                ['Pending Review', stats.pending, 'pending'],
-                ['Active Orgs', stats.active, 'active'],
-                ['Suspended', stats.suspended, 'suspended'],
-                ['Total Orgs', stats.organizations_total, ''],
-                ['Employees', stats.employees, null],
-                ['Branches', stats.branches, null],
-                ['Check-ins today', stats.today_checkins, null],
+                ['Pending', stats.pending, 'pending'], ['Active', stats.active, 'active'], ['Suspended', stats.suspended, 'suspended'],
+                ['Organizations', stats.organizations_total, ''], ['Employees', stats.employees, null], ['Branches', stats.branches, null], ['Check-ins today', stats.today_checkins, null],
             ];
             document.getElementById('stats').innerHTML = tiles.map(([label, value, status]) => {
                 const inner = `<b>${value}</b><span>${label}</span>`;
@@ -650,8 +142,12 @@
         }
 
         function goOrgFilter(status) {
+            mode = 'orgs';
             current = status;
-            switchNav('orgs');
+            document.querySelectorAll('.nav').forEach(n => n.classList.toggle('active', n.dataset.mode === 'orgs'));
+            document.getElementById('orgArea').style.display = '';
+            document.getElementById('subsArea').style.display = 'none';
+            document.getElementById('packagesArea').style.display = 'none';
             setFilterButton();
             loadOrgs().catch(() => {});
         }
@@ -660,24 +156,24 @@
             const q = current ? '?status=' + current : '';
             const { organizations } = await api('/portal/api/organizations' + q);
             const box = document.getElementById('orgs');
-            if (!organizations.length) { box.innerHTML = '<p style="color:var(--muted);padding:14px 0">No organizations found in this view.</p>'; return; }
+            if (!organizations.length) { box.innerHTML = '<p style="color:var(--muted)">No organizations in this view.</p>'; return; }
             box.innerHTML = organizations.map(o => {
                 const status = { pending: ['Pending review', 'var(--amber)'], active: ['Active', 'var(--green)'], suspended: ['Suspended', 'var(--red)'] }[o.status] || ['Pending', 'var(--amber)'];
                 const requestDetails = o.status === 'pending' ? `
                     <div style="margin-top:12px;background:rgba(184,134,11,.06);border:1px solid rgba(184,134,11,.25);border-radius:12px;padding:12px 14px;font-size:13px">
-                        <div style="font-weight:800;margin-bottom:6px">Registration Application Details</div>
+                        <div style="font-weight:800;margin-bottom:6px">Registration request</div>
                         <div><b>Admin:</b> ${esc(o.admin?.name || '—')} &middot; ${esc(o.admin?.email || '—')} &middot; ID ${esc(o.admin?.employee_id || '—')}</div>
                         <div><b>Phone:</b> ${esc(o.admin?.phone || '—')}</div>
                         <div><b>Address:</b> ${esc(o.address || '—')} ${o.website ? '&middot; ' + esc(o.website) : ''}</div>
-                        <div><b>TIN / Reg:</b> ${esc(o.tin || '—')} &middot; <b>Submitted:</b> ${fmtDateTime(o.created_at)}</div>
+                        <div><b>TIN / Reg:</b> ${esc(o.tin || '—')} &middot; <b>Requested:</b> ${fmtDateTime(o.created_at)}</div>
                     </div>` : '';
                 const buttons = o.status === 'pending'
                     ? `<button class="btn primary" onclick="approve(${o.id})">Approve &amp; Start Trial</button><button class="btn danger" onclick="act(${o.id},'reject')">Reject</button>`
                     : o.status === 'active'
                         ? `<button class="btn danger" onclick="act(${o.id},'suspend')">Suspend</button>`
                         : `<button class="btn primary" onclick="act(${o.id},'reactivate')">Reactivate</button>`;
-                const view = `<button class="btn ghost" onclick="openOrg(${o.id})">View full details</button>`;
-                const trial = o.on_trial ? `<div style="color:var(--amber);font-size:12px;font-weight:700;margin-top:8px">Trial ends ${fmtDate(o.trial_ends_at)} &middot; ${o.trial_days_left}d left</div>` : '';
+                const view = `<button class="btn ghost" onclick="openOrg(${o.id})">View details</button>`;
+                const trial = o.on_trial ? `<div style="color:var(--amber);font-size:12px;font-weight:600;margin-top:8px">Trial ends ${fmtDate(o.trial_ends_at)} &middot; ${o.trial_days_left}d left</div>` : '';
                 return `<div class="org">
                     <h3>${esc(o.name)}</h3>
                     <div class="contact">${esc(o.contact_email || o.contact_phone || '—')}</div>
@@ -685,9 +181,9 @@
                     <div class="meta">
                         <span><span class="pill" style="color:${status[1]};background:${status[1]}1A">${status[0]}</span></span>
                         <span>Plan: <b>${cap(o.plan)}</b></span>
-                        <span>Employees: <b>${o.employees_count}/${o.employees_limit === null ? '∞' : o.employees_limit}</b></span>
-                        <span>Branches: <b>${o.branches_count}/${o.branches_limit === null ? '∞' : o.branches_limit}</b></span>
-                        <span>Prefix: <b>${esc(o.employee_id_prefix || '—')}</b></span>
+                        <span>Employees ${o.employees_count}/${o.employees_limit === null ? '∞' : o.employees_limit}</span>
+                        <span>Branches ${o.branches_count}/${o.branches_limit === null ? '∞' : o.branches_limit}</span>
+                        <span>Prefix ${esc(o.employee_id_prefix || '—')}</span>
                     </div>
                     ${trial}
                     <div class="actions">${view}${buttons}</div>
@@ -698,7 +194,7 @@
         function fmtDate(iso) {
             if (!iso) return '—';
             const d = new Date(iso);
-            return d.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+            return d.toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
         }
 
         function fmtDateTime(iso) {
@@ -761,7 +257,7 @@
                     <h3>${esc(o.name)} ${statusPill(o)}</h3>
                     <div class="contact">Registered ${fmtDateTime(o.created_at)}</div>
 
-                    <h4 style="margin:18px 0 8px">Organization Profile</h4>
+                    <h4 style="margin:18px 0 8px">Organization</h4>
                     <div class="grid">
                         ${kv('Contact email', o.contact_email)}${kv('Phone', o.contact_phone)}${kv('Address', o.address)}${kv('Website', o.website)}${kv('TIN / Reg', o.tin)}${kv('ID prefix', o.employee_id_prefix)}
                     </div>
@@ -771,18 +267,18 @@
                         ${admin ? `${kv('Name', admin.name)}${kv('Email', admin.email)}${kv('Phone', admin.phone)}${kv('Employee ID', admin.employee_id)}` : kv('Admin', '—')}
                     </div>
 
-                    <h4 style="margin:18px 0 8px">Plan &amp; Subscription</h4>
+                    <h4 style="margin:18px 0 8px">Plan &amp; subscription</h4>
                     <div class="grid">
                         ${kv('Plan', cap(o.plan))}${kv('Subscription', subs)}${kv('Trial ends', fmtDate(o.trial_ends_at))}${kv('Trial days left', o.on_trial ? String(o.trial_days_left) : '—')}
                         ${kv('Employees', o.employees_count + ' / ' + (o.employees_limit === null ? 'unlimited' : o.employees_limit))}${kv('Branches', o.branches_count + ' / ' + (o.branches_limit === null ? 'unlimited' : o.branches_limit))}
                     </div>
 
-                    <h4 style="margin:18px 0 8px">Branches (${o.branches.length})</h4>
-                    ${o.branches.length === 0 ? '<div class="contact">No branches registered</div>' : o.branches.map(b => `<div class="branch">${esc(b.name)} <span>${b.lat}, ${b.lng} &middot; &plusmn;${b.radius_meters} m &middot; ${b.employee_count} employee${b.employee_count === 1 ? '' : 's'}</span></div>`).join('')}
+                    <h4 style="margin:18px 0 8px">Branches</h4>
+                    ${o.branches.length === 0 ? '<div class="contact">No branches</div>' : o.branches.map(b => `<div class="branch">${esc(b.name)} <span>${b.lat}, ${b.lng} &middot; &plusmn;${b.radius_meters} m &middot; ${b.employee_count} employee${b.employee_count === 1 ? '' : 's'}</span></div>`).join('')}
 
                     <h4 style="margin:18px 0 8px">Employees (${o.employees.length})</h4>
-                    ${o.employees.length === 0 ? '<div class="contact">No employees enrolled yet</div>' : `<table class="emps">
-                        <thead><tr><th>Name</th><th>ID</th><th>Branch</th><th>Face Enrolled</th><th>Status</th></tr></thead>
+                    ${o.employees.length === 0 ? '<div class="contact">No employees yet</div>' : `<table class="emps">
+                        <thead><tr><th>Name</th><th>ID</th><th>Branch</th><th>Face</th><th>Status</th></tr></thead>
                         <tbody>${o.employees.map(e => `<tr><td>${esc(e.name)}</td><td>${esc(e.employee_id)}</td><td>${esc(e.branch)}</td><td>${e.face_enrolled ? 'Yes' : 'No'}</td><td>${e.active ? 'Active' : 'Inactive'}</td></tr>`).join('')}</tbody>
                     </table>`}
                     <div class="actions">${actions}</div>
@@ -797,11 +293,37 @@
             return `<div><span>${esc(k)}</span><b>${esc(v == null || v === '' ? '—' : v)}</b></div>`;
         }
 
+        document.getElementById('nav').addEventListener('click', (e) => {
+            const btn = e.target.closest('.nav');
+            if (!btn) return;
+            mode = btn.dataset.mode;
+            document.querySelectorAll('.nav').forEach(n => n.classList.toggle('active', n.dataset.mode === mode));
+            const orgArea = document.getElementById('orgArea');
+            const subsArea = document.getElementById('subsArea');
+            const pkArea = document.getElementById('packagesArea');
+            const prArea = document.getElementById('promosArea');
+            const notifArea = document.getElementById('notificationsArea');
+            
+            orgArea.style.display = mode === 'orgs' ? '' : 'none';
+            subsArea.style.display = mode === 'subs' ? '' : 'none';
+            pkArea.style.display = mode === 'packages' ? '' : 'none';
+            prArea.style.display = mode === 'promos' ? '' : 'none';
+            notifArea.style.display = mode === 'notifications' ? '' : 'none';
+
+            if (mode === 'orgs') loadOrgs().catch(() => {});
+            else if (mode === 'subs') loadSubs().catch(() => {});
+            else if (mode === 'packages') loadPackages().catch(() => {});
+            else if (mode === 'promos') loadPromos().catch(() => {});
+            else if (mode === 'notifications') loadNotifications().catch(() => {});
+        });
+
+        let mode = 'orgs';
+
         async function loadSubs() {
             const { organizations } = await api('/portal/api/organizations');
-            const box = document.getElementById('subsContent');
+            const box = document.getElementById('subsArea');
             const list = organizations.filter(o => o.status !== 'pending');
-            if (!list.length) { box.innerHTML = '<p style="color:var(--muted);padding:14px 0">No active subscriptions yet.</p>'; return; }
+            if (!list.length) { box.innerHTML = '<p style="color:var(--muted)">No subscriptions yet.</p>'; return; }
             box.innerHTML = list.map(o => {
                 const sub = o.subscription_status === 'canceled' ? 'Canceled'
                     : o.on_trial ? 'Free trial'
@@ -819,10 +341,10 @@
                     <h3>${esc(o.name)} <span class="pill" style="color:${subColor};background:${subColor}1A">${sub}</span></h3>
                     <div class="meta">
                         <span>Plan: <b>${cap(o.plan)}</b></span>
-                        <span>Trial ends: <b>${fmtDate(o.trial_ends_at)}</b></span>
+                        <span>Trial ends <b>${fmtDate(o.trial_ends_at)}</b></span>
                         <span>${o.on_trial ? o.trial_days_left + 'd left' : ''}</span>
-                        <span>Employees: <b>${o.employees_count}/${o.employees_limit === null ? '∞' : o.employees_limit}</b></span>
-                        <span>Branches: <b>${o.branches_count}/${o.branches_limit === null ? '∞' : o.branches_limit}</b></span>
+                        <span>Employees ${o.employees_count}/${o.employees_limit === null ? '∞' : o.employees_limit}</span>
+                        <span>Branches ${o.branches_count}/${o.branches_limit === null ? '∞' : o.branches_limit}</span>
                     </div>
                     <div class="actions">${select}${manage}</div>
                 </div>`;
@@ -849,7 +371,7 @@
 
         async function loadPackages() {
             const { packages } = await api('/portal/api/packages');
-            const box = document.getElementById('packagesContent');
+            const box = document.getElementById('packagesArea');
             box.innerHTML = packages.map(p => `
                 <div class="org">
                     <h3>${esc(p.name)} <span style="color:var(--muted);font-weight:600;font-size:12px">${esc(p.code)}</span></h3>
@@ -865,7 +387,7 @@
                     <input class="pfield" id="pk_br_${p.id}" type="number" min="1" value="${p.branch_limit == null ? '' : p.branch_limit}">
                     <label class="plabel">Features (one per line)</label>
                     <textarea class="pfield" id="pk_feat_${p.id}" rows="5">${esc((p.features || []).join('\n'))}</textarea>
-                    <label class="switch"><input type="checkbox" id="pk_active_${p.id}" ${p.active ? 'checked' : ''}> Active (offered in registration &amp; upgrades)</label>
+                    <label class="switch"><input type="checkbox" id="pk_active_${p.id}" ${p.active ? 'checked' : ''}> Active (offered in registration & upgrades)</label>
                     <div class="actions" style="margin-top:12px">
                         <button class="btn primary" onclick="savePackage(${p.id})">Save Package</button>
                     </div>
@@ -896,9 +418,9 @@
 
         async function loadPromos() {
             const { promos } = await api('/portal/api/promos');
-            const box = document.getElementById('promosContent');
+            const box = document.getElementById('promosArea');
             const newCard = `<div class="org">
-                <h3>Create New Promo Code</h3>
+                <h3>Create promo</h3>
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
                     <div><label class="plabel">Code (e.g. OFFER20)</label><input class="pfield" id="np_code"></div>
                     <div><label class="plabel">Type</label><select class="pfield" id="np_type"><option value="trial_days">Extra trial days</option><option value="discount_percent">% discount</option></select></div>
@@ -970,14 +492,14 @@
 
         async function loadNotifications() {
             const data = await api('/portal/api/notifications/history');
-            const box = document.getElementById('notificationsContent');
+            const box = document.getElementById('notificationsArea');
             const stats = data.stats || {};
             const orgs = data.organizations || [];
             const broadcasts = data.recent_broadcasts || [];
 
             const statsHtml = `
                 <div class="stats" style="grid-template-columns:repeat(auto-fit,minmax(140px,1fr))">
-                    <div class="stat"><b>${stats.total_devices || 0}</b><span>Active Push Devices</span><small style="color:var(--muted);font-size:11px;display:block;margin-top:2px">${stats.android_devices || 0} Android &middot; ${stats.ios_devices || 0} iOS</small></div>
+                    <div class="stat"><b>${stats.total_devices || 0}</b><span>Active Devices</span><small style="color:var(--muted);font-size:11px;display:block;margin-top:2px">${stats.android_devices || 0} Android &middot; ${stats.ios_devices || 0} iOS</small></div>
                     <div class="stat"><b>${stats.total_users || 0}</b><span>Total App Users</span><small style="color:var(--muted);font-size:11px;display:block;margin-top:2px">Eligible recipients</small></div>
                     <div class="stat"><b>${stats.broadcasts_count || 0}</b><span>Broadcasts Sent</span><small style="color:var(--muted);font-size:11px;display:block;margin-top:2px">All-time dispatched</small></div>
                 </div>`;
@@ -986,7 +508,7 @@
 
             const composerHtml = `
                 <div class="org" style="margin-bottom:20px">
-                    <h3 style="display:flex;align-items:center;gap:8px">📣 Dispatch Real-Time Push Notification</h3>
+                    <h3 style="display:flex;align-items:center;gap:8px">📣 Dispatch Push Notification</h3>
                     <p style="color:var(--muted);font-size:13px;margin:4px 0 14px">Broadcast instant push alerts with sound and heads-up banner to app users.</p>
                     
                     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
@@ -1008,25 +530,25 @@
                     </div>
 
                     <label class="plabel">Notification Title</label>
-                    <input class="pfield" id="nb_title" maxlength="100" placeholder="e.g. System Maintenance Notice">
+                    <input class="pfield" id="nb_title" maxlength="100" placeholder="e.g. Critical System Maintenance">
 
                     <label class="plabel">Message Body</label>
-                    <textarea class="pfield" id="nb_body" rows="3" maxlength="500" placeholder="Enter announcement text to display on mobile devices..."></textarea>
+                    <textarea class="pfield" id="nb_body" rows="3" maxlength="500" placeholder="Enter broadcast announcement message..."></textarea>
 
                     <div class="actions" style="margin-top:14px">
-                        <button class="btn primary" id="nb_submit_btn" onclick="sendBroadcast()">Dispatch Push Notification</button>
+                        <button class="btn primary" id="nb_submit_btn" onclick="sendBroadcast()">Dispatch Push Broadcast</button>
                     </div>
                 </div>`;
 
             const historyRows = broadcasts.length === 0
-                ? '<p style="color:var(--muted);margin-top:10px">No push broadcasts dispatched yet.</p>'
-                : `<table class="emps" style="margin-top:12px;background:#fff;border-radius:12px;overflow:hidden;border:1px solid var(--border)">
+                ? '<p style="color:var(--muted);margin-top:10px">No push broadcasts sent yet.</p>'
+                : `<table class="emps" style="margin-top:12px;background:#fff;border-radius:12px;overflow:hidden;border:1px solid rgba(32,15,53,.1)">
                     <thead>
                         <tr>
                             <th>Title &amp; Message</th>
-                            <th>Target Audience</th>
-                            <th>Dispatched By</th>
-                            <th>Timestamp</th>
+                            <th>Audience</th>
+                            <th>Sent By</th>
+                            <th>Date &amp; Time</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -1046,7 +568,7 @@
 
             const historyHtml = `
                 <div style="margin-top:16px">
-                    <h3 style="font-size:16px;margin-bottom:8px">Dispatched Broadcast Logs</h3>
+                    <h3 style="font-size:16px;margin-bottom:8px">Recent Push Broadcasts</h3>
                     ${historyRows}
                 </div>`;
 
@@ -1067,10 +589,10 @@
             if (!title) { toast('Please enter a notification title.', false); return; }
             if (!body) { toast('Please enter a message body.', false); return; }
 
-            if (!confirm(`Dispatch this push notification to ${audience === 'all' ? 'all users' : audience}?`)) return;
+            if (!confirm(`Dispatch this push broadcast to ${audience === 'all' ? 'all users' : audience}?`)) return;
 
             const btn = document.getElementById('nb_submit_btn');
-            if (btn) { btn.disabled = true; btn.textContent = 'Dispatching...'; }
+            if (btn) { btn.disabled = true; btn.textContent = 'Sending...'; }
 
             try {
                 const payload = {
@@ -1087,7 +609,7 @@
                 await loadNotifications();
             } catch (e) {
                 toast(e.message || 'Failed to dispatch notification.', false);
-                if (btn) { btn.disabled = false; btn.textContent = 'Dispatch Push Notification'; }
+                if (btn) { btn.disabled = false; btn.textContent = 'Dispatch Push Broadcast'; }
             }
         }
 
