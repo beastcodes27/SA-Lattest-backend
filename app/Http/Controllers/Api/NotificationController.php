@@ -50,7 +50,13 @@ class NotificationController extends Controller
             ->where('is_read', false)
             ->count();
 
-        $notifications = AppNotification::where('user_id', $user->id)
+        $type = $request->input('type');
+        $query = AppNotification::where('user_id', $user->id);
+        if (!empty($type)) {
+            $query->where('type', $type);
+        }
+
+        $notifications = $query
             ->with(['sender:id,name,avatar_path,role'])
             ->latest()
             ->paginate($request->input('per_page', 30));
