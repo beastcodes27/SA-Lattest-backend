@@ -31,9 +31,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('me/avatar', [ProfileController::class, 'uploadAvatar']);
     Route::put('me/password', [ProfileController::class, 'changePassword']);
     Route::put('me/password/force', [ProfileController::class, 'forceChangePassword']);
+    // Mobile User Profile & Device Push Registration
     Route::post('me/push-token', [NotificationController::class, 'updatePushToken']);
     Route::post('profile/push-token', [NotificationController::class, 'updatePushToken']);
 
+    // In-App Notification Feed & Actions
     Route::get('notifications', [NotificationController::class, 'index']);
     Route::patch('notifications/{id}/read', [NotificationController::class, 'markAsRead']);
     Route::post('notifications/read-all', [NotificationController::class, 'markAllAsRead']);
