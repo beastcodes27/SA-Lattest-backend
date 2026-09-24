@@ -18,30 +18,41 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'actioned_by_id',
     'admin_remarks',
     'actioned_at',
+    'expires_at',
+    'reminder_sent_at',
 ])]
 class PermissionRequest extends Model
 {
     public const REASON_CATEGORIES = [
-        'sick_leave' => 'Sick / Medical Leave',
-        'personal' => 'Personal / Family',
-        'emergency' => 'Emergency',
-        'vacation' => 'Vacation / Annual Leave',
+        'sick_leave'    => 'Sick / Medical Leave',
+        'personal'      => 'Personal / Family',
+        'emergency'     => 'Emergency',
+        'vacation'      => 'Vacation / Annual Leave',
         'official_duty' => 'Official Duty / Field Work',
-        'half_day' => 'Half-Day Permission',
-        'other' => 'Other',
+        'half_day'      => 'Half-Day Permission',
+        'other'         => 'Other',
     ];
 
-    public const STATUS_PENDING = 'pending';
-    public const STATUS_APPROVED = 'approved';
-    public const STATUS_REJECTED = 'rejected';
+    public const STATUS_PENDING   = 'pending';
+    public const STATUS_APPROVED  = 'approved';
+    public const STATUS_REJECTED  = 'rejected';
     public const STATUS_CANCELLED = 'cancelled';
+    public const STATUS_EXPIRED   = 'expired';
+
+    /** Number of days a pending request lives before auto-expiry. */
+    public const AUTO_EXPIRE_DAYS = 3;
+
+    /** Number of hours before expiry a reminder is sent to org admin. */
+    public const REMINDER_HOURS_BEFORE = 24;
 
     protected function casts(): array
     {
         return [
-            'start_date' => 'date:Y-m-d',
-            'end_date' => 'date:Y-m-d',
-            'actioned_at' => 'datetime',
+            'start_date'       => 'date:Y-m-d',
+            'end_date'         => 'date:Y-m-d',
+            'actioned_at'      => 'datetime',
+            'expires_at'       => 'datetime',
+            'reminder_sent_at' => 'datetime',
         ];
     }
 
@@ -60,27 +71,34 @@ class PermissionRequest extends Model
         return $this->belongsTo(User::class, 'actioned_by_id');
     }
 
+    /** Human-readable label for the category. */
+    public function getCategoryLabelAttribute(): string
+    {
+        return self::REASON_CATEGORIES[$this->reason_category]
+            ?? ucfirst(str_replace('_', ' ', $this->reason_category));
+    }
+
     public function toPayload(): array
     {
         return [
-            'id' => $this->id,
-            'user_id' => $this->user_id,
-            'employee_name' => $this->user ? $this->user->name : null,
-            'employee_id' => $this->user ? $this->user->employee_id : null,
-            'employee_email' => $this->user ? $this->user->email : null,
-            'employee_avatar' => $this->user && $this->user->avatar_path ? asset('storage/'.$this->user->avatar_path) : null,
-            'reason_category' => $this->reason_category,
+            'id'                    => $this->id,
+            'user_id'               => $this->user_id,
+            'employee_name'         => $this->user ? $this->user->name : null,
+            'employee_id'           => $this->user ? $this->user->employee_id : null,
+            'employee_email'        => $this->user ? $this->user->email : null,
+            'employee_avatar'       => $this->user && $this->user->avatar_path ? asset('storage/'.$this->user->avatar_path) : null,
+            'reason_category'       => $this->reason_category,
             'reason_category_label' => self::REASON_CATEGORIES[$this->reason_category] ?? ucfirst(str_replace('_', ' ', $this->reason_category)),
-            'reason' => $this->reason,
-            'description' => $this->description,
-            'start_date' => $this->start_date ? $this->start_date->format('Y-m-d') : null,
-            'end_date' => $this->end_date ? $this->end_date->format('Y-m-d') : null,
-            'status' => $this->status,
-            'admin_remarks' => $this->admin_remarks,
-            'actioned_by' => $this->actionedBy ? $this->actionedBy->name : null,
-            'actioned_at' => $this->actioned_at ? $this->actioned_at->toIso8601String() : null,
-            'created_at' => $this->created_at ? $this->created_at->toIso8601String() : null,
+            'reason'                => $this->reason,
+            'description'           => $this->description,
+            'start_date'            => $this->start_date ? $this->start_date->format('Y-m-d') : null,
+            'end_date'              => $this->end_date ? $this->end_date->format('Y-m-d') : null,
+            'status'                => $this->status,
+            'admin_remarks'         => $this->admin_remarks,
+            'actioned_by'           => $this->actionedBy ? $this->actionedBy->name : null,
+            'actioned_at'           => $this->actioned_at ? $this->actioned_at->toIso8601String() : null,
+            'expires_at'            => $this->expires_at ? $this->expires_at->toIso8601String() : null,
+            'created_at'            => $this->created_at ? $this->created_at->toIso8601String() : null,
         ];
     }
 }
-
