@@ -281,18 +281,20 @@ class AdminController extends Controller
             'must_change_password' => true,
         ])->save();
 
-        // Notify Employee of Password Reset
+        // Send Security Alert push notification to the employee
+        $admin = $request->user();
         try {
             \App\Services\ExpoPushService::notifyUser(
                 $employee,
-                'Security Alert: Password Reset',
-                "Your account password has been reset by your organization administrator. You will be prompted to set a new password upon login.",
-                'security_alert',
+                'Security Alert: Password Changed',
+                "Your SmartAttend account password was reset by your administrator ({$admin->name}). Temporary password: {$request->password}. Please change your password upon login.",
+                'password_reset',
                 [
-                    'type' => 'password_reset',
-                    'timestamp' => now()->toISOString(),
+                    'is_security_alert' => true,
+                    'sender_name' => $admin->name,
+                    'reset_at' => now()->toIso8601String(),
                 ],
-                $request->user()
+                $admin
             );
         } catch (\Throwable $e) {
             \Illuminate\Support\Facades\Log::warning('Failed to send employee password reset notification: ' . $e->getMessage());
