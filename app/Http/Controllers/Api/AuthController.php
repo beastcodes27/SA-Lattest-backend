@@ -10,7 +10,9 @@ use App\Services\GeolocationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Carbon\Carbon;
 
@@ -18,12 +20,43 @@ class AuthController extends Controller
 {
     public function registerOrganization(Request $request): JsonResponse
     {
+        $customAttributes = [
+            'organization.name' => 'organization name',
+            'organization.address' => 'physical address',
+            'organization.phone' => 'phone number',
+            'organization.website' => 'website URL',
+            'organization.tin' => 'TIN / registration number',
+            'organization.plan' => 'subscription package',
+            'organization.promo_code' => 'promo code',
+            'admin.name' => 'admin full name',
+            'admin.email' => 'admin email address',
+            'admin.employee_id' => 'admin employee ID',
+            'admin.password' => 'admin password',
+            'branches' => 'branches',
+            'branches.*.name' => 'branch name',
+            'branches.*.lat' => 'branch latitude',
+            'branches.*.lng' => 'branch longitude',
+            'branches.*.radius_meters' => 'branch check-in radius',
+        ];
+
+        $customMessages = [
+            'admin.email.unique' => 'The admin email address is already registered. Please use another email.',
+            'admin.employee_id.unique' => 'The admin employee ID is already in use by another account.',
+            'organization.plan.exists' => 'The selected subscription plan is currently unavailable.',
+            'branches.*.lat.between' => 'Branch latitude must be a valid coordinate between -90 and 90 degrees.',
+            'branches.*.lng.between' => 'Branch longitude must be a valid coordinate between -180 and 180 degrees.',
+            'branches.*.radius_meters.between' => 'Branch check-in radius must be between 10 and 5000 meters.',
+            'branches.min' => 'At least one branch location is required.',
+        ];
+
         $validator = Validator::make($request->all(), [
             'organization.name' => ['required', 'string', 'max:255'],
             'organization.address' => ['required', 'string', 'max:255'],
             'organization.phone' => ['required', 'string', 'max:40'],
             'organization.website' => ['nullable', 'string', 'max:255'],
             'organization.tin' => ['required', 'string', 'max:120'],
+            'organization.tin_document_name' => ['nullable', 'string', 'max:255'],
+            'organization.tin_document_base64' => ['nullable', 'string'],
             'organization.employee_id_prefix' => ['nullable', 'string', 'max:20'],
             'organization.plan' => ['required', Rule::exists('packages', 'code')->where('active', true)],
             'organization.promo_code' => ['nullable', 'string', 'max:40'],
@@ -37,13 +70,45 @@ class AuthController extends Controller
             'branches.*.lat' => ['required', 'numeric', 'between:-90,90'],
             'branches.*.lng' => ['required', 'numeric', 'between:-180,180'],
             'branches.*.radius_meters' => ['required', 'integer', 'between:10,5000'],
-        ]);
+        ], $customMessages, $customAttributes);
 
         if ($validator->fails()) {
-            return response()->json(['message' => 'The given data was invalid.', 'errors' => $validator->errors()], 422);
+            return response()->json([
+                'message' => 'The given data was invalid.',
+                'errors' => $validator->errors(),
+            ], 422);
         }
 
         $data = $validator->validated();
+
+        // Process optional TIN document upload (file or base64)
+        $tinDocPath = null;
+        $tinDocName = $data['organization']['tin_document_name'] ?? null;
+
+        if ($request->hasFile('tin_document')) {
+            $file = $request->file('tin_document');
+            $tinDocName = $tinDocName ?: $file->getClientOriginalName();
+            $tinDocPath = $file->store('documents/tin', 'public');
+        } elseif (!empty($data['organization']['tin_document_base64'])) {
+            try {
+                $base64Data = $data['organization']['tin_document_base64'];
+                if (str_contains($base64Data, ';base64,')) {
+                    [, $base64Data] = explode(';base64,', $base64Data, 2);
+                }
+                $decoded = base64_decode($base64Data, true);
+                if ($decoded !== false) {
+                    $ext = 'pdf';
+                    if ($tinDocName && strrpos($tinDocName, '.') !== false) {
+                        $ext = pathinfo($tinDocName, PATHINFO_EXTENSION);
+                    }
+                    $filename = 'documents/tin/tin_' . Str::random(24) . '.' . $ext;
+                    Storage::disk('public')->put($filename, $decoded);
+                    $tinDocPath = $filename;
+                }
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning('Failed to process TIN document base64: ' . $e->getMessage());
+            }
+        }
 
         $promoCode = strtoupper(trim((string) ($data['organization']['promo_code'] ?? '')));
         $promo = null;
@@ -67,6 +132,8 @@ class AuthController extends Controller
             'address' => $data['organization']['address'],
             'website' => $data['organization']['website'] ?? null,
             'tin' => $data['organization']['tin'],
+            'tin_document_path' => $tinDocPath,
+            'tin_document_name' => $tinDocName,
             'employee_id_prefix' => $this->normalizePrefix($data['organization']['employee_id_prefix'] ?? $data['organization']['name']),
             'plan' => $data['organization']['plan'],
             'status' => 'pending',
