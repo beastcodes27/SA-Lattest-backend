@@ -13,6 +13,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     'address',
     'website',
     'tin',
+    'tin_document_path',
+    'tin_document_name',
     'employee_id_prefix',
     'default_employee_password',
     'plan',
@@ -101,8 +103,18 @@ class Organization extends Model
         return $this->hasMany(User::class, 'org_id');
     }
 
+    public function getTinDocumentUrlAttribute(): ?string
+    {
+        if (! $this->tin_document_path) {
+            return null;
+        }
+
+        return url('storage/' . $this->tin_document_path);
+    }
+
     public function permissionRequests(): HasMany
     {
         return $this->hasMany(PermissionRequest::class, 'organization_id');
     }
 }
+
