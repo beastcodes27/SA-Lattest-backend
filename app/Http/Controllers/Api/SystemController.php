@@ -361,6 +361,8 @@ class SystemController extends Controller
             'address' => $org->address,
             'website' => $org->website,
             'tin' => $org->tin,
+            'tin_document_name' => $org->tin_document_name,
+            'tin_document_url' => $org->tin_document_url,
             'admin' => $admin ? [
                 'name' => $admin->name,
                 'email' => $admin->email,
