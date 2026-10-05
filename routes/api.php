@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\AttendanceController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\PackagesController;
+use App\Http\Controllers\Api\PaymentController;
 use App\Http\Controllers\Api\PermissionController;
 use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Api\PromoController;
@@ -78,6 +79,13 @@ Route::middleware(['auth:sanctum', 'org-admin'])->prefix('admin')->group(functio
     Route::post('subscription/upgrade', [SubscriptionController::class, 'upgrade']);
     Route::post('subscription/cancel', [SubscriptionController::class, 'cancel']);
     Route::post('subscription/cancel-trial', [SubscriptionController::class, 'cancelTrial']);
+
+    // Mobile Money Payments
+    Route::post('subscription/payments/initiate', [PaymentController::class, 'initiate']);
+    Route::get('subscription/payments', [PaymentController::class, 'index']);
+    Route::get('subscription/payments/{payment}', [PaymentController::class, 'show']);
+    Route::post('subscription/payments/{payment}/verify', [PaymentController::class, 'verify']);
+    Route::post('subscription/payments/{payment}/simulate', [PaymentController::class, 'simulate']);
 });
 
 Route::middleware(['auth:sanctum', 'system-admin'])->prefix('system')->group(function () {
