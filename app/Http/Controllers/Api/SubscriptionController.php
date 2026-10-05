@@ -137,6 +137,13 @@ class SubscriptionController extends Controller
             'employees_used' => $org->users()->where('role', 'employee')->count(),
             'employees_limit' => PlanLimits::employeeLimit($org->plan),
             'packages' => $packages,
+            'supported_payment_methods' => ['mobile_money'],
+            'mobile_payment_providers' => [
+                ['code' => 'mpesa', 'name' => 'M-Pesa', 'carrier' => 'Vodacom Tanzania', 'ussd' => '*150*00#'],
+                ['code' => 'tigopesa', 'name' => 'Tigo Pesa', 'carrier' => 'Yas Tanzania', 'ussd' => '*150*01#'],
+                ['code' => 'airtelmoney', 'name' => 'Airtel Money', 'carrier' => 'Airtel Tanzania', 'ussd' => '*150*60#'],
+                ['code' => 'halopesa', 'name' => 'HaloPesa', 'carrier' => 'Halotel Tanzania', 'ussd' => '*150*88#'],
+            ],
             'latest_payment' => $latestPayment ? [
                 'id' => $latestPayment->id,
                 'reference' => $latestPayment->reference,
