@@ -63,4 +63,30 @@ class SonicPesaService
             ->withHeaders($headers)
             ->timeout($this->timeout);
     }
+
+    public static function normalizePhone(string $rawPhone): string
+    {
+        $cleaned = preg_replace('/[^\d+]/', '', trim($rawPhone));
+        if (str_starts_with($cleaned, '+255')) {
+            return substr($cleaned, 1);
+        }
+        if (str_starts_with($cleaned, '255')) {
+            return $cleaned;
+        }
+        if (str_starts_with($cleaned, '0')) {
+            return '255' . substr($cleaned, 1);
+        }
+
+        return '255' . $cleaned;
+    }
+
+    public static function formatPhoneForDisplay(string $phone): string
+    {
+        $normalized = self::normalizePhone($phone);
+        if (str_starts_with($normalized, '255') && strlen($normalized) === 12) {
+            return '0' . substr($normalized, 3);
+        }
+
+        return $normalized;
+    }
 }
