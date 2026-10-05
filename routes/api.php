@@ -11,11 +11,15 @@ use App\Http\Controllers\Api\PermissionController;
 use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Api\PromoController;
 use App\Http\Controllers\Api\PromoManagerController;
+use App\Http\Controllers\Api\SonicPesaWebhookController;
 use App\Http\Controllers\Api\SubscriptionController;
 use App\Http\Controllers\Api\SystemController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('app/version', [AppVersionController::class, 'check']);
+
+// Public & Payment Gateway Webhooks
+Route::post('webhooks/sonicpesa', [SonicPesaWebhookController::class, 'handle'])->name('webhooks.sonicpesa');
 
 Route::prefix('auth')->group(function () {
     Route::post('register-organization', [AuthController::class, 'registerOrganization']);
