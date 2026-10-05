@@ -16,19 +16,26 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
     'original_amount',
     'discount_amount',
     'currency',
+    'gateway',
     'mobile_provider',
     'phone_number',
     'reference',
+    'sonicpesa_order_id',
+    'sonicpesa_checkout_url',
+    'sonicpesa_qr_code',
     'external_transaction_id',
     'ussd_code',
     'status',
     'failure_reason',
     'metadata',
+    'sonicpesa_response',
     'paid_at',
     'failed_at',
 ])]
 class Payment extends Model
 {
+    public const GATEWAY_SONICPESA = 'sonicpesa';
+
     public const PROVIDERS = [
         'mpesa' => 'M-Pesa (Vodacom)',
         'tigopesa' => 'Tigo Pesa (Yas)',
@@ -48,6 +55,7 @@ class Payment extends Model
             'original_amount' => 'integer',
             'discount_amount' => 'integer',
             'metadata' => 'array',
+            'sonicpesa_response' => 'array',
             'paid_at' => 'datetime',
             'failed_at' => 'datetime',
         ];
@@ -110,6 +118,17 @@ class Payment extends Model
             'failure_reason' => $reason,
             'failed_at' => now(),
         ])->save();
+    }
+
+    public function scopeSonicPesaOrder(Builder $query, string $orderId): Builder
+    {
+        return $query->where('sonicpesa_order_id', $orderId)
+            ->orWhere('reference', $orderId);
+    }
+
+    public function isSonicPesa(): bool
+    {
+        return $this->gateway === self::GATEWAY_SONICPESA;
     }
 
     public function getProviderNameAttribute(): string
