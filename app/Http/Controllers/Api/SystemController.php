@@ -76,6 +76,9 @@ class SystemController extends Controller
                 'lat' => (float) $b->lat,
                 'lng' => (float) $b->lng,
                 'radius_meters' => (int) $b->radius_meters,
+                'check_in_time' => $b->check_in_time,
+                'grace_period_minutes' => (int) ($b->grace_period_minutes ?? 15),
+                'check_out_time' => $b->check_out_time,
                 'active' => (bool) $b->active,
                 'employee_count' => (int) $b->employee_count,
             ])
@@ -352,6 +355,7 @@ class SystemController extends Controller
     private function payload(Organization $org): array
     {
         $admin = $org->users()->where('role', 'admin')->orderBy('id')->first();
+        $promoRedemption = \App\Models\PromoRedemption::where('org_id', $org->id)->with('promo')->first();
 
         return [
             'id' => $org->id,
@@ -368,19 +372,28 @@ class SystemController extends Controller
                 'email' => $admin->email,
                 'phone' => $admin->phone,
                 'employee_id' => $admin->employee_id,
+                'role' => $admin->role,
+                'active' => (bool) $admin->active,
+                'created_at' => $admin->created_at?->toIso8601String(),
             ] : null,
             'employee_id_prefix' => $org->employee_id_prefix,
             'plan' => $org->plan,
+            'promo_code' => $promoRedemption?->promo?->code,
+            'discount_percent' => (int) ($org->discount_percent ?? $promoRedemption?->promo?->value ?? 0),
             'status' => $org->status,
             'employees_count' => (int) ($org->employees_count ?? $org->users()->where('role', 'employee')->count()),
             'branches_count' => (int) ($org->branches_count ?? $org->branches()->count()),
+            'attendances_count' => (int) \App\Models\Attendance::where('org_id', $org->id)->count(),
             'branches_limit' => PlanLimits::branchLimit($org->plan),
             'employees_limit' => PlanLimits::employeeLimit($org->plan),
             'on_trial' => $org->onTrial(),
             'trial_days_left' => $org->trialDaysLeft(),
+            'trial_started_at' => $org->trial_started_at?->toIso8601String(),
             'trial_ends_at' => $org->trial_ends_at?->toIso8601String(),
+            'canceled_at' => $org->canceled_at?->toIso8601String(),
             'subscription_status' => $org->subscription_status,
             'created_at' => $org->created_at?->toIso8601String(),
+            'updated_at' => $org->updated_at?->toIso8601String(),
         ];
     }
 }
