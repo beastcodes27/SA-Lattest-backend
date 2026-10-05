@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Models\Payment;
 use App\Models\Package;
 use App\Services\MobilePaymentService;
+use App\Services\SonicPesaService;
 use App\Support\PlanLimits;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -13,6 +14,13 @@ use Illuminate\Validation\Rule;
 
 class PaymentController extends Controller
 {
+    protected SonicPesaService $sonicPesa;
+
+    public function __construct(SonicPesaService $sonicPesa)
+    {
+        $this->sonicPesa = $sonicPesa;
+    }
+
     public function initiate(Request $request): JsonResponse
     {
         $user = $request->user();
@@ -52,6 +60,7 @@ class PaymentController extends Controller
             'original_amount' => $calculation['original_amount'],
             'discount_amount' => $calculation['discount_amount'],
             'currency' => $calculation['currency'],
+            'gateway' => Payment::GATEWAY_SONICPESA,
             'mobile_provider' => $provider,
             'phone_number' => $normalizedPhone,
             'reference' => $reference,
@@ -65,6 +74,28 @@ class PaymentController extends Controller
             ],
         ]);
 
+        // Initiate remote SonicPesa order / USSD push
+        $orderResult = $this->sonicPesa->createOrder([
+            'order_id' => $reference,
+            'amount' => $payment->amount,
+            'currency' => $payment->currency,
+            'buyer_name' => $user->name,
+            'buyer_email' => $user->email,
+            'buyer_phone' => $normalizedPhone,
+            'metadata' => [
+                'payment_id' => $payment->id,
+                'org_id' => $org->id,
+                'plan' => $planCode,
+            ],
+        ]);
+
+        $payment->forceFill([
+            'sonicpesa_order_id' => $orderResult['order_id'] ?? $reference,
+            'sonicpesa_checkout_url' => $orderResult['checkout_url'] ?? null,
+            'sonicpesa_qr_code' => $orderResult['qr_code'] ?? null,
+            'sonicpesa_response' => $orderResult['raw'] ?? null,
+        ])->save();
+
         $instructions = MobilePaymentService::getInstructions(
             $provider,
             $payment->amount,
@@ -73,9 +104,12 @@ class PaymentController extends Controller
         );
 
         return response()->json([
-            'message' => 'Mobile payment prompt sent. Please check your phone to approve.',
-            'payment' => $this->formatPayment($payment),
+            'message' => $orderResult['message'] ?? 'Mobile payment prompt sent. Please check your phone to approve.',
+            'payment' => $this->formatPayment($payment->fresh()),
             'instructions' => $instructions,
+            'checkout_url' => $orderResult['checkout_url'] ?? null,
+            'qr_code' => $orderResult['qr_code'] ?? null,
+            'gateway' => Payment::GATEWAY_SONICPESA,
         ], 201);
     }
 
