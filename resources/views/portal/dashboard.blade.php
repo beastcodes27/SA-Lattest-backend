@@ -6,93 +6,405 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>SmartAttend Admin &middot; Dashboard</title>
     <style>
-        :root { --bg:#D7FFE0; --ink:#200F35; --text:#1A1231; --muted:#55576B; --green:#1F7A43; --amber:#B8860B; --red:#C23030; }
-        * { box-sizing:border-box; }
-        body { margin:0; font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif; background:var(--bg); color:var(--text); }
-        header { display:flex; align-items:center; justify-content:space-between; padding:18px 28px; }
-        .brand { font-size:20px; font-weight:800; color:var(--ink); }
-        .who { color:var(--muted); font-size:13px; }
-        .logout { color:var(--ink); font-weight:700; text-decoration:none; }
-        .wrap { max-width:960px; margin:0 auto; padding:0 24px 60px; }
-        .stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; margin-bottom:24px; }
-        .stat { background:#fff; border:1px solid rgba(32,15,53,.1); border-radius:14px; padding:14px; }
-        .stat b { font-size:26px; color:var(--ink); display:block; }
-        .stat span { color:var(--muted); font-size:12px; }
-        .stat-btn { display:block; width:100%; text-align:left; font:inherit; cursor:pointer; transition:opacity .15s; }
-        .stat-btn:hover { opacity:.75; }
-        .filters { display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap; }
-        .filter { border:1px solid rgba(32,15,53,.2); background:#fff; border-radius:999px; padding:8px 16px; cursor:pointer; font-weight:600; font-size:13px; }
-        .filter.active { background:var(--ink); color:var(--bg); border-color:var(--ink); }
-        .org { background:#fff; border:1px solid rgba(32,15,53,.1); border-radius:16px; padding:16px 18px; margin-bottom:12px; }
-        .org h3 { margin:0 0 2px; font-size:16px; }
-        .org .contact { color:var(--muted); font-size:12px; margin-bottom:10px; }
-        .meta { display:flex; gap:14px; font-size:12px; color:var(--muted); flex-wrap:wrap; }
-        .pill { display:inline-flex; align-items:center; gap:6px; border-radius:999px; padding:4px 10px; font-size:12px; font-weight:800; }
-        .actions { display:flex; gap:8px; margin-top:14px; flex-wrap:wrap; }
-        .btn { border:0; border-radius:10px; padding:9px 16px; font-size:13px; font-weight:800; cursor:pointer; }
-        .btn.primary { background:var(--ink); color:var(--bg); }
-        .btn.danger { background:rgba(194,48,48,.1); color:var(--red); }
-        .btn.ghost { background:rgba(32,15,53,.05); color:var(--ink); }
-        .btn[disabled]{ opacity:.5; cursor:default; }
-        .msg { position:fixed; left:50%; transform:translateX(-50%); top:18px; border-radius:12px; padding:12px 18px; font-weight:700; color:#fff; box-shadow:0 10px 30px rgba(0,0,0,.2); display:none; }
-        .msg.ok { background:var(--green); }
-        .msg.err { background:var(--red); }
-        .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; }
-        .grid span { display:block; color:var(--muted); font-size:11px; text-transform:uppercase; letter-spacing:.5px; }
-        .grid b { font-size:13px; word-break:break-word; }
-        .branch { background:rgba(32,15,53,.04); border:1px solid rgba(32,15,53,.1); border-radius:10px; padding:10px 12px; font-size:13px; font-weight:800; margin-bottom:8px; }
-        .branch span { font-weight:400; color:var(--muted); font-size:12px; }
-        table.emps { width:100%; border-collapse:collapse; font-size:13px; }
-        table.emps th { text-align:left; background:rgba(32,15,53,.06); padding:8px 10px; color:var(--ink); font-size:11px; text-transform:uppercase; }
-        table.emps td { padding:8px 10px; border-bottom:1px solid rgba(32,15,53,.08); }
-        nav { display:flex; gap:8px; margin-bottom:20px; }
-        .nav { background:#fff; border:1px solid rgba(32,15,53,.2); border-radius:12px; padding:10px 18px; font-weight:800; font-size:14px; cursor:pointer; }
-        .nav.active { background:var(--ink); color:var(--bg); border-color:var(--ink); }
-        select { padding:8px 10px; border-radius:8px; border:1px solid rgba(32,15,53,.2); background:#fff; }
-        .pfield { width:100%; padding:9px 11px; border-radius:8px; border:1px solid rgba(32,15,53,.2); font-size:13px; margin-top:4px; background:#fff; }
-        .plabel { display:block; font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.5px; color:var(--ink); margin-top:10px; }
-        .switch { display:inline-flex; align-items:center; gap:8px; font-weight:800; font-size:13px; cursor:pointer; margin-top:10px; }
+        :root {
+            --bg: #D7FFE0;
+            --ink: #200F35;
+            --sidebar-bg: #1B0B2E;
+            --sidebar-hover: rgba(215, 255, 224, 0.08);
+            --sidebar-active: #2F174B;
+            --text: #1A1231;
+            --muted: #55576B;
+            --muted-light: #8A86A3;
+            --green: #1F7A43;
+            --amber: #B8860B;
+            --red: #C23030;
+            --card-border: rgba(32, 15, 53, 0.1);
+        }
+        * { box-sizing: border-box; }
+        body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica, Arial, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; overflow-x: hidden; }
+        
+        .app-layout { display: flex; min-height: 100vh; width: 100vw; position: relative; }
+        
+        /* Sidebar container */
+        .app-sidebar {
+            width: 270px;
+            background: var(--sidebar-bg);
+            color: #fff;
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+            position: fixed;
+            top: 0;
+            bottom: 0;
+            left: 0;
+            z-index: 100;
+            transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 4px 0 24px rgba(0, 0, 0, 0.18);
+        }
+        .sidebar-brand {
+            padding: 22px 20px 18px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .brand-logo-icon {
+            width: 38px;
+            height: 38px;
+            border-radius: 10px;
+            background: linear-gradient(135deg, #38EF7D 0%, #11998E 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #1A1231;
+            font-weight: 900;
+            font-size: 18px;
+            box-shadow: 0 4px 12px rgba(56, 239, 125, 0.3);
+        }
+        .brand-text { display: flex; flex-direction: column; }
+        .brand-title { font-size: 17px; font-weight: 800; color: #fff; letter-spacing: -0.2px; }
+        .brand-badge { font-size: 11px; font-weight: 700; color: #38EF7D; text-transform: uppercase; letter-spacing: 0.5px; }
+        
+        .sidebar-profile {
+            padding: 16px 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: rgba(0, 0, 0, 0.18);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        }
+        .profile-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 20px;
+            background: #3F1D6B;
+            color: var(--bg);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            font-size: 15px;
+            border: 2px solid rgba(56, 239, 125, 0.4);
+        }
+        .profile-info { flex: 1; overflow: hidden; }
+        .profile-name { font-size: 14px; font-weight: 700; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .profile-role { font-size: 11px; color: var(--muted-light); display: flex; align-items: center; gap: 5px; margin-top: 1px; }
+        .status-dot { width: 7px; height: 7px; border-radius: 50%; background: #38EF7D; box-shadow: 0 0 8px #38EF7D; display: inline-block; }
+
+        .sidebar-nav {
+            flex: 1;
+            padding: 16px 12px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .nav-section-title {
+            font-size: 11px;
+            font-weight: 800;
+            color: rgba(255, 255, 255, 0.4);
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            padding: 12px 12px 6px;
+        }
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            width: 100%;
+            padding: 11px 14px;
+            background: transparent;
+            border: 0;
+            border-radius: 12px;
+            color: rgba(255, 255, 255, 0.78);
+            font-size: 13.5px;
+            font-weight: 700;
+            cursor: pointer;
+            text-align: left;
+            transition: all 0.18s ease;
+        }
+        .nav-item:hover {
+            background: var(--sidebar-hover);
+            color: #fff;
+        }
+        .nav-item.active {
+            background: var(--sidebar-active);
+            color: #38EF7D;
+            box-shadow: inset 3px 0 0 #38EF7D;
+        }
+        .nav-icon { width: 18px; height: 18px; fill: currentColor; display: inline-flex; align-items: center; justify-content: center; }
+        .nav-label { flex: 1; }
+        .nav-badge {
+            background: var(--red);
+            color: #fff;
+            font-size: 11px;
+            font-weight: 800;
+            padding: 2px 7px;
+            border-radius: 10px;
+        }
+
+        .sidebar-footer {
+            padding: 16px 14px;
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
+            background: rgba(0, 0, 0, 0.15);
+        }
+        .logout-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            width: 100%;
+            padding: 10px 14px;
+            background: rgba(194, 48, 48, 0.18);
+            border: 1px solid rgba(194, 48, 48, 0.35);
+            border-radius: 10px;
+            color: #FF8E8E;
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .logout-btn:hover {
+            background: rgba(194, 48, 48, 0.3);
+            color: #fff;
+        }
+
+        /* Main view area */
+        .app-main {
+            flex: 1;
+            margin-left: 270px;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            width: calc(100vw - 270px);
+        }
+        
+        .main-topbar {
+            background: rgba(255, 255, 255, 0.94);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(32, 15, 53, 0.08);
+            padding: 14px 28px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 90;
+        }
+        .topbar-left { display: flex; align-items: center; gap: 14px; }
+        .menu-toggle-btn {
+            display: none;
+            background: rgba(32, 15, 53, 0.06);
+            border: 0;
+            border-radius: 8px;
+            padding: 8px 10px;
+            cursor: pointer;
+            color: var(--ink);
+            font-size: 16px;
+        }
+        .page-title { font-size: 18px; font-weight: 800; color: var(--ink); margin: 0; }
+        .page-breadcrumb { font-size: 12px; color: var(--muted); font-weight: 600; margin-top: 1px; }
+
+        .topbar-right { display: flex; align-items: center; gap: 14px; }
+        .system-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(31, 122, 67, 0.1);
+            color: var(--green);
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 700;
+        }
+        
+        .main-content {
+            flex: 1;
+            padding: 24px 28px 60px;
+            max-width: 1400px;
+            width: 100%;
+        }
+
+        /* Sidebar backdrop for mobile */
+        .sidebar-backdrop {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 95;
+            backdrop-filter: blur(2px);
+        }
+
+        /* Cards, Stats & Forms */
+        .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 14px; margin-bottom: 24px; }
+        .stat { background: #fff; border: 1px solid var(--card-border); border-radius: 14px; padding: 16px; box-shadow: 0 2px 8px rgba(32, 15, 53, 0.03); }
+        .stat b { font-size: 26px; color: var(--ink); display: block; letter-spacing: -0.5px; }
+        .stat span { color: var(--muted); font-size: 12px; font-weight: 600; margin-top: 2px; display: block; }
+        .stat-btn { display: block; width: 100%; text-align: left; font: inherit; cursor: pointer; transition: transform 0.15s, box-shadow 0.15s; }
+        .stat-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(32, 15, 53, 0.08); }
+        
+        .filters { display: flex; gap: 8px; margin-bottom: 18px; flex-wrap: wrap; }
+        .filter { border: 1px solid rgba(32, 15, 53, 0.18); background: #fff; border-radius: 999px; padding: 8px 18px; cursor: pointer; font-weight: 700; font-size: 13px; color: var(--text); transition: all 0.15s; }
+        .filter:hover { background: rgba(32, 15, 53, 0.04); }
+        .filter.active { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+        
+        .org { background: #fff; border: 1px solid var(--card-border); border-radius: 16px; padding: 18px 20px; margin-bottom: 14px; box-shadow: 0 2px 8px rgba(32, 15, 53, 0.03); }
+        .org h3 { margin: 0 0 3px; font-size: 17px; color: var(--ink); }
+        .org .contact { color: var(--muted); font-size: 13px; margin-bottom: 12px; }
+        .meta { display: flex; gap: 14px; font-size: 12px; color: var(--muted); flex-wrap: wrap; align-items: center; }
+        .pill { display: inline-flex; align-items: center; gap: 6px; border-radius: 999px; padding: 4px 10px; font-size: 12px; font-weight: 800; }
+        
+        .actions { display: flex; gap: 8px; margin-top: 16px; flex-wrap: wrap; }
+        .btn { border: 0; border-radius: 10px; padding: 10px 18px; font-size: 13px; font-weight: 800; cursor: pointer; transition: all 0.15s; }
+        .btn.primary { background: var(--ink); color: var(--bg); }
+        .btn.primary:hover { opacity: 0.9; transform: translateY(-1px); }
+        .btn.danger { background: rgba(194, 48, 48, 0.1); color: var(--red); }
+        .btn.danger:hover { background: rgba(194, 48, 48, 0.2); }
+        .btn.ghost { background: rgba(32, 15, 53, 0.06); color: var(--ink); }
+        .btn.ghost:hover { background: rgba(32, 15, 53, 0.12); }
+        .btn[disabled] { opacity: 0.5; cursor: default; }
+
+        .msg { position: fixed; left: 50%; transform: translateX(-50%); top: 18px; border-radius: 12px; padding: 12px 22px; font-weight: 700; color: #fff; box-shadow: 0 10px 30px rgba(0,0,0,0.25); display: none; z-index: 1000; }
+        .msg.ok { background: var(--green); }
+        .msg.err { background: var(--red); }
+        
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
+        .grid span { display: block; color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 700; }
+        .grid b { font-size: 13.5px; word-break: break-word; color: var(--ink); margin-top: 2px; }
+        .branch { background: rgba(32, 15, 53, 0.04); border: 1px solid rgba(32, 15, 53, 0.1); border-radius: 10px; padding: 10px 14px; font-size: 13px; font-weight: 800; margin-bottom: 8px; }
+        .branch span { font-weight: 400; color: var(--muted); font-size: 12px; }
+        table.emps { width: 100%; border-collapse: collapse; font-size: 13px; }
+        table.emps th { text-align: left; background: rgba(32, 15, 53, 0.06); padding: 9px 12px; color: var(--ink); font-size: 11px; text-transform: uppercase; font-weight: 800; }
+        table.emps td { padding: 9px 12px; border-bottom: 1px solid rgba(32, 15, 53, 0.08); }
+        
+        select { padding: 8px 12px; border-radius: 8px; border: 1px solid rgba(32, 15, 53, 0.2); background: #fff; font-weight: 600; }
+        .pfield { width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid rgba(32, 15, 53, 0.2); font-size: 13.5px; margin-top: 5px; background: #fff; color: var(--text); }
+        .pfield:focus { outline: none; border-color: var(--ink); box-shadow: 0 0 0 3px rgba(32, 15, 53, 0.1); }
+        .plabel { display: block; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; color: var(--ink); margin-top: 12px; }
+        .switch { display: inline-flex; align-items: center; gap: 8px; font-weight: 800; font-size: 13px; cursor: pointer; margin-top: 12px; }
+
+        @media (max-width: 992px) {
+            .app-sidebar {
+                transform: translateX(-100%);
+            }
+            .app-sidebar.open {
+                transform: translateX(0);
+            }
+            .sidebar-backdrop.open {
+                display: block;
+            }
+            .app-main {
+                margin-left: 0;
+                width: 100vw;
+            }
+            .menu-toggle-btn {
+                display: inline-flex;
+            }
+            .main-content {
+                padding: 18px 16px 40px;
+            }
+        }
     </style>
 </head>
 <body>
-    <header>
-        <div class="brand">SmartAttend &middot; Admin</div>
-        <div>
-            <span class="who">{{ auth()->user()->name }}</span>
-            <form method="POST" action="{{ route('portal.logout') }}" style="display:inline; margin-left:14px;">
-                @csrf
-                <button class="logout" type="submit" style="background:none;border:0;cursor:pointer;">Sign out</button>
-            </form>
-        </div>
-    </header>
+    <div class="app-layout">
+        <!-- Mobile Drawer Backdrop -->
+        <div class="sidebar-backdrop" id="sidebarBackdrop" onclick="toggleSidebar(false)"></div>
 
-    <div class="wrap">
-        <nav id="nav">
-            <button class="nav active" data-mode="orgs">Organizations</button>
-            <button class="nav" data-mode="subs">Subscriptions</button>
-            <button class="nav" data-mode="packages">Packages</button>
-            <button class="nav" data-mode="promos">Promos</button>
-            <button class="nav" data-mode="notifications">Notifications</button>
-        </nav>
-
-        <div id="orgArea">
-            <div class="stats" id="stats"></div>
-            <div class="filters" id="filters">
-                <button class="filter active" data-status="pending">Pending</button>
-                <button class="filter" data-status="active">Active</button>
-                <button class="filter" data-status="suspended">Suspended</button>
-                <button class="filter" data-status="">All</button>
+        <!-- System Admin Sidebar Navigation -->
+        <aside class="app-sidebar" id="appSidebar">
+            <div class="sidebar-brand">
+                <div class="brand-logo-icon">SA</div>
+                <div class="brand-text">
+                    <div class="brand-title">SmartAttend</div>
+                    <div class="brand-badge">System Console</div>
+                </div>
             </div>
-            <div id="orgs"></div>
+
+            <div class="sidebar-profile">
+                <div class="profile-avatar">{{ strtoupper(substr(auth()->user()->name ?? 'SA', 0, 2)) }}</div>
+                <div class="profile-info">
+                    <div class="profile-name">{{ auth()->user()->name }}</div>
+                    <div class="profile-role">
+                        <span class="status-dot"></span> System Super Admin
+                    </div>
+                </div>
+            </div>
+
+            <div class="sidebar-nav" id="sidebarNav">
+                <div class="nav-section-title">Administration</div>
+                <button class="nav-item active" data-mode="orgs">
+                    <span class="nav-icon">🏢</span>
+                    <span class="nav-label">Organizations</span>
+                    <span class="nav-badge" id="pendingBadge" style="display:none">0</span>
+                </button>
+                <button class="nav-item" data-mode="subs">
+                    <span class="nav-icon">💳</span>
+                    <span class="nav-label">Subscriptions</span>
+                </button>
+                <button class="nav-item" data-mode="packages">
+                    <span class="nav-icon">📦</span>
+                    <span class="nav-label">Packages</span>
+                </button>
+                <button class="nav-item" data-mode="promos">
+                    <span class="nav-icon">🏷️</span>
+                    <span class="nav-label">Promos &amp; Offers</span>
+                </button>
+                <button class="nav-item" data-mode="notifications">
+                    <span class="nav-icon">📣</span>
+                    <span class="nav-label">Push Broadcasts</span>
+                </button>
+            </div>
+
+            <div class="sidebar-footer">
+                <form method="POST" action="{{ route('portal.logout') }}">
+                    @csrf
+                    <button class="logout-btn" type="submit">
+                        <span>🚪</span> Sign out of Console
+                    </button>
+                </form>
+            </div>
+        </aside>
+
+        <!-- Main Content Wrapper -->
+        <div class="app-main">
+            <header class="main-topbar">
+                <div class="topbar-left">
+                    <button class="menu-toggle-btn" onclick="toggleSidebar(true)">☰</button>
+                    <div>
+                        <h1 class="page-title" id="pageTitle">Organizations</h1>
+                        <div class="page-breadcrumb" id="pageBreadcrumb">Console &middot; Organizations &amp; Registrations</div>
+                    </div>
+                </div>
+                <div class="topbar-right">
+                    <span class="system-pill"><span class="status-dot"></span> System Online</span>
+                </div>
+            </header>
+
+            <main class="main-content">
+                <div id="orgArea">
+                    <div class="stats" id="stats"></div>
+                    <div class="filters" id="filters">
+                        <button class="filter active" data-status="pending">Pending</button>
+                        <button class="filter" data-status="active">Active</button>
+                        <button class="filter" data-status="suspended">Suspended</button>
+                        <button class="filter" data-status="">All</button>
+                    </div>
+                    <div id="orgs"></div>
+                </div>
+
+                <div id="subsArea" style="display:none"></div>
+
+                <div id="packagesArea" style="display:none"></div>
+
+                <div id="promosArea" style="display:none"></div>
+
+                <div id="notificationsArea" style="display:none"></div>
+            </main>
         </div>
-
-        <div id="subsArea" style="display:none"></div>
-
-        <div id="packagesArea" style="display:none"></div>
-
-        <div id="promosArea" style="display:none"></div>
-
-        <div id="notificationsArea" style="display:none"></div>
     </div>
 
     <div class="msg" id="msg"></div>
@@ -131,6 +443,13 @@
 
         async function loadStats() {
             const { stats } = await api('/portal/api/stats');
+            if (stats.pending !== undefined) {
+                const badge = document.getElementById('pendingBadge');
+                if (badge) {
+                    badge.textContent = stats.pending;
+                    badge.style.display = stats.pending > 0 ? 'inline-block' : 'none';
+                }
+            }
             const tiles = [
                 ['Pending', stats.pending, 'pending'], ['Active', stats.active, 'active'], ['Suspended', stats.suspended, 'suspended'],
                 ['Organizations', stats.organizations_total, ''], ['Employees', stats.employees, null], ['Branches', stats.branches, null], ['Check-ins today', stats.today_checkins, null],
@@ -144,10 +463,14 @@
         function goOrgFilter(status) {
             mode = 'orgs';
             current = status;
-            document.querySelectorAll('.nav').forEach(n => n.classList.toggle('active', n.dataset.mode === 'orgs'));
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.toggle('active', n.dataset.mode === 'orgs'));
+            document.getElementById('pageTitle').textContent = 'Organizations';
+            document.getElementById('pageBreadcrumb').textContent = 'Console · Organizations & Registrations';
             document.getElementById('orgArea').style.display = '';
             document.getElementById('subsArea').style.display = 'none';
             document.getElementById('packagesArea').style.display = 'none';
+            document.getElementById('promosArea').style.display = 'none';
+            document.getElementById('notificationsArea').style.display = 'none';
             setFilterButton();
             loadOrgs().catch(() => {});
         }
@@ -293,11 +616,40 @@
             return `<div><span>${esc(k)}</span><b>${esc(v == null || v === '' ? '—' : v)}</b></div>`;
         }
 
-        document.getElementById('nav').addEventListener('click', (e) => {
-            const btn = e.target.closest('.nav');
+        function toggleSidebar(open) {
+            const sidebar = document.getElementById('appSidebar');
+            const backdrop = document.getElementById('sidebarBackdrop');
+            if (open) {
+                sidebar.classList.add('open');
+                backdrop.classList.add('open');
+            } else {
+                sidebar.classList.remove('open');
+                backdrop.classList.remove('open');
+            }
+        }
+
+        document.getElementById('sidebarNav').addEventListener('click', (e) => {
+            const btn = e.target.closest('.nav-item');
             if (!btn) return;
             mode = btn.dataset.mode;
-            document.querySelectorAll('.nav').forEach(n => n.classList.toggle('active', n.dataset.mode === mode));
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.toggle('active', n.dataset.mode === mode));
+            
+            // Auto close mobile drawer on selection
+            if (window.innerWidth <= 992) {
+                toggleSidebar(false);
+            }
+
+            const titles = {
+                orgs: ['Organizations', 'Console · Organizations & Registrations'],
+                subs: ['Subscriptions', 'Console · Organization Plans & Billing Status'],
+                packages: ['Packages', 'Console · Subscription Packages & Pricing Tiers'],
+                promos: ['Promos & Offers', 'Console · Promotional Codes & Discounts'],
+                notifications: ['Push Broadcasts', 'Console · Live Alerts & Dispatch Center'],
+            };
+            const [title, breadcrumb] = titles[mode] || ['Console', 'SmartAttend'];
+            document.getElementById('pageTitle').textContent = title;
+            document.getElementById('pageBreadcrumb').textContent = breadcrumb;
+
             const orgArea = document.getElementById('orgArea');
             const subsArea = document.getElementById('subsArea');
             const pkArea = document.getElementById('packagesArea');
