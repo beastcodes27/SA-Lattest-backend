@@ -195,4 +195,68 @@ class SonicPesaService
             ];
         }
     }
+
+    public function getOrderStatus(string $orderId): array
+    {
+        if (! $this->isConfigured()) {
+            return [
+                'success' => true,
+                'status' => Payment::STATUS_PENDING,
+                'is_completed' => false,
+                'is_pending' => true,
+                'is_failed' => false,
+                'external_transaction_id' => null,
+                'amount' => null,
+                'currency' => 'TZS',
+                'raw' => ['simulated' => true, 'order_id' => $orderId],
+            ];
+        }
+
+        try {
+            // Attempt standard status endpoint
+            $response = $this->client()->get("/api/v1/payment/order_status/{$orderId}");
+            
+            // If GET endpoint is alternative, try check_status POST
+            if ($response->status() === 404 || $response->status() === 405) {
+                $response = $this->client()->post('/api/v1/payment/check_status', ['order_id' => $orderId]);
+            }
+
+            $json = $response->json() ?? [];
+            $rawStatus = strtolower((string) ($json['status'] ?? $json['payment_status'] ?? 'pending'));
+
+            $isCompleted = in_array($rawStatus, ['completed', 'success', 'paid', 'successful'], true);
+            $isFailed = in_array($rawStatus, ['failed', 'canceled', 'cancelled', 'expired', 'declined'], true);
+            $isPending = ! $isCompleted && ! $isFailed;
+
+            $normalizedStatus = $isCompleted
+                ? Payment::STATUS_COMPLETED
+                : ($isFailed ? Payment::STATUS_FAILED : Payment::STATUS_PENDING);
+
+            return [
+                'success' => $response->successful(),
+                'status' => $normalizedStatus,
+                'is_completed' => $isCompleted,
+                'is_pending' => $isPending,
+                'is_failed' => $isFailed,
+                'external_transaction_id' => $json['transaction_id'] ?? $json['reference'] ?? $json['receipt'] ?? null,
+                'amount' => isset($json['amount']) ? (int) $json['amount'] : null,
+                'currency' => $json['currency'] ?? 'TZS',
+                'raw' => $json,
+            ];
+        } catch (\Throwable $e) {
+            Log::warning("SonicPesa getOrderStatus exception for order {$orderId}: " . $e->getMessage());
+
+            return [
+                'success' => false,
+                'status' => Payment::STATUS_PENDING,
+                'is_completed' => false,
+                'is_pending' => true,
+                'is_failed' => false,
+                'external_transaction_id' => null,
+                'amount' => null,
+                'currency' => 'TZS',
+                'raw' => ['error' => $e->getMessage()],
+            ];
+        }
+    }
 }
