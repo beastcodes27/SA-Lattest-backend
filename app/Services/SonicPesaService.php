@@ -320,5 +320,32 @@ class SonicPesaService
             'raw' => $payload,
         ];
     }
+
+    /**
+     * Generate HMAC-SHA256 signature for outgoing payloads or testing
+     */
+    public function generateSignature(string $rawPayload, ?string $secret = null): string
+    {
+        $signingKey = $secret ?? $this->webhookSecret ?? $this->apiSecret ?? $this->apiKey;
+        return hash_hmac('sha256', $rawPayload, $signingKey);
+    }
+
+    /**
+     * Return gateway configuration and health diagnostics
+     */
+    public function getDiagnostics(): array
+    {
+        return [
+            'gateway' => Payment::GATEWAY_SONICPESA,
+            'configured' => $this->isConfigured(),
+            'sandbox' => $this->isSandbox(),
+            'base_url' => $this->baseUrl,
+            'api_key_masked' => ! empty($this->apiKey) ? substr($this->apiKey, 0, 4) . '****' . substr($this->apiKey, -4) : null,
+            'has_api_secret' => ! empty($this->apiSecret),
+            'has_webhook_secret' => ! empty($this->webhookSecret),
+            'timeout' => $this->timeout,
+        ];
+    }
 }
+
 
