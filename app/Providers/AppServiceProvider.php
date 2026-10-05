@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Services\SonicPesaService;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -11,7 +12,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        $this->app->singleton(SonicPesaService::class, function () {
+            return new SonicPesaService();
+        });
     }
 
     /**
