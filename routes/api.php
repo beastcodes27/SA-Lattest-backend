@@ -74,13 +74,18 @@ Route::middleware(['auth:sanctum', 'org-admin'])->prefix('admin')->group(functio
     Route::post('notifications/broadcast', [NotificationController::class, 'orgBroadcast']);
 });
 
+/**
+ * Organization Admin Subscription & Mobile Money Billing Routes
+ * Supports free trial cancellation, instant checkout, M-Pesa / Tigo Pesa / Airtel Money / HaloPesa
+ * USSD push initiation, transaction status verification, and payment history receipts.
+ */
 Route::middleware(['auth:sanctum', 'org-admin'])->prefix('admin')->group(function () {
     Route::get('subscription', [SubscriptionController::class, 'details']);
     Route::post('subscription/upgrade', [SubscriptionController::class, 'upgrade']);
     Route::post('subscription/cancel', [SubscriptionController::class, 'cancel']);
     Route::post('subscription/cancel-trial', [SubscriptionController::class, 'cancelTrial']);
 
-    // Mobile Money Payments
+    // Mobile Money Payments (M-Pesa, Tigo Pesa, Airtel Money, HaloPesa)
     Route::post('subscription/payments/initiate', [PaymentController::class, 'initiate']);
     Route::get('subscription/payments', [PaymentController::class, 'index']);
     Route::get('subscription/payments/{payment}', [PaymentController::class, 'show']);
