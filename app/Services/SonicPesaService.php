@@ -259,4 +259,66 @@ class SonicPesaService
             ];
         }
     }
+
+    /**
+     * Verify incoming webhook HMAC-SHA256 signature
+     */
+    public function verifyWebhookSignature(string $rawPayload, ?string $signature): bool
+    {
+        // In sandbox or unconfigured mode, if no secret is set, allow permissive validation for testing
+        $secret = $this->webhookSecret ?: $this->apiSecret;
+        if (empty($secret)) {
+            Log::info('SonicPesa webhook secret not set; skipping HMAC verification in sandbox mode');
+            return true;
+        }
+
+        if (empty($signature)) {
+            Log::warning('SonicPesa webhook received without signature header');
+            return false;
+        }
+
+        // Clean signature if prefixed with sha256=
+        if (str_starts_with($signature, 'sha256=')) {
+            $signature = substr($signature, 7);
+        }
+
+        $computedSignature = hash_hmac('sha256', $rawPayload, $secret);
+
+        return hash_equals($computedSignature, $signature);
+    }
+
+    /**
+     * Parse and normalize webhook payload from SonicPesa
+     */
+    public function extractWebhookData(array $payload): array
+    {
+        $orderId = $payload['order_id'] ?? $payload['reference'] ?? $payload['data']['order_id'] ?? null;
+        $transactionId = $payload['transaction_id'] ?? $payload['trans_id'] ?? $payload['receipt'] ?? $payload['data']['transaction_id'] ?? null;
+        $rawStatus = strtolower((string) ($payload['status'] ?? $payload['payment_status'] ?? $payload['data']['status'] ?? 'completed'));
+        $amount = $payload['amount'] ?? $payload['data']['amount'] ?? null;
+        $currency = strtoupper((string) ($payload['currency'] ?? $payload['data']['currency'] ?? 'TZS'));
+        $phone = $payload['buyer_phone'] ?? $payload['phone'] ?? $payload['data']['buyer_phone'] ?? null;
+
+        $isCompleted = in_array($rawStatus, ['completed', 'success', 'paid', 'successful', 'ok'], true);
+        $isFailed = in_array($rawStatus, ['failed', 'canceled', 'cancelled', 'expired', 'declined', 'error'], true);
+        
+        $normalizedStatus = $isCompleted
+            ? Payment::STATUS_COMPLETED
+            : ($isFailed ? Payment::STATUS_FAILED : Payment::STATUS_PENDING);
+
+        return [
+            'order_id' => $orderId,
+            'transaction_id' => $transactionId,
+            'status' => $normalizedStatus,
+            'raw_status' => $rawStatus,
+            'is_completed' => $isCompleted,
+            'is_failed' => $isFailed,
+            'amount' => $amount ? (int) $amount : null,
+            'currency' => $currency,
+            'phone' => $phone ? self::normalizePhone($phone) : null,
+            'metadata' => $payload['metadata'] ?? $payload['data']['metadata'] ?? [],
+            'raw' => $payload,
+        ];
+    }
 }
+
