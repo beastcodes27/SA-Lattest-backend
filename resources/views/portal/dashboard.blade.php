@@ -224,7 +224,42 @@
         .page-title { font-size: 18px; font-weight: 800; color: var(--ink); margin: 0; }
         .page-breadcrumb { font-size: 12px; color: var(--muted); font-weight: 600; margin-top: 1px; }
 
-        .topbar-right { display: flex; align-items: center; gap: 14px; }
+        .topbar-right { display: flex; align-items: center; gap: 12px; }
+        .live-clock {
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--muted);
+            font-variant-numeric: tabular-nums;
+            display: none;
+        }
+        @media (min-width: 1200px) {
+            .live-clock { display: block; }
+        }
+        .topbar-action-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: var(--ink);
+            color: var(--bg);
+            border: 0;
+            border-radius: 999px;
+            padding: 7px 14px;
+            font-size: 12.5px;
+            font-weight: 800;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+        .topbar-action-btn:hover {
+            opacity: 0.9;
+            transform: translateY(-1px);
+        }
+        .topbar-action-btn.ghost {
+            background: rgba(32, 15, 53, 0.06);
+            color: var(--ink);
+        }
+        .topbar-action-btn.ghost:hover {
+            background: rgba(32, 15, 53, 0.12);
+        }
         .system-pill {
             display: inline-flex;
             align-items: center;
@@ -426,7 +461,16 @@
                     </div>
                 </div>
                 <div class="topbar-right">
-                    <span class="system-pill"><span class="status-dot"></span> System Online</span>
+                    <div class="live-clock" id="liveClock"></div>
+                    <button class="topbar-action-btn ghost" onclick="syncAllData()" title="Refresh live statistics">
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+                        <span>Refresh</span>
+                    </button>
+                    <button class="topbar-action-btn" onclick="quickBroadcast()" title="Dispatch instant push announcement">
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 11 18-5v12L3 13v-2z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/></svg>
+                        <span>Broadcast Alert</span>
+                    </button>
+                    <span class="system-pill"><span class="status-dot"></span> System Live</span>
                 </div>
             </header>
 
@@ -1020,6 +1064,40 @@
             }
         }
 
+        function quickBroadcast() {
+            const notifBtn = document.querySelector('.nav-item[data-mode="notifications"]');
+            if (notifBtn) {
+                notifBtn.click();
+                setTimeout(() => {
+                    document.getElementById('nb_title')?.focus();
+                }, 100);
+            }
+        }
+
+        async function syncAllData() {
+            try {
+                toast('Refreshing live data...', true);
+                await loadStats();
+                if (mode === 'orgs') await loadOrgs();
+                else if (mode === 'subs') await loadSubs();
+                else if (mode === 'packages') await loadPackages();
+                else if (mode === 'promos') await loadPromos();
+                else if (mode === 'notifications') await loadNotifications();
+                toast('Data synced successfully', true);
+            } catch (e) {
+                toast(e.message || 'Sync error', false);
+            }
+        }
+
+        function updateClock() {
+            const clock = document.getElementById('liveClock');
+            if (!clock) return;
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            const dateStr = now.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' });
+            clock.textContent = `${dateStr} · ${timeStr}`;
+        }
+
         document.getElementById('filters').addEventListener('click', (e) => {
             const btn = e.target.closest('.filter');
             if (!btn) return;
@@ -1030,6 +1108,8 @@
 
         (async () => {
             setFilterButton();
+            updateClock();
+            setInterval(updateClock, 1000);
             try {
                 await Promise.all([loadStats(), loadOrgs()]);
             } catch (e) { /* redirect handled */ }
