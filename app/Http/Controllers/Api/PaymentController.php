@@ -202,6 +202,10 @@ class PaymentController extends Controller
             'id' => $payment->id,
             'reference' => $payment->reference,
             'external_transaction_id' => $payment->external_transaction_id,
+            'gateway' => $payment->gateway ?? Payment::GATEWAY_SONICPESA,
+            'sonicpesa_order_id' => $payment->sonicpesa_order_id,
+            'sonicpesa_checkout_url' => $payment->sonicpesa_checkout_url,
+            'sonicpesa_qr_code' => $payment->sonicpesa_qr_code,
             'plan' => $payment->plan,
             'plan_name' => PlanLimits::package($payment->plan)?->name ?? ucfirst($payment->plan),
             'billing_cycle' => $payment->billing_cycle,
@@ -221,3 +225,4 @@ class PaymentController extends Controller
         ];
     }
 }
+
