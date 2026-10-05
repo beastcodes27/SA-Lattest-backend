@@ -77,6 +77,7 @@ Route::middleware(['auth:sanctum', 'org-admin'])->prefix('admin')->group(functio
     Route::get('subscription', [SubscriptionController::class, 'details']);
     Route::post('subscription/upgrade', [SubscriptionController::class, 'upgrade']);
     Route::post('subscription/cancel', [SubscriptionController::class, 'cancel']);
+    Route::post('subscription/cancel-trial', [SubscriptionController::class, 'cancelTrial']);
 });
 
 Route::middleware(['auth:sanctum', 'system-admin'])->prefix('system')->group(function () {

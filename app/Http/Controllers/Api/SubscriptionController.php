@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Models\Organization;
+use App\Models\Package;
 use App\Support\PlanLimits;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -14,6 +15,25 @@ class SubscriptionController extends Controller
     public function details(Request $request): JsonResponse
     {
         return response()->json(['subscription' => $this->payload($request->user()->organization)]);
+    }
+
+    public function cancelTrial(Request $request): JsonResponse
+    {
+        $org = $request->user()->organization;
+
+        if (! $org->onTrial()) {
+            return response()->json([
+                'message' => 'Organization is not currently on an active free trial.',
+                'subscription' => $this->payload($org),
+            ], 422);
+        }
+
+        $org->cancelTrial();
+
+        return response()->json([
+            'message' => 'Free trial canceled. You can now select your desired plan and pay with Mobile Money.',
+            'subscription' => $this->payload($org->fresh()),
+        ]);
     }
 
     public function upgrade(Request $request): JsonResponse
@@ -34,6 +54,7 @@ class SubscriptionController extends Controller
         $org->forceFill([
             'plan' => $plan,
             'subscription_status' => 'active',
+            'trial_ends_at' => null,
             'canceled_at' => null,
         ])->save();
 
@@ -73,12 +94,39 @@ class SubscriptionController extends Controller
             ? 'canceled'
             : ($org->subscriptionActive() ? 'active' : ($onTrial ? 'trial' : 'expired'));
 
+        $latestPayment = $org->payments()->latest()->first();
+
+        $packages = Package::query()
+            ->where('active', true)
+            ->orderBy('position')
+            ->get()
+            ->map(function (Package $p) use ($org) {
+                $monthly = $p->calculateAmount('monthly', (int) $org->discount_percent);
+                $annual = $p->calculateAmount('annual', (int) $org->discount_percent);
+
+                return [
+                    'code' => $p->code,
+                    'name' => $p->name,
+                    'tagline' => $p->tagline,
+                    'price_label' => $p->price_label ?: $p->formatted_monthly_price,
+                    'monthly_price' => $monthly['final_amount'],
+                    'original_monthly_price' => $monthly['original_amount'],
+                    'annual_price' => $annual['final_amount'],
+                    'original_annual_price' => $annual['original_amount'],
+                    'currency' => $p->currency ?: 'TZS',
+                    'features' => $p->features ?? [],
+                    'employee_limit' => $p->employee_limit,
+                    'branch_limit' => $p->branch_limit,
+                ];
+            });
+
         return [
             'plan' => $org->plan,
             'plan_label' => PlanLimits::package($org->plan)?->name ?? ucfirst($org->plan),
-            'price_label' => PlanLimits::package($org->plan)?->price_label,
+            'price_label' => PlanLimits::package($org->plan)?->price_label ?: 'TZS '.number_format(PlanLimits::monthlyPrice($org->plan)).' / mo',
             'status' => $status,
             'on_trial' => $onTrial,
+            'can_cancel_trial' => $onTrial,
             'trial_days_left' => $org->trialDaysLeft(),
             'trial_ends_at' => $org->trial_ends_at?->toIso8601String(),
             'canceled_at' => $org->canceled_at?->toIso8601String(),
@@ -88,6 +136,20 @@ class SubscriptionController extends Controller
             'branches_limit' => PlanLimits::branchLimit($org->plan),
             'employees_used' => $org->users()->where('role', 'employee')->count(),
             'employees_limit' => PlanLimits::employeeLimit($org->plan),
+            'packages' => $packages,
+            'latest_payment' => $latestPayment ? [
+                'id' => $latestPayment->id,
+                'reference' => $latestPayment->reference,
+                'plan' => $latestPayment->plan,
+                'amount' => $latestPayment->amount,
+                'formatted_amount' => $latestPayment->formatted_amount,
+                'mobile_provider' => $latestPayment->mobile_provider,
+                'provider_name' => $latestPayment->provider_name,
+                'phone_number' => $latestPayment->phone_number,
+                'status' => $latestPayment->status,
+                'paid_at' => $latestPayment->paid_at?->toIso8601String(),
+                'created_at' => $latestPayment->created_at->toIso8601String(),
+            ] : null,
         ];
     }
 }
