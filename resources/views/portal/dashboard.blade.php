@@ -99,6 +99,19 @@
             flex-direction: column;
             gap: 4px;
         }
+        .sidebar-nav::-webkit-scrollbar {
+            width: 5px;
+        }
+        .sidebar-nav::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .sidebar-nav::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.12);
+            border-radius: 4px;
+        }
+        .sidebar-nav::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.25);
+        }
         .nav-section-title {
             font-size: 11px;
             font-weight: 800;
@@ -121,26 +134,56 @@
             font-weight: 700;
             cursor: pointer;
             text-align: left;
-            transition: all 0.18s ease;
+            transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
         }
         .nav-item:hover {
             background: var(--sidebar-hover);
             color: #fff;
+            transform: translateX(3px);
+        }
+        .nav-item:focus-visible {
+            outline: 2px solid #38EF7D;
+            outline-offset: 1px;
         }
         .nav-item.active {
             background: var(--sidebar-active);
             color: #38EF7D;
-            box-shadow: inset 3px 0 0 #38EF7D;
+            font-weight: 800;
         }
-        .nav-icon { width: 18px; height: 18px; fill: currentColor; display: inline-flex; align-items: center; justify-content: center; }
+        .nav-item.active::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 6px;
+            bottom: 6px;
+            width: 4px;
+            border-radius: 0 4px 4px 0;
+            background: #38EF7D;
+            box-shadow: 0 0 10px #38EF7D;
+        }
+        .nav-icon {
+            width: 20px;
+            height: 20px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            color: inherit;
+        }
         .nav-label { flex: 1; }
         .nav-badge {
             background: var(--red);
             color: #fff;
             font-size: 11px;
             font-weight: 800;
-            padding: 2px 7px;
+            padding: 2px 8px;
             border-radius: 10px;
+            box-shadow: 0 2px 6px rgba(194, 48, 48, 0.4);
+            animation: pulse-badge 2s infinite;
+        }
+        @keyframes pulse-badge {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.85; transform: scale(1.05); }
         }
 
         .sidebar-quick-stats {
@@ -440,7 +483,7 @@
             </div>
 
             <div class="sidebar-footer">
-                <form method="POST" action="{{ route('portal.logout') }}">
+                <form method="POST" action="{{ route('portal.logout') }}" onsubmit="return confirm('Are you sure you want to sign out of the System Admin Console?');">
                     @csrf
                     <button class="logout-btn" type="submit">
                         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
