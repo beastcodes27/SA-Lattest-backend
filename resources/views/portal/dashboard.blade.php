@@ -603,18 +603,9 @@
         }
 
         function goOrgFilter(status) {
-            mode = 'orgs';
             current = status;
-            document.querySelectorAll('.nav-item').forEach(n => n.classList.toggle('active', n.dataset.mode === 'orgs'));
-            document.getElementById('pageTitle').textContent = 'Organizations';
-            document.getElementById('pageBreadcrumb').textContent = 'Console · Organizations & Registrations';
-            document.getElementById('orgArea').style.display = '';
-            document.getElementById('subsArea').style.display = 'none';
-            document.getElementById('packagesArea').style.display = 'none';
-            document.getElementById('promosArea').style.display = 'none';
-            document.getElementById('notificationsArea').style.display = 'none';
             setFilterButton();
-            loadOrgs().catch(() => {});
+            switchTab('orgs', true);
         }
 
         async function loadOrgs() {
@@ -770,10 +761,13 @@
             }
         }
 
-        document.getElementById('sidebarNav').addEventListener('click', (e) => {
-            const btn = e.target.closest('.nav-item');
-            if (!btn) return;
-            mode = btn.dataset.mode;
+        let mode = 'orgs';
+
+        function switchTab(targetMode, updateHash = true) {
+            const validModes = ['orgs', 'subs', 'packages', 'promos', 'notifications'];
+            if (!validModes.includes(targetMode)) targetMode = 'orgs';
+            mode = targetMode;
+
             document.querySelectorAll('.nav-item').forEach(n => n.classList.toggle('active', n.dataset.mode === mode));
             
             // Auto close mobile drawer on selection
@@ -804,14 +798,29 @@
             prArea.style.display = mode === 'promos' ? '' : 'none';
             notifArea.style.display = mode === 'notifications' ? '' : 'none';
 
+            if (updateHash && window.location.hash !== '#' + mode) {
+                history.replaceState(null, null, '#' + mode);
+            }
+
             if (mode === 'orgs') loadOrgs().catch(() => {});
             else if (mode === 'subs') loadSubs().catch(() => {});
             else if (mode === 'packages') loadPackages().catch(() => {});
             else if (mode === 'promos') loadPromos().catch(() => {});
             else if (mode === 'notifications') loadNotifications().catch(() => {});
+        }
+
+        document.getElementById('sidebarNav').addEventListener('click', (e) => {
+            const btn = e.target.closest('.nav-item');
+            if (!btn) return;
+            switchTab(btn.dataset.mode, true);
         });
 
-        let mode = 'orgs';
+        window.addEventListener('hashchange', () => {
+            const hash = window.location.hash.replace(/^#/, '');
+            if (hash && hash !== mode) {
+                switchTab(hash, false);
+            }
+        });
 
         async function loadSubs() {
             const { organizations } = await api('/portal/api/organizations');
@@ -1108,13 +1117,10 @@
         }
 
         function quickBroadcast() {
-            const notifBtn = document.querySelector('.nav-item[data-mode="notifications"]');
-            if (notifBtn) {
-                notifBtn.click();
-                setTimeout(() => {
-                    document.getElementById('nb_title')?.focus();
-                }, 100);
-            }
+            switchTab('notifications', true);
+            setTimeout(() => {
+                document.getElementById('nb_title')?.focus();
+            }, 100);
         }
 
         async function syncAllData() {
@@ -1153,8 +1159,14 @@
             setFilterButton();
             updateClock();
             setInterval(updateClock, 1000);
+            const initialHash = window.location.hash.replace(/^#/, '');
+            if (initialHash && ['orgs', 'subs', 'packages', 'promos', 'notifications'].includes(initialHash)) {
+                switchTab(initialHash, false);
+            } else {
+                switchTab('orgs', false);
+            }
             try {
-                await Promise.all([loadStats(), loadOrgs()]);
+                await loadStats();
             } catch (e) { /* redirect handled */ }
         })();
     </script>
