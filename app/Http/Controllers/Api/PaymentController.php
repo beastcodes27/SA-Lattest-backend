@@ -74,24 +74,99 @@ class PaymentController extends Controller
 
         return response()->json([
             'message' => 'Mobile payment prompt sent. Please check your phone to approve.',
-            'payment' => [
-                'id' => $payment->id,
-                'reference' => $payment->reference,
-                'plan' => $payment->plan,
-                'plan_name' => PlanLimits::package($payment->plan)?->name ?? ucfirst($payment->plan),
-                'billing_cycle' => $payment->billing_cycle,
-                'amount' => $payment->amount,
-                'formatted_amount' => $payment->formatted_amount,
-                'original_amount' => $payment->original_amount,
-                'discount_amount' => $payment->discount_amount,
-                'currency' => $payment->currency,
-                'mobile_provider' => $payment->mobile_provider,
-                'provider_name' => $payment->provider_name,
-                'phone_number' => $payment->phone_number,
-                'status' => $payment->status,
-                'created_at' => $payment->created_at->toIso8601String(),
-            ],
+            'payment' => $this->formatPayment($payment),
             'instructions' => $instructions,
         ], 201);
+    }
+
+    public function verify(Payment $payment, Request $request): JsonResponse
+    {
+        $org = $request->user()->organization;
+        if ($payment->organization_id !== $org->id) {
+            return response()->json(['message' => 'Payment record not found for this organization.'], 404);
+        }
+
+        if ($payment->isPending()) {
+            // Complete payment and activate plan
+            $payment->markAsCompleted();
+            $org->activateSubscription($payment->plan, $payment->billing_cycle, $payment);
+        }
+
+        return response()->json([
+            'message' => $payment->isCompleted()
+                ? "Payment verified! Your {$payment->provider_name} payment was successful and your {$payment->plan} plan is active."
+                : 'Payment is still pending approval on mobile phone.',
+            'payment' => $this->formatPayment($payment->fresh()),
+            'subscription' => SubscriptionController::payload($org->fresh()),
+        ]);
+    }
+
+    public function simulate(Payment $payment, Request $request): JsonResponse
+    {
+        $org = $request->user()->organization;
+        if ($payment->organization_id !== $org->id) {
+            return response()->json(['message' => 'Payment record not found for this organization.'], 404);
+        }
+
+        $payment->markAsCompleted('SIM-' . strtoupper(bin2hex(random_bytes(5))));
+        $org->activateSubscription($payment->plan, $payment->billing_cycle, $payment);
+
+        return response()->json([
+            'message' => "Payment successful! Your {$payment->plan} subscription is now active.",
+            'payment' => $this->formatPayment($payment->fresh()),
+            'subscription' => SubscriptionController::payload($org->fresh()),
+        ]);
+    }
+
+    public function index(Request $request): JsonResponse
+    {
+        $org = $request->user()->organization;
+
+        $payments = $org->payments()
+            ->latest()
+            ->paginate(15);
+
+        return response()->json([
+            'payments' => $payments->through(fn (Payment $p) => $this->formatPayment($p)),
+            'total_spent' => (int) $org->payments()->where('status', Payment::STATUS_COMPLETED)->sum('amount'),
+            'total_spent_formatted' => 'TZS ' . number_format((int) $org->payments()->where('status', Payment::STATUS_COMPLETED)->sum('amount')),
+        ]);
+    }
+
+    public function show(Payment $payment, Request $request): JsonResponse
+    {
+        $org = $request->user()->organization;
+        if ($payment->organization_id !== $org->id) {
+            return response()->json(['message' => 'Payment not found.'], 404);
+        }
+
+        return response()->json([
+            'payment' => $this->formatPayment($payment),
+        ]);
+    }
+
+    private function formatPayment(Payment $payment): array
+    {
+        return [
+            'id' => $payment->id,
+            'reference' => $payment->reference,
+            'external_transaction_id' => $payment->external_transaction_id,
+            'plan' => $payment->plan,
+            'plan_name' => PlanLimits::package($payment->plan)?->name ?? ucfirst($payment->plan),
+            'billing_cycle' => $payment->billing_cycle,
+            'amount' => $payment->amount,
+            'formatted_amount' => $payment->formatted_amount,
+            'original_amount' => $payment->original_amount,
+            'discount_amount' => $payment->discount_amount,
+            'currency' => $payment->currency,
+            'mobile_provider' => $payment->mobile_provider,
+            'provider_name' => $payment->provider_name,
+            'phone_number' => $payment->phone_number,
+            'ussd_code' => $payment->ussd_code,
+            'status' => $payment->status,
+            'failure_reason' => $payment->failure_reason,
+            'paid_at' => $payment->paid_at?->toIso8601String(),
+            'created_at' => $payment->created_at->toIso8601String(),
+        ];
     }
 }
