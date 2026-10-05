@@ -143,6 +143,25 @@
             border-radius: 10px;
         }
 
+        .sidebar-quick-stats {
+            background: rgba(0, 0, 0, 0.22);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 12px;
+            padding: 10px 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin: 6px 0 10px;
+        }
+        .sq-stat {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 12px;
+        }
+        .sq-label { color: rgba(255, 255, 255, 0.6); font-weight: 600; }
+        .sq-value { color: #38EF7D; font-weight: 800; }
+
         .sidebar-footer {
             padding: 16px 14px;
             border-top: 1px solid rgba(255, 255, 255, 0.08);
@@ -337,33 +356,60 @@
             <div class="sidebar-nav" id="sidebarNav">
                 <div class="nav-section-title">Administration</div>
                 <button class="nav-item active" data-mode="orgs">
-                    <span class="nav-icon">🏢</span>
+                    <span class="nav-icon">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M3 7v14M21 7v14M6 11h2M6 15h2M10 11h2M10 15h2M14 11h2M14 15h2M9 21V3h6v18"/></svg>
+                    </span>
                     <span class="nav-label">Organizations</span>
                     <span class="nav-badge" id="pendingBadge" style="display:none">0</span>
                 </button>
                 <button class="nav-item" data-mode="subs">
-                    <span class="nav-icon">💳</span>
+                    <span class="nav-icon">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+                    </span>
                     <span class="nav-label">Subscriptions</span>
                 </button>
                 <button class="nav-item" data-mode="packages">
-                    <span class="nav-icon">📦</span>
-                    <span class="nav-label">Packages</span>
+                    <span class="nav-icon">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7.5 4.27 9 5.15M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5M12 22V12"/></svg>
+                    </span>
+                    <span class="nav-label">Package Tiers</span>
                 </button>
                 <button class="nav-item" data-mode="promos">
-                    <span class="nav-icon">🏷️</span>
-                    <span class="nav-label">Promos &amp; Offers</span>
+                    <span class="nav-icon">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+                    </span>
+                    <span class="nav-label">Promos &amp; Discounts</span>
                 </button>
                 <button class="nav-item" data-mode="notifications">
-                    <span class="nav-icon">📣</span>
+                    <span class="nav-icon">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 11 18-5v12L3 13v-2z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/></svg>
+                    </span>
                     <span class="nav-label">Push Broadcasts</span>
                 </button>
+
+                <div class="nav-section-title" style="margin-top:14px">Live Summary</div>
+                <div class="sidebar-quick-stats">
+                    <div class="sq-stat">
+                        <span class="sq-label">Active Orgs</span>
+                        <span class="sq-value" id="sqActiveOrgs">—</span>
+                    </div>
+                    <div class="sq-stat">
+                        <span class="sq-label">Total Staff</span>
+                        <span class="sq-value" id="sqTotalStaff">—</span>
+                    </div>
+                    <div class="sq-stat">
+                        <span class="sq-label">Today's Checkins</span>
+                        <span class="sq-value" id="sqTodayCheckins">—</span>
+                    </div>
+                </div>
             </div>
 
             <div class="sidebar-footer">
                 <form method="POST" action="{{ route('portal.logout') }}">
                     @csrf
                     <button class="logout-btn" type="submit">
-                        <span>🚪</span> Sign out of Console
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                        <span>Sign out of Console</span>
                     </button>
                 </form>
             </div>
@@ -449,6 +495,15 @@
                     badge.textContent = stats.pending;
                     badge.style.display = stats.pending > 0 ? 'inline-block' : 'none';
                 }
+            }
+            if (document.getElementById('sqActiveOrgs')) {
+                document.getElementById('sqActiveOrgs').textContent = stats.active ?? '0';
+            }
+            if (document.getElementById('sqTotalStaff')) {
+                document.getElementById('sqTotalStaff').textContent = stats.employees ?? '0';
+            }
+            if (document.getElementById('sqTodayCheckins')) {
+                document.getElementById('sqTodayCheckins').textContent = stats.today_checkins ?? '0';
             }
             const tiles = [
                 ['Pending', stats.pending, 'pending'], ['Active', stats.active, 'active'], ['Suspended', stats.suspended, 'suspended'],
