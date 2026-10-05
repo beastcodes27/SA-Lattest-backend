@@ -42,11 +42,35 @@ class Organization extends Model
         return $this->hasMany(Branch::class, 'org_id');
     }
 
+    public function payments(): HasMany
+    {
+        return $this->hasMany(Payment::class, 'organization_id');
+    }
+
     public function startTrial(int $days = 30): void
     {
         $this->forceFill([
             'trial_started_at' => now(),
             'trial_ends_at' => now()->addDays($days),
+        ])->save();
+    }
+
+    public function cancelTrial(): void
+    {
+        $this->forceFill([
+            'trial_ends_at' => now(),
+            'subscription_status' => 'canceled',
+            'canceled_at' => now(),
+        ])->save();
+    }
+
+    public function activateSubscription(string $plan, string $billingCycle = 'monthly', ?Payment $payment = null): void
+    {
+        $this->forceFill([
+            'plan' => $plan,
+            'subscription_status' => 'active',
+            'trial_ends_at' => null,
+            'canceled_at' => null,
         ])->save();
     }
 
@@ -92,7 +116,6 @@ class Organization extends Model
         return $this->subscription_status === 'active';
     }
 
-
     public function activeBranches(): HasMany
     {
         return $this->hasMany(Branch::class, 'org_id')->where('active', true);
@@ -117,4 +140,3 @@ class Organization extends Model
         return $this->hasMany(PermissionRequest::class, 'organization_id');
     }
 }
-
