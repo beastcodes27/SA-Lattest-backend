@@ -387,6 +387,173 @@ class AdminController extends Controller
         ]);
     }
 
+    public function cumulativeReports(Request $request): JsonResponse
+    {
+        $org = $request->user()->organization;
+
+        $validator = Validator::make($request->all(), [
+            'period' => ['nullable', Rule::in(['today', 'week', 'month', '30days', 'quarter', 'year', 'custom'])],
+            'start_date' => ['nullable', 'date_format:Y-m-d'],
+            'end_date' => ['nullable', 'date_format:Y-m-d'],
+            'branch_id' => ['nullable', 'integer'],
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['message' => 'The given data was invalid.', 'errors' => $validator->errors()], 422);
+        }
+
+        $now = Carbon::now(self::TIMEZONE);
+        $period = $request->input('period', 'month');
+
+        if ($period === 'today') {
+            $startDate = $now->copy()->startOfDay();
+            $endDate = $now->copy()->endOfDay();
+        } elseif ($period === 'week') {
+            $startDate = $now->copy()->startOfWeek();
+            $endDate = $now->copy()->endOfWeek();
+        } elseif ($period === '30days') {
+            $startDate = $now->copy()->subDays(29)->startOfDay();
+            $endDate = $now->copy()->endOfDay();
+        } elseif ($period === 'quarter') {
+            $startDate = $now->copy()->startOfQuarter();
+            $endDate = $now->copy()->endOfQuarter();
+        } elseif ($period === 'year') {
+            $startDate = $now->copy()->startOfYear();
+            $endDate = $now->copy()->endOfYear();
+        } elseif ($period === 'custom' && $request->start_date && $request->end_date) {
+            $startDate = Carbon::createFromFormat('Y-m-d', $request->start_date, self::TIMEZONE)->startOfDay();
+            $endDate = Carbon::createFromFormat('Y-m-d', $request->end_date, self::TIMEZONE)->endOfDay();
+        } else {
+            // Default: 'month' (Current month)
+            $startDate = $now->copy()->startOfMonth();
+            $endDate = $now->copy()->endOfMonth();
+        }
+
+        // Clamp future end date to today end of day for statistics calculation
+        $effectiveEndDate = $endDate->isFuture() ? $now->copy()->endOfDay() : $endDate;
+
+        $startUtc = $startDate->copy()->utc();
+        $endUtc = $endDate->copy()->utc();
+
+        $query = $org->users()->where('role', 'employee')->with('branch:id,name');
+        if ($request->branch_id) {
+            $query->where('branch_id', $request->branch_id);
+        }
+        $employees = $query->orderBy('name')->get();
+
+        $records = Attendance::whereIn('user_id', $employees->pluck('id'))
+            ->whereBetween('occurred_at', [$startUtc, $endUtc])
+            ->orderBy('occurred_at')
+            ->get();
+
+        $leaves = PermissionRequest::where('organization_id', $org->id)
+            ->whereIn('user_id', $employees->pluck('id'))
+            ->where('status', 'approved')
+            ->where(function ($q) use ($startDate, $endDate) {
+                $q->whereBetween('start_date', [$startDate->toDateString(), $endDate->toDateString()])
+                  ->orWhereBetween('end_date', [$startDate->toDateString(), $endDate->toDateString()]);
+            })
+            ->get();
+
+        // Calculate work days in period (weekdays Mon-Fri)
+        $workDays = 0;
+        $curr = $startDate->copy();
+        while ($curr->lte($effectiveEndDate)) {
+            if (! $curr->isWeekend()) {
+                $workDays++;
+            }
+            $curr->addDay();
+        }
+        $expectedWorkDays = max(1, $workDays);
+
+        $employeeStats = $employees->map(function (User $employee) use ($records, $leaves, $expectedWorkDays, $now) {
+            $userRecords = $records->where('user_id', $employee->id);
+            $userLeaves = $leaves->where('user_id', $employee->id);
+
+            // Group attendances by date in local timezone
+            $byDate = $userRecords->groupBy(fn ($r) => Carbon::parse($r->occurred_at)->setTimezone(self::TIMEZONE)->toDateString());
+
+            $presentDays = 0;
+            $lateDays = 0;
+            $totalWorkedMinutes = 0;
+
+            foreach ($byDate as $dateStr => $dayRecords) {
+                $firstIn = $dayRecords->firstWhere('type', 'in');
+
+                $closed = 0;
+                $open = null;
+                foreach ($dayRecords as $r) {
+                    if ($r->type === 'in') {
+                        $open = $r->occurred_at;
+                    } elseif ($open) {
+                        $closed += $open->diffInMinutes($r->occurred_at);
+                        $open = null;
+                    }
+                }
+                $totalWorkedMinutes += $closed + ($open && $dateStr === $now->toDateString() ? $open->diffInMinutes(now()) : 0);
+
+                $lateLimit = $employee->branch ? $employee->branch->lateThresholdMinutes() : (self::START_MINUTES + 15);
+                if ($firstIn && $this->minutesInDay($firstIn) > $lateLimit) {
+                    $lateDays++;
+                } else {
+                    $presentDays++;
+                }
+            }
+
+            $leaveDays = $userLeaves->count();
+            $attendedDays = $presentDays + $lateDays;
+            $absentDays = max(0, $expectedWorkDays - $attendedDays - $leaveDays);
+
+            $attendanceRate = min(100, (int) round((($attendedDays + $leaveDays) / $expectedWorkDays) * 100));
+            $punctualityRate = $attendedDays > 0 ? min(100, (int) round(($presentDays / $attendedDays) * 100)) : 100;
+
+            $lastRecord = $userRecords->last();
+
+            return [
+                'id' => $employee->id,
+                'name' => $employee->name,
+                'employee_id' => $employee->employee_id,
+                'active' => (bool) $employee->active,
+                'branch' => $employee->branch?->name ?? 'Unassigned',
+                'branch_id' => $employee->branch_id,
+                'present_days' => $presentDays,
+                'late_days' => $lateDays,
+                'absent_days' => $absentDays,
+                'leave_days' => $leaveDays,
+                'attended_days' => $attendedDays,
+                'expected_work_days' => $expectedWorkDays,
+                'total_worked_minutes' => max(0, $totalWorkedMinutes),
+                'attendance_rate' => $attendanceRate,
+                'punctuality_rate' => $punctualityRate,
+                'last_seen' => $lastRecord ? Carbon::parse($lastRecord->occurred_at)->setTimezone(self::TIMEZONE)->toIso8601String() : null,
+            ];
+        })->values();
+
+        $totalEmployees = $employees->count();
+        $avgAttendanceRate = $totalEmployees > 0 ? (int) round($employeeStats->avg('attendance_rate')) : 0;
+        $avgPunctualityRate = $totalEmployees > 0 ? (int) round($employeeStats->avg('punctuality_rate')) : 0;
+        $totalMinutes = (int) $employeeStats->sum('total_worked_minutes');
+
+        return response()->json([
+            'period' => $period,
+            'start_date' => $startDate->toDateString(),
+            'end_date' => $endDate->toDateString(),
+            'expected_work_days' => $expectedWorkDays,
+            'summary' => [
+                'total_employees' => $totalEmployees,
+                'expected_work_days' => $expectedWorkDays,
+                'avg_attendance_rate' => $avgAttendanceRate,
+                'avg_punctuality_rate' => $avgPunctualityRate,
+                'total_worked_minutes' => $totalMinutes,
+                'total_present_instances' => (int) $employeeStats->sum('present_days'),
+                'total_late_instances' => (int) $employeeStats->sum('late_days'),
+                'total_absent_instances' => (int) $employeeStats->sum('absent_days'),
+                'total_leave_instances' => (int) $employeeStats->sum('leave_days'),
+            ],
+            'rows' => $employeeStats,
+        ]);
+    }
+
     public function branches(Request $request): JsonResponse
     {
         $branches = $request->user()->organization->branches()
