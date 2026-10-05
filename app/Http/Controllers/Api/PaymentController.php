@@ -121,15 +121,32 @@ class PaymentController extends Controller
         }
 
         if ($payment->isPending()) {
-            // Complete payment and activate plan
-            $payment->markAsCompleted();
-            $org->activateSubscription($payment->plan, $payment->billing_cycle, $payment);
+            $orderId = $payment->sonicpesa_order_id ?? $payment->reference;
+
+            // Query live status from SonicPesa if configured
+            if ($this->sonicPesa->isConfigured() && $orderId) {
+                $statusCheck = $this->sonicPesa->getOrderStatus($orderId);
+
+                if ($statusCheck['is_completed']) {
+                    $payment->markAsCompleted($statusCheck['external_transaction_id'], [
+                        'sonicpesa_checked_at' => now()->toIso8601String(),
+                        'sonicpesa_status_response' => $statusCheck['raw'],
+                    ]);
+                    $org->activateSubscription($payment->plan, $payment->billing_cycle, $payment);
+                } elseif ($statusCheck['is_failed']) {
+                    $payment->markAsFailed($statusCheck['raw']['message'] ?? 'Payment failed on SonicPesa');
+                }
+            } else {
+                // In local sandbox or unconfigured mode, mark as completed for seamless testing
+                $payment->markAsCompleted();
+                $org->activateSubscription($payment->plan, $payment->billing_cycle, $payment);
+            }
         }
 
         return response()->json([
             'message' => $payment->isCompleted()
                 ? "Payment verified! Your {$payment->provider_name} payment was successful and your {$payment->plan} plan is active."
-                : 'Payment is still pending approval on mobile phone.',
+                : ($payment->status === Payment::STATUS_FAILED ? 'Payment failed or was cancelled.' : 'Payment is still pending approval on mobile phone.'),
             'payment' => $this->formatPayment($payment->fresh()),
             'subscription' => SubscriptionController::payload($org->fresh()),
         ]);
