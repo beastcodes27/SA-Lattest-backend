@@ -120,12 +120,20 @@ class SubscriptionController extends Controller
                 ];
             });
 
+        $isTrialExpired = (bool) ($org->trial_ends_at && $org->trial_ends_at->isPast() && ! $org->subscriptionActive());
+        $requiresPayment = ! $org->isAccessible();
+
         return [
             'plan' => $org->plan,
             'plan_label' => PlanLimits::package($org->plan)?->name ?? ucfirst($org->plan),
             'price_label' => PlanLimits::package($org->plan)?->price_label ?: 'TZS '.number_format(PlanLimits::monthlyPrice($org->plan)).' / mo',
             'status' => $status,
             'on_trial' => $onTrial,
+            'trial_expired' => $isTrialExpired,
+            'requires_payment' => $requiresPayment,
+            'payment_prompt' => $isTrialExpired
+                ? 'Your free trial has ended. Select a package and pay with Mobile Money (M-Pesa, Tigo Pesa, Airtel Money, HaloPesa) to resume organization management and attendance services.'
+                : ($requiresPayment ? 'Subscription inactive. Please subscribe to a package with Mobile Money to continue.' : null),
             'can_cancel_trial' => $onTrial,
             'trial_days_left' => $org->trialDaysLeft(),
             'trial_ends_at' => $org->trial_ends_at?->toIso8601String(),
