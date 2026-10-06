@@ -224,13 +224,6 @@ class AuthController extends Controller
             ], 403);
         }
 
-        if (! $org->isAccessible()) {
-            return response()->json([
-                'message' => 'Your free trial has ended. Contact your provider to renew access.',
-                'organization_status' => 'trial_expired',
-            ], 403);
-        }
-
         $token = $user->createToken('mobile')->plainTextToken;
 
         return response()->json(['token' => $token, 'user' => $this->userPayload($user)]);
