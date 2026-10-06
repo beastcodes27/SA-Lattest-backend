@@ -197,4 +197,52 @@ class MobilePaymentSubscriptionTest extends TestCase
                 'total_spent_formatted',
             ]);
     }
+
+    public function test_cancelling_subscription_locks_management_features_until_subscribed_and_allows_subscription_routes(): void
+    {
+        Sanctum::actingAs($this->admin);
+
+        // Cancel free trial
+        $cancelRes = $this->postJson('/api/admin/subscription/cancel-trial');
+        $cancelRes->assertOk();
+
+        $this->assertFalse($this->org->fresh()->isAccessible());
+
+        // Management routes (e.g. employees, stats) should return 403 SUBSCRIPTION_REQUIRED
+        $employeesRes = $this->getJson('/api/admin/employees');
+        $employeesRes->assertStatus(403)
+            ->assertJsonPath('code', 'SUBSCRIPTION_REQUIRED')
+            ->assertJsonPath('accessible', false);
+
+        $statsRes = $this->getJson('/api/admin/stats');
+        $statsRes->assertStatus(403)
+            ->assertJsonPath('code', 'SUBSCRIPTION_REQUIRED');
+
+        // But subscription details and payment initiation MUST still be accessible so admin can subscribe!
+        $subRes = $this->getJson('/api/admin/subscription');
+        $subRes->assertOk()
+            ->assertJsonPath('subscription.status', 'canceled')
+            ->assertJsonPath('subscription.accessible', false);
+
+        // Initiate payment to subscribe
+        $payRes = $this->postJson('/api/admin/subscription/payments/initiate', [
+            'plan' => 'business',
+            'billing_cycle' => 'monthly',
+            'mobile_provider' => 'mpesa',
+            'phone_number' => '0754123456',
+        ]);
+        $payRes->assertStatus(201);
+        $paymentId = $payRes->json('payment.id');
+
+        // Complete/verify payment
+        $verifyRes = $this->postJson("/api/admin/subscription/payments/{$paymentId}/verify");
+        $verifyRes->assertOk()
+            ->assertJsonPath('payment.status', 'completed')
+            ->assertJsonPath('subscription.status', 'active');
+
+        // Now management access is restored and unlocked!
+        $this->assertTrue($this->org->fresh()->isAccessible());
+        $employeesRestored = $this->getJson('/api/admin/employees');
+        $employeesRestored->assertOk();
+    }
 }

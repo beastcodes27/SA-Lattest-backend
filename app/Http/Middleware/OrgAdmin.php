@@ -21,7 +21,15 @@ class OrgAdmin
         }
 
         if (! $user->organization->isAccessible()) {
-            return response()->json(['message' => 'Your free trial has ended. Contact your provider to renew access.'], 403);
+            if ($request->is('api/admin/subscription*', 'admin/subscription*', 'api/admin/promo*', 'admin/promo*')) {
+                return $next($request);
+            }
+
+            return response()->json([
+                'message' => 'Your subscription or free trial is inactive. Please subscribe to a package to access organization management features.',
+                'code' => 'SUBSCRIPTION_REQUIRED',
+                'accessible' => false,
+            ], 403);
         }
 
         return $next($request);

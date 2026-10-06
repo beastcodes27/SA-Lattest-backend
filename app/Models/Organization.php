@@ -96,8 +96,8 @@ class Organization extends Model
             return false;
         }
 
-        if ($this->subscription_status === 'canceled') {
-            return $this->trial_ends_at !== null && $this->trial_ends_at->isFuture();
+        if ($this->subscription_status === 'canceled' || $this->subscription_status === 'expired') {
+            return false;
         }
 
         if ($this->subscriptionActive()) {
@@ -105,7 +105,7 @@ class Organization extends Model
         }
 
         if ($this->trial_ends_at === null) {
-            return true;
+            return false;
         }
 
         return $this->trial_ends_at->isFuture();

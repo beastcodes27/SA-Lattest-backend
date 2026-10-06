@@ -268,6 +268,7 @@ class AuthController extends Controller
                 'trial_days_left' => $org->trialDaysLeft(),
                 'trial_ends_at' => $org->trial_ends_at?->toIso8601String(),
                 'subscription_status' => $org->subscription_status,
+                'accessible' => $org->isAccessible(),
             ] : null,
             'branch' => $branch ? [
                 'id' => $branch->id,
