@@ -112,4 +112,30 @@ class EmployeeSubscriptionAccessTest extends TestCase
             ->assertJsonPath('code', 'SUBSCRIPTION_REQUIRED')
             ->assertJsonPath('accessible', false);
     }
+
+    public function test_employee_cannot_submit_permission_when_subscription_is_inactive_but_can_view_history(): void
+    {
+        $this->org->forceFill([
+            'subscription_status' => 'canceled',
+            'trial_ends_at' => now()->subDay(),
+        ])->save();
+
+        Sanctum::actingAs($this->employee);
+
+        // Submitting a new leave/permission request should be blocked
+        $createResponse = $this->postJson('/api/permissions', [
+            'reason_category' => 'sick_leave',
+            'reason' => 'Doctor appointment',
+            'start_date' => now()->addDays(2)->toDateString(),
+            'end_date' => now()->addDays(3)->toDateString(),
+        ]);
+
+        $createResponse->assertStatus(403)
+            ->assertJsonPath('code', 'SUBSCRIPTION_REQUIRED')
+            ->assertJsonPath('accessible', false);
+
+        // But viewing past permissions list should remain accessible (read-only)
+        $historyResponse = $this->getJson('/api/permissions');
+        $historyResponse->assertOk();
+    }
 }
