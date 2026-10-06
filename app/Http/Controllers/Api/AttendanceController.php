@@ -38,7 +38,11 @@ class AttendanceController extends Controller
         }
 
         if (! $org->isAccessible()) {
-            return response()->json(['message' => 'Your free trial has ended. Contact your provider to renew access.'], 403);
+            return response()->json([
+                'message' => 'Attendance service is temporarily paused because your organization does not have an active package. Please contact your administrator or HR to renew the subscription.',
+                'code' => 'SUBSCRIPTION_REQUIRED',
+                'accessible' => false,
+            ], 403);
         }
 
         $branch = $user->branch ??
