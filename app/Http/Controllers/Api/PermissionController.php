@@ -66,7 +66,11 @@ class PermissionController extends Controller
         }
 
         if (! $org->isAccessible()) {
-            return response()->json(['message' => 'Your organization subscription is not active.'], 403);
+            return response()->json([
+                'message' => 'Leave and permission requests are temporarily paused because your organization does not have an active package. Please contact your administrator.',
+                'code' => 'SUBSCRIPTION_REQUIRED',
+                'accessible' => false,
+            ], 403);
         }
 
         $permission = PermissionRequest::create([
