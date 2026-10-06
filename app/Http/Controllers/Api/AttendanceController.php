@@ -119,7 +119,11 @@ class AttendanceController extends Controller
         $org = $user->organization;
 
         if (! $org || $org->status !== 'active' || ! $org->isAccessible()) {
-            return response()->json(['message' => 'Organization is not accessible.'], 403);
+            return response()->json([
+                'message' => 'Attendance syncing is paused because your organization does not have an active package. Please contact your administrator to renew.',
+                'code' => 'SUBSCRIPTION_REQUIRED',
+                'accessible' => false,
+            ], 403);
         }
 
         $branch = $user->branch ?? $org->activeBranches()->orderBy('id')->first();
