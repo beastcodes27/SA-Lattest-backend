@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Api;
 
 use App\Models\Payment;
-use App\Models\Package;
 use App\Services\MobilePaymentService;
 use App\Services\SonicPesaService;
 use App\Support\PlanLimits;
@@ -159,7 +158,7 @@ class PaymentController extends Controller
             return response()->json(['message' => 'Payment record not found for this organization.'], 404);
         }
 
-        $payment->markAsCompleted('SIM-' . strtoupper(bin2hex(random_bytes(5))));
+        $payment->markAsCompleted('SIM-'.strtoupper(bin2hex(random_bytes(5))));
         $org->activateSubscription($payment->plan, $payment->billing_cycle, $payment);
 
         return response()->json([
@@ -175,12 +174,19 @@ class PaymentController extends Controller
 
         $payments = $org->payments()
             ->latest()
-            ->paginate(15);
+            ->paginate(15)
+            ->through(fn (Payment $p) => $this->formatPayment($p));
 
         return response()->json([
-            'payments' => $payments->through(fn (Payment $p) => $this->formatPayment($p)),
+            'payments' => $payments->items(),
+            'meta' => [
+                'current_page' => $payments->currentPage(),
+                'per_page' => $payments->perPage(),
+                'total' => $payments->total(),
+                'last_page' => $payments->lastPage(),
+            ],
             'total_spent' => (int) $org->payments()->where('status', Payment::STATUS_COMPLETED)->sum('amount'),
-            'total_spent_formatted' => 'TZS ' . number_format((int) $org->payments()->where('status', Payment::STATUS_COMPLETED)->sum('amount')),
+            'total_spent_formatted' => 'TZS '.number_format((int) $org->payments()->where('status', Payment::STATUS_COMPLETED)->sum('amount')),
         ]);
     }
 
@@ -225,4 +231,3 @@ class PaymentController extends Controller
         ];
     }
 }
-
