@@ -88,31 +88,6 @@
         .brand-text { display: flex; flex-direction: column; }
         .brand-title { font-size: 17px; font-weight: 800; color: #fff; letter-spacing: -0.3px; }
 
-        .sidebar-profile {
-            padding: 16px 20px;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            background: rgba(0, 0, 0, 0.22);
-            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-        }
-        .profile-avatar {
-            width: 42px;
-            height: 42px;
-            border-radius: 13px;
-            background: var(--accent);
-            color: #fff;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: 800;
-            font-size: 15px;
-            border: 2px solid rgba(110, 231, 183, 0.5);
-            box-shadow: 0 6px 18px rgba(124, 58, 237, 0.4);
-        }
-        .profile-info { flex: 1; overflow: hidden; }
-        .profile-name { font-size: 14px; font-weight: 700; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .profile-role { font-size: 11px; color: var(--muted-light); display: flex; align-items: center; gap: 6px; margin-top: 2px; font-weight: 600; }
         .status-dot { width: 7px; height: 7px; border-radius: 50%; background: #34D399; box-shadow: 0 0 0 3px rgba(52, 211, 153, 0.18), 0 0 10px #34D399; display: inline-block; }
 
         .sidebar-nav {
@@ -452,27 +427,10 @@
 
         <!-- System Admin Sidebar Navigation -->
         <aside class="app-sidebar" id="appSidebar">
-            @php
-                $consoleName = trim((string) (auth()->user()->name ?? ''));
-                $isGenericConsoleName = in_array(strtolower($consoleName), ['', 'system admin', 'system super admin', 'admin'], true);
-                $consoleDisplayName = $isGenericConsoleName ? 'System Admin' : $consoleName;
-                $consoleSubtitle = auth()->user()->email ?: 'Platform Admin';
-            @endphp
-
             <div class="sidebar-brand">
                 <div class="brand-logo-icon">SA</div>
                 <div class="brand-text">
                     <div class="brand-title">SmartAttend</div>
-                </div>
-            </div>
-
-            <div class="sidebar-profile">
-                <div class="profile-avatar">{{ strtoupper(substr($consoleDisplayName, 0, 2)) }}</div>
-                <div class="profile-info">
-                    <div class="profile-name">{{ $consoleDisplayName }}</div>
-                    <div class="profile-role">
-                        <span class="status-dot"></span> {{ $consoleSubtitle }}
-                    </div>
                 </div>
             </div>
 
