@@ -26,10 +26,7 @@
             margin: 0;
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
             color: var(--text);
-            background:
-                radial-gradient(900px 520px at 105% -10%, rgba(124, 58, 237, 0.18), transparent 60%),
-                radial-gradient(820px 500px at -10% 110%, rgba(16, 185, 129, 0.20), transparent 58%),
-                linear-gradient(180deg, #F4FBF7 0%, var(--bg) 100%);
+            background: var(--bg);
             min-height: 100vh;
             display: flex;
             align-items: center;
@@ -54,38 +51,18 @@
             position: relative;
             padding: 44px 40px;
             color: #fff;
-            background: linear-gradient(165deg, #28124A 0%, #190830 58%, #120420 100%);
+            background: #1B0B2E;
             overflow: hidden;
             display: flex;
             flex-direction: column;
             justify-content: space-between;
-        }
-        .brand-panel::after {
-            content: '';
-            position: absolute;
-            width: 360px;
-            height: 360px;
-            right: -140px;
-            bottom: -160px;
-            border-radius: 50%;
-            background: radial-gradient(circle, rgba(16, 185, 129, 0.35), transparent 68%);
-        }
-        .brand-panel::before {
-            content: '';
-            position: absolute;
-            width: 260px;
-            height: 260px;
-            left: -120px;
-            top: -120px;
-            border-radius: 50%;
-            background: radial-gradient(circle, rgba(124, 58, 237, 0.4), transparent 70%);
         }
         .brand-top { position: relative; z-index: 1; display: flex; align-items: center; gap: 12px; }
         .brand-logo {
             width: 44px;
             height: 44px;
             border-radius: 14px;
-            background: linear-gradient(135deg, #34D399 0%, #10B981 48%, #7C3AED 100%);
+            background: var(--emerald);
             display: flex;
             align-items: center;
             justify-content: center;
@@ -146,7 +123,7 @@
         button {
             margin-top: 26px;
             width: 100%;
-            background: linear-gradient(135deg, #2A1148, #1B0B2E);
+            background: var(--ink);
             color: #fff;
             border: 0;
             border-radius: 13px;
