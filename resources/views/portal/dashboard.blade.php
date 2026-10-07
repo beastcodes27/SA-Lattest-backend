@@ -36,11 +36,7 @@
         body {
             margin: 0;
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-            background:
-                radial-gradient(1100px 620px at 105% -8%, rgba(124, 58, 237, 0.12), transparent 58%),
-                radial-gradient(1000px 560px at -8% 108%, rgba(16, 185, 129, 0.16), transparent 55%),
-                linear-gradient(180deg, #F4FBF7 0%, var(--bg) 100%);
-            background-attachment: fixed;
+            background: var(--bg);
             color: var(--text);
             min-height: 100vh;
             overflow-x: hidden;
@@ -54,7 +50,7 @@
         /* Sidebar container */
         .app-sidebar {
             width: 270px;
-            background: linear-gradient(185deg, #200D38 0%, #160726 58%, #120420 100%);
+            background: var(--sidebar-bg);
             color: #fff;
             display: flex;
             flex-direction: column;
@@ -79,7 +75,7 @@
             width: 42px;
             height: 42px;
             border-radius: 13px;
-            background: linear-gradient(135deg, #34D399 0%, #10B981 48%, #7C3AED 100%);
+            background: var(--green);
             display: flex;
             align-items: center;
             justify-content: center;
@@ -91,7 +87,6 @@
         }
         .brand-text { display: flex; flex-direction: column; }
         .brand-title { font-size: 17px; font-weight: 800; color: #fff; letter-spacing: -0.3px; }
-        .brand-badge { font-size: 10.5px; font-weight: 800; color: #6EE7B7; text-transform: uppercase; letter-spacing: 0.9px; margin-top: 1px; }
 
         .sidebar-profile {
             padding: 16px 20px;
@@ -105,7 +100,7 @@
             width: 42px;
             height: 42px;
             border-radius: 13px;
-            background: linear-gradient(135deg, #7C3AED, #4C1D95);
+            background: var(--accent);
             color: #fff;
             display: flex;
             align-items: center;
@@ -161,7 +156,7 @@
         .nav-item:hover { background: var(--sidebar-hover); color: #fff; transform: translateX(3px); }
         .nav-item:focus-visible { outline: 2px solid #6EE7B7; outline-offset: 1px; }
         .nav-item.active {
-            background: linear-gradient(90deg, rgba(124, 58, 237, 0.30), rgba(124, 58, 237, 0.10));
+            background: var(--sidebar-active);
             color: #fff;
             font-weight: 700;
             box-shadow: inset 0 0 0 1px rgba(167, 139, 250, 0.28);
@@ -174,13 +169,13 @@
             bottom: 7px;
             width: 4px;
             border-radius: 0 6px 6px 0;
-            background: linear-gradient(180deg, #A78BFA, #34D399);
+            background: var(--green);
             box-shadow: 0 0 12px rgba(167, 139, 250, 0.9);
         }
         .nav-icon { width: 20px; height: 20px; display: inline-flex; align-items: center; justify-content: center; color: inherit; }
         .nav-label { flex: 1; }
         .nav-badge {
-            background: linear-gradient(135deg, #EF4444, #DC2626);
+            background: var(--red);
             color: #fff;
             font-size: 11px;
             font-weight: 800;
@@ -193,21 +188,6 @@
             0%, 100% { transform: scale(1); }
             50% { transform: scale(1.08); }
         }
-
-        .sidebar-quick-stats {
-            background: rgba(255, 255, 255, 0.04);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            border-radius: 14px;
-            padding: 12px 14px;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            margin: 6px 0 10px;
-            backdrop-filter: blur(6px);
-        }
-        .sq-stat { display: flex; align-items: center; justify-content: space-between; font-size: 12.5px; }
-        .sq-label { color: rgba(255, 255, 255, 0.6); font-weight: 600; }
-        .sq-value { color: #6EE7B7; font-weight: 800; font-variant-numeric: tabular-nums; }
 
         .sidebar-footer {
             padding: 16px 14px;
@@ -275,7 +255,7 @@
             display: inline-flex;
             align-items: center;
             gap: 7px;
-            background: linear-gradient(135deg, #2A1148, #1B0B2E);
+            background: var(--ink);
             color: #fff;
             border: 0;
             border-radius: 999px;
@@ -332,11 +312,11 @@
             overflow: hidden;
             transition: transform 0.2s ease, box-shadow 0.2s ease;
         }
-        .stat::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px; background: linear-gradient(90deg, #7C3AED, #10B981); }
-        .stat:nth-child(4n+1)::before { background: linear-gradient(90deg, #7C3AED, #A855F7); }
-        .stat:nth-child(4n+2)::before { background: linear-gradient(90deg, #10B981, #34D399); }
-        .stat:nth-child(4n+3)::before { background: linear-gradient(90deg, #F59E0B, #FBBF24); }
-        .stat:nth-child(4n+4)::before { background: linear-gradient(90deg, #F43F5E, #FB7185); }
+        .stat::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px; background: #7C3AED; }
+        .stat:nth-child(4n+1)::before { background: #7C3AED; }
+        .stat:nth-child(4n+2)::before { background: #10B981; }
+        .stat:nth-child(4n+3)::before { background: #F59E0B; }
+        .stat:nth-child(4n+4)::before { background: #F43F5E; }
         .stat b { font-size: 28px; color: var(--ink); display: block; letter-spacing: -0.8px; font-variant-numeric: tabular-nums; line-height: 1.1; }
         .stat span { color: var(--muted); font-size: 12px; font-weight: 700; margin-top: 4px; display: block; letter-spacing: 0.2px; }
         .stat small { color: var(--muted-light) !important; }
@@ -357,7 +337,7 @@
             transition: all 0.18s ease;
         }
         .filter:hover { background: rgba(32, 15, 53, 0.04); color: var(--ink); }
-        .filter.active { background: linear-gradient(135deg, #2A1148, #1B0B2E); color: #fff; border-color: transparent; box-shadow: 0 6px 16px rgba(32, 15, 53, 0.25); }
+        .filter.active { background: var(--ink); color: #fff; border-color: transparent; box-shadow: 0 6px 16px rgba(32, 15, 53, 0.25); }
 
         .org {
             position: relative;
@@ -377,7 +357,7 @@
             bottom: 18px;
             width: 4px;
             border-radius: 0 6px 6px 0;
-            background: linear-gradient(180deg, #7C3AED, #10B981);
+            background: var(--accent);
             opacity: 0;
             transition: opacity 0.2s ease;
         }
@@ -391,7 +371,7 @@
 
         .actions { display: flex; gap: 8px; margin-top: 16px; flex-wrap: wrap; }
         .btn { border: 0; border-radius: 11px; padding: 10px 18px; font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit; transition: all 0.18s ease; }
-        .btn.primary { background: linear-gradient(135deg, #2A1148, #1B0B2E); color: #fff; box-shadow: 0 6px 16px rgba(32, 15, 53, 0.22); }
+        .btn.primary { background: var(--ink); color: #fff; box-shadow: 0 6px 16px rgba(32, 15, 53, 0.22); }
         .btn.primary:hover { transform: translateY(-1px); box-shadow: 0 10px 22px rgba(32, 15, 53, 0.3); }
         .btn.danger { background: rgba(239, 68, 68, 0.1); color: #DC2626; }
         .btn.danger:hover { background: rgba(239, 68, 68, 0.18); }
@@ -412,8 +392,8 @@
             display: none;
             z-index: 1000;
         }
-        .msg.ok { background: linear-gradient(135deg, #059669, #10B981); }
-        .msg.err { background: linear-gradient(135deg, #DC2626, #EF4444); }
+        .msg.ok { background: var(--green); }
+        .msg.err { background: var(--red); }
 
         .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; }
         .grid span { display: block; color: var(--muted-light); font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.6px; font-weight: 800; }
@@ -472,20 +452,26 @@
 
         <!-- System Admin Sidebar Navigation -->
         <aside class="app-sidebar" id="appSidebar">
+            @php
+                $consoleName = trim((string) (auth()->user()->name ?? ''));
+                $isGenericConsoleName = in_array(strtolower($consoleName), ['', 'system admin', 'system super admin', 'admin'], true);
+                $consoleDisplayName = $isGenericConsoleName ? 'System Admin' : $consoleName;
+                $consoleSubtitle = auth()->user()->email ?: 'Platform Admin';
+            @endphp
+
             <div class="sidebar-brand">
                 <div class="brand-logo-icon">SA</div>
                 <div class="brand-text">
                     <div class="brand-title">SmartAttend</div>
-                    <div class="brand-badge">System Console</div>
                 </div>
             </div>
 
             <div class="sidebar-profile">
-                <div class="profile-avatar">{{ strtoupper(substr(auth()->user()->name ?? 'SA', 0, 2)) }}</div>
+                <div class="profile-avatar">{{ strtoupper(substr($consoleDisplayName, 0, 2)) }}</div>
                 <div class="profile-info">
-                    <div class="profile-name">{{ auth()->user()->name }}</div>
+                    <div class="profile-name">{{ $consoleDisplayName }}</div>
                     <div class="profile-role">
-                        <span class="status-dot"></span> System Super Admin
+                        <span class="status-dot"></span> {{ $consoleSubtitle }}
                     </div>
                 </div>
             </div>
@@ -523,22 +509,6 @@
                     </span>
                     <span class="nav-label">Push Broadcasts</span>
                 </button>
-
-                <div class="nav-section-title" style="margin-top:14px">Live Summary</div>
-                <div class="sidebar-quick-stats">
-                    <div class="sq-stat">
-                        <span class="sq-label">Active Orgs</span>
-                        <span class="sq-value" id="sqActiveOrgs">—</span>
-                    </div>
-                    <div class="sq-stat">
-                        <span class="sq-label">Total Staff</span>
-                        <span class="sq-value" id="sqTotalStaff">—</span>
-                    </div>
-                    <div class="sq-stat">
-                        <span class="sq-label">Today's Checkins</span>
-                        <span class="sq-value" id="sqTodayCheckins">—</span>
-                    </div>
-                </div>
             </div>
 
             <div class="sidebar-footer">
@@ -641,15 +611,6 @@
                     badge.textContent = stats.pending;
                     badge.style.display = stats.pending > 0 ? 'inline-block' : 'none';
                 }
-            }
-            if (document.getElementById('sqActiveOrgs')) {
-                document.getElementById('sqActiveOrgs').textContent = stats.active ?? '0';
-            }
-            if (document.getElementById('sqTotalStaff')) {
-                document.getElementById('sqTotalStaff').textContent = stats.employees ?? '0';
-            }
-            if (document.getElementById('sqTodayCheckins')) {
-                document.getElementById('sqTodayCheckins').textContent = stats.today_checkins ?? '0';
             }
             const tiles = [
                 ['Pending', stats.pending, 'pending'], ['Active', stats.active, 'active'], ['Suspended', stats.suspended, 'suspended'],
