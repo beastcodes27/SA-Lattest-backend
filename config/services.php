@@ -35,11 +35,6 @@ return [
         ],
     ],
 
-    'face' => [
-        'url' => env('FACE_SERVICE_URL', 'http://127.0.0.1:8124'),
-        'threshold' => 0.88,
-    ],
-
     'sonicpesa' => [
         'api_key' => env('SONICPESA_API_KEY'),
         'api_secret' => env('SONICPESA_API_SECRET'),
