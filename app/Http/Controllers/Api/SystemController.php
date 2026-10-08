@@ -3,13 +3,14 @@
 namespace App\Http\Controllers\Api;
 
 use App\Models\Attendance;
+use App\Models\Branch;
 use App\Models\Organization;
+use App\Models\PromoRedemption;
 use App\Models\User;
 use App\Support\PlanLimits;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 
@@ -33,8 +34,8 @@ class SystemController extends Controller
                 'active' => (int) ($byStatus['active'] ?? 0),
                 'suspended' => (int) ($byStatus['suspended'] ?? 0),
                 'organizations_total' => Organization::count(),
-                'employees' => \App\Models\User::where('role', 'employee')->count(),
-                'branches' => \App\Models\Branch::count(),
+                'employees' => User::where('role', 'employee')->count(),
+                'branches' => Branch::count(),
                 'today_checkins' => Attendance::whereBetween('occurred_at', AuthController::todayRange())->count(),
             ],
         ]);
@@ -53,6 +54,7 @@ class SystemController extends Controller
         $query = Organization::query()->withCount([
             'users as employees_count' => fn ($q) => $q->where('role', 'employee'),
             'branches as branches_count',
+            'attendances',
         ]);
 
         if ($request->status) {
@@ -355,7 +357,7 @@ class SystemController extends Controller
     private function payload(Organization $org): array
     {
         $admin = $org->users()->where('role', 'admin')->orderBy('id')->first();
-        $promoRedemption = \App\Models\PromoRedemption::where('org_id', $org->id)->with('promo')->first();
+        $promoRedemption = PromoRedemption::where('org_id', $org->id)->with('promo')->first();
 
         return [
             'id' => $org->id,
@@ -383,7 +385,7 @@ class SystemController extends Controller
             'status' => $org->status,
             'employees_count' => (int) ($org->employees_count ?? $org->users()->where('role', 'employee')->count()),
             'branches_count' => (int) ($org->branches_count ?? $org->branches()->count()),
-            'attendances_count' => (int) \App\Models\Attendance::where('org_id', $org->id)->count(),
+            'attendances_count' => (int) ($org->attendances_count ?? $org->attendances()->count()),
             'branches_limit' => PlanLimits::branchLimit($org->plan),
             'employees_limit' => PlanLimits::employeeLimit($org->plan),
             'on_trial' => $org->onTrial(),

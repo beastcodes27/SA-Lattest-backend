@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 
 #[Fillable([
     'name',
@@ -133,6 +134,11 @@ class Organization extends Model
     public function users(): HasMany
     {
         return $this->hasMany(User::class, 'org_id');
+    }
+
+    public function attendances(): HasManyThrough
+    {
+        return $this->hasManyThrough(Attendance::class, User::class, 'org_id', 'user_id');
     }
 
     public function getTinDocumentUrlAttribute(): ?string
