@@ -359,6 +359,17 @@ class SystemController extends Controller
         $admin = $org->users()->where('role', 'admin')->orderBy('id')->first();
         $promoRedemption = PromoRedemption::where('org_id', $org->id)->with('promo')->first();
 
+        $planState = 'none';
+        if ($org->subscription_status === 'active') {
+            $planState = 'active';
+        } elseif ($org->onTrial()) {
+            $planState = 'trial';
+        } elseif ($org->subscription_status === 'canceled') {
+            $planState = 'cancelled';
+        } elseif ($org->trial_ends_at !== null && $org->trial_ends_at->isPast()) {
+            $planState = 'expired';
+        }
+
         return [
             'id' => $org->id,
             'name' => $org->name,
@@ -369,6 +380,10 @@ class SystemController extends Controller
             'tin' => $org->tin,
             'tin_document_name' => $org->tin_document_name,
             'tin_document_url' => $org->tin_document_url,
+            'photos' => collect($org->photos ?? [])
+                ->map(fn ($path) => asset('storage/'.$path))
+                ->values()
+                ->all(),
             'admin' => $admin ? [
                 'name' => $admin->name,
                 'email' => $admin->email,
@@ -394,6 +409,7 @@ class SystemController extends Controller
             'trial_ends_at' => $org->trial_ends_at?->toIso8601String(),
             'canceled_at' => $org->canceled_at?->toIso8601String(),
             'subscription_status' => $org->subscription_status,
+            'plan_state' => $planState,
             'created_at' => $org->created_at?->toIso8601String(),
             'updated_at' => $org->updated_at?->toIso8601String(),
         ];
