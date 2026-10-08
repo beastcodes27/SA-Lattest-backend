@@ -10,10 +10,15 @@ use Illuminate\Support\Facades\Log;
 class SonicPesaService
 {
     protected string $apiKey;
+
     protected ?string $apiSecret;
+
     protected string $baseUrl;
+
     protected ?string $webhookSecret;
+
     protected bool $isSandbox;
+
     protected int $timeout;
 
     public function __construct(
@@ -74,17 +79,17 @@ class SonicPesaService
             return $cleaned;
         }
         if (str_starts_with($cleaned, '0')) {
-            return '255' . substr($cleaned, 1);
+            return '255'.substr($cleaned, 1);
         }
 
-        return '255' . $cleaned;
+        return '255'.$cleaned;
     }
 
     public static function formatPhoneForDisplay(string $phone): string
     {
         $normalized = self::normalizePhone($phone);
         if (str_starts_with($normalized, '255') && strlen($normalized) === 12) {
-            return '0' . substr($normalized, 3);
+            return '0'.substr($normalized, 3);
         }
 
         return $normalized;
@@ -94,7 +99,7 @@ class SonicPesaService
     {
         $phone = self::normalizePhone($params['buyer_phone'] ?? $params['phone'] ?? '');
         $amount = (int) ($params['amount'] ?? 0);
-        $orderId = (string) ($params['order_id'] ?? $params['reference'] ?? ('SA-' . strtoupper(bin2hex(random_bytes(4)))));
+        $orderId = (string) ($params['order_id'] ?? $params['reference'] ?? ('SA-'.strtoupper(bin2hex(random_bytes(4)))));
         $currency = strtoupper((string) ($params['currency'] ?? 'TZS'));
         $name = (string) ($params['buyer_name'] ?? $params['name'] ?? 'SmartAttend Subscriber');
         $email = (string) ($params['buyer_email'] ?? $params['email'] ?? 'billing@smartattend.app');
@@ -114,13 +119,14 @@ class SonicPesaService
         // In sandbox or unconfigured mode, provide instant simulated order
         if (! $this->isConfigured()) {
             Log::info('SonicPesa not configured, generating simulated sandbox order', ['order_id' => $orderId, 'phone' => $phone, 'amount' => $amount]);
+
             return [
                 'success' => true,
                 'order_id' => $orderId,
                 'status' => Payment::STATUS_PENDING,
                 'checkout_url' => null,
                 'qr_code' => null,
-                'message' => 'SonicPesa sandbox order created. USSD prompt sent to ' . $phone,
+                'message' => 'SonicPesa sandbox order created. USSD prompt sent to '.$phone,
                 'raw' => [
                     'simulated' => true,
                     'order_id' => $orderId,
@@ -131,17 +137,20 @@ class SonicPesaService
         }
 
         try {
-            $response = $this->client()->post('/api/v1/payment/create_order', $payload);
+            $response = $this->client()->post('/payment/create_order', $payload);
             $json = $response->json() ?? [];
 
             if ($response->successful() && ($json['status'] ?? '') !== 'error') {
-                $returnedOrderId = $json['order_id'] ?? $json['id'] ?? $orderId;
-                $checkoutUrl = $json['checkout_url'] ?? $json['payment_url'] ?? null;
-                $qrCode = $json['qr_code'] ?? null;
+                $data = $json['data'] ?? [];
+                $returnedOrderId = $data['order_id'] ?? $json['order_id'] ?? $json['id'] ?? $orderId;
+                $checkoutUrl = $data['checkout_url'] ?? $json['checkout_url'] ?? $json['payment_url'] ?? null;
+                $qrCode = $data['qr_code'] ?? $json['qr_code'] ?? null;
 
                 return [
                     'success' => true,
                     'order_id' => $returnedOrderId,
+                    'reference' => $data['reference'] ?? null,
+                    'payment_status' => strtoupper((string) ($data['payment_status'] ?? $data['status'] ?? 'PENDING')),
                     'status' => Payment::STATUS_PENDING,
                     'checkout_url' => $checkoutUrl,
                     'qr_code' => $qrCode,
@@ -162,11 +171,11 @@ class SonicPesaService
                 'status' => Payment::STATUS_FAILED,
                 'checkout_url' => null,
                 'qr_code' => null,
-                'message' => $json['message'] ?? $json['error'] ?? ('SonicPesa Error (' . $response->status() . ')'),
+                'message' => $json['message'] ?? $json['error'] ?? ('SonicPesa Error ('.$response->status().')'),
                 'raw' => $json,
             ];
         } catch (\Throwable $e) {
-            Log::error('SonicPesa create_order exception: ' . $e->getMessage(), [
+            Log::error('SonicPesa create_order exception: '.$e->getMessage(), [
                 'trace' => $e->getTraceAsString(),
                 'payload' => $payload,
             ]);
@@ -179,7 +188,7 @@ class SonicPesaService
                     'status' => Payment::STATUS_PENDING,
                     'checkout_url' => null,
                     'qr_code' => null,
-                    'message' => 'SonicPesa sandbox fallback active. Payment prompt sent to ' . $phone,
+                    'message' => 'SonicPesa sandbox fallback active. Payment prompt sent to '.$phone,
                     'raw' => ['fallback' => true, 'error' => $e->getMessage()],
                 ];
             }
@@ -190,7 +199,7 @@ class SonicPesaService
                 'status' => Payment::STATUS_FAILED,
                 'checkout_url' => null,
                 'qr_code' => null,
-                'message' => 'Could not connect to SonicPesa payment gateway: ' . $e->getMessage(),
+                'message' => 'Could not connect to SonicPesa payment gateway: '.$e->getMessage(),
                 'raw' => ['exception' => $e->getMessage()],
             ];
         }
@@ -213,19 +222,20 @@ class SonicPesaService
         }
 
         try {
-            // Attempt standard status endpoint
-            $response = $this->client()->get("/api/v1/payment/order_status/{$orderId}");
-            
-            // If GET endpoint is alternative, try check_status POST
-            if ($response->status() === 404 || $response->status() === 405) {
-                $response = $this->client()->post('/api/v1/payment/check_status', ['order_id' => $orderId]);
-            }
+            // Documented endpoint: POST {base}/payment/order_status with { order_id }
+            $response = $this->client()->post('/payment/order_status', [
+                'order_id' => $orderId,
+            ]);
 
             $json = $response->json() ?? [];
-            $rawStatus = strtolower((string) ($json['status'] ?? $json['payment_status'] ?? 'pending'));
+            $data = $json['data'] ?? [];
 
-            $isCompleted = in_array($rawStatus, ['completed', 'success', 'paid', 'successful'], true);
-            $isFailed = in_array($rawStatus, ['failed', 'canceled', 'cancelled', 'expired', 'declined'], true);
+            // The top-level "status" only signals API success; the real payment
+            // state lives in data.payment_status (SUCCESS / PENDING / FAILED).
+            $rawStatus = strtolower((string) ($data['payment_status'] ?? $data['status'] ?? 'pending'));
+
+            $isCompleted = in_array($rawStatus, ['completed', 'success', 'successful', 'paid'], true);
+            $isFailed = in_array($rawStatus, ['failed', 'canceled', 'cancelled', 'expired', 'declined', 'error'], true);
             $isPending = ! $isCompleted && ! $isFailed;
 
             $normalizedStatus = $isCompleted
@@ -238,13 +248,14 @@ class SonicPesaService
                 'is_completed' => $isCompleted,
                 'is_pending' => $isPending,
                 'is_failed' => $isFailed,
-                'external_transaction_id' => $json['transaction_id'] ?? $json['reference'] ?? $json['receipt'] ?? null,
-                'amount' => isset($json['amount']) ? (int) $json['amount'] : null,
-                'currency' => $json['currency'] ?? 'TZS',
+                'external_transaction_id' => $data['transid'] ?? $json['transaction']['transaction_id'] ?? null,
+                'reference' => $data['reference'] ?? null,
+                'amount' => isset($data['amount']) ? (int) $data['amount'] : null,
+                'currency' => $data['currency'] ?? 'TZS',
                 'raw' => $json,
             ];
         } catch (\Throwable $e) {
-            Log::warning("SonicPesa getOrderStatus exception for order {$orderId}: " . $e->getMessage());
+            Log::warning("SonicPesa getOrderStatus exception for order {$orderId}: ".$e->getMessage());
 
             return [
                 'success' => false,
@@ -269,11 +280,13 @@ class SonicPesaService
         $secret = $this->webhookSecret ?: $this->apiSecret;
         if (empty($secret)) {
             Log::info('SonicPesa webhook secret not set; skipping HMAC verification in sandbox mode');
+
             return true;
         }
 
         if (empty($signature)) {
             Log::warning('SonicPesa webhook received without signature header');
+
             return false;
         }
 
@@ -292,16 +305,16 @@ class SonicPesaService
      */
     public function extractWebhookData(array $payload): array
     {
-        $orderId = $payload['order_id'] ?? $payload['reference'] ?? $payload['data']['order_id'] ?? null;
-        $transactionId = $payload['transaction_id'] ?? $payload['trans_id'] ?? $payload['receipt'] ?? $payload['data']['transaction_id'] ?? null;
-        $rawStatus = strtolower((string) ($payload['status'] ?? $payload['payment_status'] ?? $payload['data']['status'] ?? 'completed'));
+        $orderId = $payload['order_id'] ?? $payload['data']['order_id'] ?? $payload['reference'] ?? $payload['data']['reference'] ?? null;
+        $transactionId = $payload['transid'] ?? $payload['transaction_id'] ?? $payload['data']['transid'] ?? $payload['data']['transaction_id'] ?? $payload['receipt'] ?? null;
+        $rawStatus = strtolower((string) ($payload['payment_status'] ?? $payload['status'] ?? $payload['data']['payment_status'] ?? $payload['data']['status'] ?? 'completed'));
         $amount = $payload['amount'] ?? $payload['data']['amount'] ?? null;
         $currency = strtoupper((string) ($payload['currency'] ?? $payload['data']['currency'] ?? 'TZS'));
-        $phone = $payload['buyer_phone'] ?? $payload['phone'] ?? $payload['data']['buyer_phone'] ?? null;
+        $phone = $payload['msisdn'] ?? $payload['buyer_phone'] ?? $payload['phone'] ?? $payload['data']['msisdn'] ?? $payload['data']['buyer_phone'] ?? null;
 
         $isCompleted = in_array($rawStatus, ['completed', 'success', 'paid', 'successful', 'ok'], true);
         $isFailed = in_array($rawStatus, ['failed', 'canceled', 'cancelled', 'expired', 'declined', 'error'], true);
-        
+
         $normalizedStatus = $isCompleted
             ? Payment::STATUS_COMPLETED
             : ($isFailed ? Payment::STATUS_FAILED : Payment::STATUS_PENDING);
@@ -327,6 +340,7 @@ class SonicPesaService
     public function generateSignature(string $rawPayload, ?string $secret = null): string
     {
         $signingKey = $secret ?? $this->webhookSecret ?? $this->apiSecret ?? $this->apiKey;
+
         return hash_hmac('sha256', $rawPayload, $signingKey);
     }
 
@@ -340,12 +354,10 @@ class SonicPesaService
             'configured' => $this->isConfigured(),
             'sandbox' => $this->isSandbox(),
             'base_url' => $this->baseUrl,
-            'api_key_masked' => ! empty($this->apiKey) ? substr($this->apiKey, 0, 4) . '****' . substr($this->apiKey, -4) : null,
+            'api_key_masked' => ! empty($this->apiKey) ? substr($this->apiKey, 0, 4).'****'.substr($this->apiKey, -4) : null,
             'has_api_secret' => ! empty($this->apiSecret),
             'has_webhook_secret' => ! empty($this->webhookSecret),
             'timeout' => $this->timeout,
         ];
     }
 }
-
-
