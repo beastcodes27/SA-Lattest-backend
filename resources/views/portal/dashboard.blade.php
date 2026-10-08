@@ -384,6 +384,29 @@
             margin-bottom: 8px;
         }
         .branch span { font-weight: 500; color: var(--muted); font-size: 12px; }
+        .plan-warning {
+            margin-top: 12px;
+            background: rgba(194, 48, 48, 0.08);
+            border: 1px solid rgba(194, 48, 48, 0.28);
+            color: var(--red);
+            border-radius: 12px;
+            padding: 10px 14px;
+            font-size: 12.5px;
+            font-weight: 700;
+        }
+        .docs {
+            background: rgba(32, 15, 53, 0.03);
+            border: 1px solid var(--card-border);
+            border-radius: 14px;
+            padding: 14px 16px;
+        }
+        .doc-label { display: block; font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.6px; font-weight: 800; color: var(--muted); margin-bottom: 6px; }
+        .doc-link { color: var(--accent); font-weight: 700; font-size: 13px; text-decoration: none; }
+        .doc-link:hover { text-decoration: underline; }
+        .doc-empty { color: var(--muted); font-size: 12.5px; }
+        .photo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; margin-top: 2px; }
+        .photo-grid a { display: block; aspect-ratio: 1 / 1; border-radius: 10px; overflow: hidden; border: 1px solid var(--card-border); }
+        .photo-grid img { width: 100%; height: 100%; object-fit: cover; display: block; }
         table.emps { width: 100%; border-collapse: collapse; font-size: 13px; overflow: hidden; border-radius: 12px; }
         table.emps th { text-align: left; background: rgba(32, 15, 53, 0.04); padding: 11px 14px; color: var(--muted); font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.6px; font-weight: 800; }
         table.emps td { padding: 11px 14px; border-bottom: 1px solid rgba(32, 15, 53, 0.06); color: var(--text); }
@@ -608,6 +631,10 @@
                         : `<button class="btn primary" onclick="act(${o.id},'reactivate')">Reactivate</button>`;
                 const view = `<button class="btn ghost" onclick="openOrg(${o.id})">View details</button>`;
                 const trial = o.on_trial ? `<div style="color:var(--amber);font-size:12px;font-weight:600;margin-top:8px">Trial ends ${fmtDate(o.trial_ends_at)} &middot; ${o.trial_days_left}d left</div>` : '';
+                const noPlan = o.status === 'active' && ['cancelled', 'expired', 'none'].includes(o.plan_state);
+                const planWarning = noPlan
+                    ? `<div style="color:var(--red);font-size:12px;font-weight:700;margin-top:8px">No active plan &middot; ${o.plan_state === 'cancelled' ? 'subscription canceled' : o.plan_state === 'expired' ? 'plan expired' : 'never subscribed'}</div>`
+                    : '';
                 return `<div class="org">
                     <h3>${esc(o.name)}</h3>
                     <div class="contact">${esc(o.contact_email || o.contact_phone || '—')}</div>
@@ -620,6 +647,7 @@
                         <span>Prefix ${esc(o.employee_id_prefix || '—')}</span>
                     </div>
                     ${trial}
+                    ${planWarning}
                     <div class="actions">${view}${buttons}</div>
                 </div>`;
             }).join('');
@@ -690,6 +718,7 @@
                 <div class="org" style="margin-top:14px">
                     <h3>${esc(o.name)} ${statusPill(o)}</h3>
                     <div class="contact">Registered ${fmtDateTime(o.created_at)}</div>
+                    ${o.status === 'active' && ['cancelled', 'expired', 'none'].includes(o.plan_state) ? `<div class="plan-warning">No active plan (${esc(o.plan_state)}). Management features are locked until this organization subscribes.</div>` : ''}
 
                     <h4 style="margin:18px 0 8px">Organization</h4>
                     <div class="grid">
@@ -703,8 +732,22 @@
 
                     <h4 style="margin:18px 0 8px">Plan &amp; subscription</h4>
                     <div class="grid">
-                        ${kv('Plan', cap(o.plan))}${kv('Subscription', subs)}${kv('Trial ends', fmtDate(o.trial_ends_at))}${kv('Trial days left', o.on_trial ? String(o.trial_days_left) : '—')}
+                        ${kv('Plan', cap(o.plan))}${kv('Subscription', subs)}${kv('Plan state', o.plan_state)}${kv('Trial ends', fmtDate(o.trial_ends_at))}${kv('Trial days left', o.on_trial ? String(o.trial_days_left) : '—')}
                         ${kv('Employees', o.employees_count + ' / ' + (o.employees_limit === null ? 'unlimited' : o.employees_limit))}${kv('Branches', o.branches_count + ' / ' + (o.branches_limit === null ? 'unlimited' : o.branches_limit))}
+                    </div>
+
+                    <h4 style="margin:18px 0 8px">Verification documents</h4>
+                    <div class="docs">
+                        <div>
+                            <span class="doc-label">TIN / Registration document</span>
+                            ${o.tin_document_url ? `<a class="doc-link" href="${esc(o.tin_document_url)}" target="_blank" rel="noopener">${esc(o.tin_document_name || 'Open document')} &#8599;</a>` : '<span class="doc-empty">No TIN document uploaded</span>'}
+                        </div>
+                        <div style="margin-top:12px">
+                            <span class="doc-label">Registration photos (${(o.photos || []).length})</span>
+                            ${(o.photos || []).length
+                                ? `<div class="photo-grid">${(o.photos || []).map((url, i) => `<a href="${esc(url)}" target="_blank" rel="noopener"><img src="${esc(url)}" alt="Registration photo ${i + 1}" loading="lazy" /></a>`).join('')}</div>`
+                                : '<span class="doc-empty">No photos uploaded</span>'}
+                        </div>
                     </div>
 
                     <h4 style="margin:18px 0 8px">Branches</h4>
