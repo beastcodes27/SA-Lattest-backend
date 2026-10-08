@@ -59,7 +59,7 @@ class SubscriptionController extends Controller
         ])->save();
 
         return response()->json([
-            'message' => "You are now on the ".($package?->name ?? ucfirst($plan))." plan.",
+            'message' => 'You are now on the '.($package?->name ?? ucfirst($plan)).' plan.',
             'subscription' => $this->payload($org->fresh()),
         ]);
     }
@@ -140,7 +140,8 @@ class SubscriptionController extends Controller
             'canceled_at' => $org->canceled_at?->toIso8601String(),
             'discount_percent' => (int) $org->discount_percent,
             'accessible' => $org->isAccessible(),
-            'branches_used' => $org->branches()->count(),
+            'branches_used' => $org->activeBranches()->count(),
+            'branches_total' => $org->branches()->count(),
             'branches_limit' => PlanLimits::branchLimit($org->plan),
             'employees_used' => $org->users()->where('role', 'employee')->count(),
             'employees_limit' => PlanLimits::employeeLimit($org->plan),

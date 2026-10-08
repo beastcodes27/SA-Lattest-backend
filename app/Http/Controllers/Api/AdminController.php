@@ -7,16 +7,19 @@ use App\Models\Branch;
 use App\Models\Organization;
 use App\Models\PermissionRequest;
 use App\Models\User;
+use App\Services\ExpoPushService;
 use App\Support\PlanLimits;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 
 class AdminController extends Controller
 {
     private const TIMEZONE = 'Africa/Dar_es_Salaam';
+
     private const START_MINUTES = 9 * 60;
 
     public function nextEmployeeId(Request $request): JsonResponse
@@ -163,7 +166,7 @@ class AdminController extends Controller
         }
 
         $data = $validator->validated();
-        $password = !empty($data['password'])
+        $password = ! empty($data['password'])
             ? $data['password']
             : ($org->default_employee_password ?: 'SmartAttend@123');
 
@@ -215,7 +218,7 @@ class AdminController extends Controller
 
         // Notify Employee of Branch Reassignment
         try {
-            \App\Services\ExpoPushService::notifyUser(
+            ExpoPushService::notifyUser(
                 $employee,
                 'Branch Assignment Updated',
                 "You have been assigned to {$branch->name}. Please check in at this branch for your future attendance.",
@@ -227,7 +230,7 @@ class AdminController extends Controller
                 $request->user()
             );
         } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\Log::warning('Failed to send employee transfer notification: ' . $e->getMessage());
+            Log::warning('Failed to send employee transfer notification: '.$e->getMessage());
         }
 
         return response()->json([
@@ -284,7 +287,7 @@ class AdminController extends Controller
         // Send Security Alert push notification to the employee
         $admin = $request->user();
         try {
-            \App\Services\ExpoPushService::notifyUser(
+            ExpoPushService::notifyUser(
                 $employee,
                 'Security Alert: Password Changed',
                 "Your SmartAttend account password was reset by your administrator ({$admin->name}). Temporary password: {$request->password}. Please change your password upon login.",
@@ -297,7 +300,7 @@ class AdminController extends Controller
                 $admin
             );
         } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\Log::warning('Failed to send employee password reset notification: ' . $e->getMessage());
+            Log::warning('Failed to send employee password reset notification: '.$e->getMessage());
         }
 
         return response()->json([
@@ -451,7 +454,7 @@ class AdminController extends Controller
             ->where('status', 'approved')
             ->where(function ($q) use ($startDate, $endDate) {
                 $q->whereBetween('start_date', [$startDate->toDateString(), $endDate->toDateString()])
-                  ->orWhereBetween('end_date', [$startDate->toDateString(), $endDate->toDateString()]);
+                    ->orWhereBetween('end_date', [$startDate->toDateString(), $endDate->toDateString()]);
             })
             ->get();
 
@@ -583,7 +586,7 @@ class AdminController extends Controller
 
         $limit = PlanLimits::branchLimit($org->plan);
 
-        if ($limit !== null && $org->branches()->count() >= $limit) {
+        if ($limit !== null && $org->activeBranches()->count() >= $limit) {
             return response()->json([
                 'message' => "Your {$org->plan} plan allows up to {$limit} branch".($limit === 1 ? '' : 'es').'. Upgrade your package to add more.',
             ], 422);
