@@ -508,10 +508,10 @@
                 <div id="orgArea">
                     <div class="stats" id="stats"></div>
                     <div class="filters" id="filters">
-                        <button class="filter active" data-status="pending">Pending</button>
+                        <button class="filter active" data-status="">All</button>
+                        <button class="filter" data-status="pending">Pending</button>
                         <button class="filter" data-status="active">Active</button>
                         <button class="filter" data-status="suspended">Suspended</button>
-                        <button class="filter" data-status="">All</button>
                     </div>
                     <div id="orgs"></div>
                 </div>
@@ -531,7 +531,7 @@
 
     <script>
         const csrf = document.querySelector('meta[name="csrf-token"]').content;
-        let current = 'pending';
+        let current = '';
         const $msg = document.getElementById('msg');
         const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
         const cap = (s) => s ? s.charAt(0).toUpperCase() + s.slice(1) : '';
