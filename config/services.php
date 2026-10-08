@@ -38,7 +38,7 @@ return [
     'sonicpesa' => [
         'api_key' => env('SONICPESA_API_KEY'),
         'api_secret' => env('SONICPESA_API_SECRET'),
-        'base_url' => rtrim(env('SONICPESA_BASE_URL', 'https://api.sonicpesa.com'), '/'),
+        'base_url' => rtrim(env('SONICPESA_BASE_URL', 'https://api.sonicpesa.com/api/v1'), '/'),
         'webhook_secret' => env('SONICPESA_WEBHOOK_SECRET'),
         'sandbox' => env('SONICPESA_SANDBOX', true),
         'timeout' => (int) env('SONICPESA_TIMEOUT', 30),
