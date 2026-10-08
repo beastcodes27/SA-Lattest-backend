@@ -3,8 +3,8 @@
 namespace App\Http\Controllers\Api;
 
 use App\Models\Attendance;
-use App\Models\Branch;
 use App\Services\GeolocationService;
+use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
@@ -69,13 +69,43 @@ class AttendanceController extends Controller
 
         [$start, $end] = AuthController::todayRange();
 
-        $lastToday = Attendance::where('user_id', $user->id)
-            ->whereBetween('occurred_at', [$start, $end])
-            ->orderByDesc('occurred_at')
-            ->first();
+        $todayQuery = Attendance::where('user_id', $user->id)
+            ->whereBetween('occurred_at', [$start, $end]);
 
-        $type = $request->filled('type') ? $request->type : ($lastToday && $lastToday->type === 'in' ? 'out' : 'in');
-        $occurredAt = $request->filled('occurred_at') ? \Carbon\Carbon::parse($request->occurred_at) : now();
+        $hasCheckedIn = (clone $todayQuery)->where('type', 'in')->exists();
+        $hasCheckedOut = (clone $todayQuery)->where('type', 'out')->exists();
+
+        // Only one check-in and one check-out are allowed per day.
+        if ($hasCheckedIn && $hasCheckedOut) {
+            return response()->json([
+                'message' => 'You have already checked in and checked out today. Only one check-in and one check-out are allowed per day.',
+                'code' => 'daily_limit_reached',
+            ], 422);
+        }
+
+        $type = $request->filled('type') ? $request->type : ($hasCheckedIn ? 'out' : 'in');
+
+        if ($type === 'in' && $hasCheckedIn) {
+            return response()->json([
+                'message' => 'You have already checked in today.',
+                'code' => 'already_checked_in',
+            ], 422);
+        }
+
+        if ($type === 'out' && ! $hasCheckedIn) {
+            return response()->json([
+                'message' => 'You need to check in before you can check out.',
+                'code' => 'needs_check_in',
+            ], 422);
+        }
+
+        if ($type === 'out' && $hasCheckedOut) {
+            return response()->json([
+                'message' => 'You have already checked out today.',
+                'code' => 'already_checked_out',
+            ], 422);
+        }
+        $occurredAt = $request->filled('occurred_at') ? Carbon::parse($request->occurred_at) : now();
 
         $attendance = new Attendance([
             'user_id' => $user->id,
@@ -133,8 +163,8 @@ class AttendanceController extends Controller
 
         $synced = [];
         foreach ($request->records as $r) {
-            $occurredAt = !empty($r['occurred_at']) ? \Carbon\Carbon::parse($r['occurred_at']) : now();
-            $type = !empty($r['type']) ? $r['type'] : 'in';
+            $occurredAt = ! empty($r['occurred_at']) ? Carbon::parse($r['occurred_at']) : now();
+            $type = ! empty($r['type']) ? $r['type'] : 'in';
 
             $attendance = new Attendance([
                 'user_id' => $user->id,
