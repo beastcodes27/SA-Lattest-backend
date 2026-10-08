@@ -90,6 +90,15 @@ class Organization extends Model
         return $this->trial_ends_at !== null && $this->trialDaysLeft() > 0;
     }
 
+    /**
+     * Whether this organization has already used its one-time free trial
+     * (i.e. the trial was started at some point and is no longer active).
+     */
+    public function hasConsumedTrial(): bool
+    {
+        return $this->trial_started_at !== null && ! $this->onTrial();
+    }
+
     public function isAccessible(): bool
     {
         if ($this->status !== 'active') {
@@ -132,7 +141,7 @@ class Organization extends Model
             return null;
         }
 
-        return url('storage/' . $this->tin_document_path);
+        return url('storage/'.$this->tin_document_path);
     }
 
     public function permissionRequests(): HasMany

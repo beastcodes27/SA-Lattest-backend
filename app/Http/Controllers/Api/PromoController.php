@@ -19,7 +19,7 @@ class PromoController extends Controller
             ->where('active', true)
             ->orderByDesc('created_at')
             ->get()
-            ->map(function (Promo $promo) use ($used, $org) {
+            ->map(function (Promo $promo) use ($used) {
                 $redeemed = in_array($promo->id, $used, true);
 
                 return [
@@ -58,7 +58,13 @@ class PromoController extends Controller
             return response()->json(['message' => 'Your organization has already used this promo code.'], 422);
         }
 
-        DB::transaction(function () use ($promo, $org, $code) {
+        if ($promo->type === 'trial_days' && $org->hasConsumedTrial()) {
+            return response()->json([
+                'message' => 'Your organization has already used its free trial, and it cannot be restarted.',
+            ], 422);
+        }
+
+        DB::transaction(function () use ($promo, $org) {
             if ($promo->type === 'trial_days') {
                 $base = $org->trial_ends_at && $org->trial_ends_at->isFuture() ? $org->trial_ends_at : now();
                 if ($org->trial_started_at === null) {
