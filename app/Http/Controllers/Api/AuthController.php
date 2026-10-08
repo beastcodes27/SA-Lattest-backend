@@ -5,16 +5,18 @@ namespace App\Http\Controllers\Api;
 use App\Models\Attendance;
 use App\Models\Branch;
 use App\Models\Organization;
+use App\Models\Promo;
+use App\Models\PromoRedemption;
 use App\Models\User;
-use App\Services\GeolocationService;
+use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
-use Carbon\Carbon;
 
 class AuthController extends Controller
 {
@@ -57,6 +59,8 @@ class AuthController extends Controller
             'organization.tin' => ['required', 'string', 'max:120'],
             'organization.tin_document_name' => ['nullable', 'string', 'max:255'],
             'organization.tin_document_base64' => ['nullable', 'string'],
+            'organization.photos' => ['nullable', 'array', 'max:5'],
+            'organization.photos.*' => ['nullable', 'string'],
             'organization.employee_id_prefix' => ['nullable', 'string', 'max:20'],
             'organization.plan' => ['required', Rule::exists('packages', 'code')->where('active', true)],
             'organization.promo_code' => ['nullable', 'string', 'max:40'],
@@ -89,7 +93,7 @@ class AuthController extends Controller
             $file = $request->file('tin_document');
             $tinDocName = $tinDocName ?: $file->getClientOriginalName();
             $tinDocPath = $file->store('documents/tin', 'public');
-        } elseif (!empty($data['organization']['tin_document_base64'])) {
+        } elseif (! empty($data['organization']['tin_document_base64'])) {
             try {
                 $base64Data = $data['organization']['tin_document_base64'];
                 if (str_contains($base64Data, ';base64,')) {
@@ -101,12 +105,37 @@ class AuthController extends Controller
                     if ($tinDocName && strrpos($tinDocName, '.') !== false) {
                         $ext = pathinfo($tinDocName, PATHINFO_EXTENSION);
                     }
-                    $filename = 'documents/tin/tin_' . Str::random(24) . '.' . $ext;
+                    $filename = 'documents/tin/tin_'.Str::random(24).'.'.$ext;
                     Storage::disk('public')->put($filename, $decoded);
                     $tinDocPath = $filename;
                 }
             } catch (\Throwable $e) {
-                \Illuminate\Support\Facades\Log::warning('Failed to process TIN document base64: ' . $e->getMessage());
+                Log::warning('Failed to process TIN document base64: '.$e->getMessage());
+            }
+        }
+
+        // Process optional registration photos (base64 data URLs)
+        $photoPaths = [];
+        if (! empty($data['organization']['photos']) && is_array($data['organization']['photos'])) {
+            foreach (array_slice($data['organization']['photos'], 0, 5) as $photoBase64) {
+                try {
+                    $raw = (string) $photoBase64;
+                    $ext = 'jpg';
+                    if (str_contains($raw, ';base64,')) {
+                        [$meta, $raw] = explode(';base64,', $raw, 2);
+                        if (preg_match('#image/([a-zA-Z0-9]+)#', $meta, $m)) {
+                            $ext = strtolower($m[1]) === 'jpeg' ? 'jpg' : strtolower($m[1]);
+                        }
+                    }
+                    $decoded = base64_decode($raw, true);
+                    if ($decoded !== false) {
+                        $filename = 'documents/photos/photo_'.Str::random(24).'.'.$ext;
+                        Storage::disk('public')->put($filename, $decoded);
+                        $photoPaths[] = $filename;
+                    }
+                } catch (\Throwable $e) {
+                    Log::warning('Failed to process registration photo: '.$e->getMessage());
+                }
             }
         }
 
@@ -114,7 +143,7 @@ class AuthController extends Controller
         $promo = null;
 
         if ($promoCode !== '') {
-            $promo = \App\Models\Promo::where('code', $promoCode)->first();
+            $promo = Promo::where('code', $promoCode)->first();
 
             if (! $promo || ! $promo->isRedeemable()) {
                 return response()->json(['message' => 'This promo code is invalid or no longer available.'], 422);
@@ -134,6 +163,7 @@ class AuthController extends Controller
             'tin' => $data['organization']['tin'],
             'tin_document_path' => $tinDocPath,
             'tin_document_name' => $tinDocName,
+            'photos' => $photoPaths ?: null,
             'employee_id_prefix' => $this->normalizePrefix($data['organization']['employee_id_prefix'] ?? $data['organization']['name']),
             'plan' => $data['organization']['plan'],
             'status' => 'pending',
@@ -163,7 +193,7 @@ class AuthController extends Controller
         $admin->save();
 
         if ($promo) {
-            \App\Models\PromoRedemption::create(['promo_id' => $promo->id, 'org_id' => $organization->id]);
+            PromoRedemption::create(['promo_id' => $promo->id, 'org_id' => $organization->id]);
             $organization->forceFill(['discount_percent' => min(90, (int) $promo->value)])->save();
             $promo->increment('uses_count');
         }
@@ -201,6 +231,7 @@ class AuthController extends Controller
 
         if (in_array($user->role, ['superadmin', 'minor_admin', 'sysadmin'])) {
             $token = $user->createToken('mobile')->plainTextToken;
+
             return response()->json(['token' => $token, 'user' => $this->userPayload($user)]);
         }
 

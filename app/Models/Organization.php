@@ -16,6 +16,7 @@ use Illuminate\Database\Eloquent\Relations\HasManyThrough;
     'tin',
     'tin_document_path',
     'tin_document_name',
+    'photos',
     'employee_id_prefix',
     'default_employee_password',
     'plan',
@@ -35,6 +36,7 @@ class Organization extends Model
             'trial_ends_at' => 'datetime',
             'canceled_at' => 'datetime',
             'discount_percent' => 'integer',
+            'photos' => 'array',
         ];
     }
 
