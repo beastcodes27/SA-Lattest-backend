@@ -104,6 +104,20 @@ class SmsService
     }
 
     /**
+     * Queue a single SMS to run after the HTTP response is sent.
+     */
+    public static function sendLater(?string $phone, string $message): void
+    {
+        $normalized = self::normalizePhone($phone);
+
+        if (! $normalized) {
+            return;
+        }
+
+        app()->terminating(fn () => self::send($normalized, $message));
+    }
+
+    /**
      * Send the same SMS to a collection of users that have phone numbers.
      */
     public static function sendMany($users, string $message): int

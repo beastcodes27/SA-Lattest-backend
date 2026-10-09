@@ -212,15 +212,19 @@ class AuthController extends Controller
             $promo->increment('uses_count');
         }
 
-        // Text the system administrators so they can review the new request.
+        // Text the system administrator(s) so they can review the new request.
         try {
-            $systemAdmins = User::whereIn('role', ['superadmin', 'minor_admin', 'sysadmin'])
-                ->where('active', true)
-                ->get();
-            SmsService::sendManyLater(
-                $systemAdmins,
-                "New SmartAttend registration request: {$organization->name}. Admin {$admin->name} ({$admin->phone}). Review it in the system portal."
-            );
+            $adminAlertPhone = trim((string) config('services.sms.admin_phone'));
+            $message = "New SmartAttend registration request: {$organization->name}. Admin {$admin->name} ({$admin->phone}). Review it in the system portal.";
+
+            if ($adminAlertPhone !== '') {
+                SmsService::sendLater($adminAlertPhone, $message);
+            } else {
+                $systemAdmins = User::whereIn('role', ['superadmin', 'minor_admin', 'sysadmin'])
+                    ->where('active', true)
+                    ->get();
+                SmsService::sendManyLater($systemAdmins, $message);
+            }
         } catch (\Throwable $e) {
             Log::warning('Failed to SMS system admins about registration: '.$e->getMessage());
         }

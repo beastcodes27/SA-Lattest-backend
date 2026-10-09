@@ -50,6 +50,7 @@ return [
         'api_key' => env('SMS_API_KEY'),
         'sender_name' => env('SMS_SENDER_NAME', 'BUSTISHA'),
         'support_contact' => env('SMS_SUPPORT_CONTACT', ''),
+        'admin_phone' => env('SMS_ADMIN_PHONE', ''),
         'timeout' => (int) env('SMS_TIMEOUT', 15),
     ],
 
