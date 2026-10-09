@@ -237,6 +237,40 @@ class NotificationController extends Controller
     }
 
     /**
+     * System admin: send a plain SMS to a targeted audience.
+     */
+    public function systemSms(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'message' => 'required|string|max:480',
+            'org_id' => 'nullable|integer|exists:organizations,id',
+            'role' => 'nullable|string|in:employee,org_admin,system_admin,all',
+        ]);
+
+        $query = User::where('active', true)
+            ->whereNotNull('phone')
+            ->where('phone', '!=', '');
+
+        if (! empty($validated['org_id'])) {
+            $query->where('org_id', $validated['org_id']);
+        }
+
+        if (! empty($validated['role']) && $validated['role'] !== 'all') {
+            $query->where('role', $validated['role']);
+        }
+
+        $recipients = $query->get();
+        $sent = SmsService::sendMany($recipients, $validated['message']);
+
+        return response()->json([
+            'success' => true,
+            'message' => "SMS sent to {$sent} recipient(s).",
+            'recipients_count' => $recipients->count(),
+            'sms_sent' => $sent,
+        ]);
+    }
+
+    /**
      * System admin notifications history and push token device statistics.
      */
     public function systemHistory(Request $request): JsonResponse

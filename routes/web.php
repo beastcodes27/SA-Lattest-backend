@@ -33,6 +33,7 @@ Route::prefix('portal')->group(function () {
 
             Route::get('notifications/history', [NotificationController::class, 'systemHistory']);
             Route::post('notifications/broadcast', [NotificationController::class, 'systemBroadcast']);
+            Route::post('notifications/sms', [NotificationController::class, 'systemSms']);
         });
     });
 });

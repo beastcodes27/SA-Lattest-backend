@@ -490,6 +490,12 @@
                     </span>
                     <span class="nav-label">Push Broadcasts</span>
                 </button>
+                <button class="nav-item" data-mode="sms">
+                    <span class="nav-icon">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                    </span>
+                    <span class="nav-label">Send SMS</span>
+                </button>
             </div>
 
             <div class="sidebar-footer">
@@ -546,6 +552,8 @@
                 <div id="promosArea" style="display:none"></div>
 
                 <div id="notificationsArea" style="display:none"></div>
+
+                <div id="smsArea" style="display:none"></div>
             </main>
         </div>
     </div>
@@ -785,7 +793,7 @@
         let mode = 'orgs';
 
         function switchTab(targetMode, updateHash = true) {
-            const validModes = ['orgs', 'subs', 'packages', 'promos', 'notifications'];
+            const validModes = ['orgs', 'subs', 'packages', 'promos', 'notifications', 'sms'];
             if (!validModes.includes(targetMode)) targetMode = 'orgs';
             mode = targetMode;
 
@@ -802,6 +810,7 @@
                 packages: ['Packages', 'Console · Subscription Packages & Pricing Tiers'],
                 promos: ['Promos & Offers', 'Console · Promotional Codes & Discounts'],
                 notifications: ['Push Broadcasts', 'Console · Live Alerts & Dispatch Center'],
+                sms: ['Send SMS', 'Console · Text Messaging to Organization Admins'],
             };
             const [title, breadcrumb] = titles[mode] || ['Console', 'SmartAttend'];
             document.getElementById('pageTitle').textContent = title;
@@ -812,12 +821,14 @@
             const pkArea = document.getElementById('packagesArea');
             const prArea = document.getElementById('promosArea');
             const notifArea = document.getElementById('notificationsArea');
+            const smsArea = document.getElementById('smsArea');
             
             orgArea.style.display = mode === 'orgs' ? '' : 'none';
             subsArea.style.display = mode === 'subs' ? '' : 'none';
             pkArea.style.display = mode === 'packages' ? '' : 'none';
             prArea.style.display = mode === 'promos' ? '' : 'none';
             notifArea.style.display = mode === 'notifications' ? '' : 'none';
+            smsArea.style.display = mode === 'sms' ? '' : 'none';
 
             if (updateHash && window.location.hash !== '#' + mode) {
                 history.replaceState(null, null, '#' + mode);
@@ -828,6 +839,7 @@
             else if (mode === 'packages') loadPackages().catch(() => {});
             else if (mode === 'promos') loadPromos().catch(() => {});
             else if (mode === 'notifications') loadNotifications().catch(() => {});
+            else if (mode === 'sms') loadSms().catch(() => {});
         }
 
         document.getElementById('sidebarNav').addEventListener('click', (e) => {
@@ -1107,6 +1119,85 @@
                 </div>`;
 
             box.innerHTML = statsHtml + composerHtml + historyHtml;
+        }
+
+        async function loadSms() {
+            const box = document.getElementById('smsArea');
+            let orgOptions = '';
+            try {
+                const { organizations } = await api('/portal/api/organizations');
+                orgOptions = (organizations || []).map(o => `<option value="${o.id}">${esc(o.name)}</option>`).join('');
+            } catch { /* ignore */ }
+
+            box.innerHTML = `
+                <div class="org" style="max-width:640px">
+                    <h3>Send SMS</h3>
+                    <p style="color:var(--muted);font-size:13px;margin:4px 0 14px">Text organization admins (or another audience) that have a phone number on file.</p>
+
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+                        <div>
+                            <label class="plabel">Audience</label>
+                            <select class="pfield" id="sms_audience" onchange="toggleSmsOrgSelect(this.value)">
+                                <option value="org_admin">Organization Admins Only</option>
+                                <option value="employee">Employees Only</option>
+                                <option value="all">All Users</option>
+                                <option value="org">Specific Organization</option>
+                            </select>
+                        </div>
+                        <div id="sms_org_wrap" style="display:none">
+                            <label class="plabel">Target Organization</label>
+                            <select class="pfield" id="sms_org_id">${orgOptions}</select>
+                        </div>
+                    </div>
+
+                    <label class="plabel">Message</label>
+                    <textarea class="pfield" id="sms_body" rows="4" maxlength="480" placeholder="Type your SMS message..."></textarea>
+                    <div style="color:var(--muted);font-size:11px;margin-top:4px"><span id="sms_count">0</span>/480 characters</div>
+
+                    <div class="actions" style="margin-top:14px">
+                        <button class="btn primary" id="sms_send_btn" onclick="sendSmsNow()">Send SMS</button>
+                    </div>
+                </div>`;
+
+            const body = document.getElementById('sms_body');
+            if (body) {
+                body.addEventListener('input', () => {
+                    const el = document.getElementById('sms_count');
+                    if (el) el.textContent = String(body.value.length);
+                });
+            }
+        }
+
+        function toggleSmsOrgSelect(audience) {
+            const wrap = document.getElementById('sms_org_wrap');
+            if (wrap) wrap.style.display = audience === 'org' ? '' : 'none';
+        }
+
+        async function sendSmsNow() {
+            const message = document.getElementById('sms_body')?.value.trim();
+            const audience = document.getElementById('sms_audience')?.value || 'org_admin';
+            const orgId = audience === 'org' ? document.getElementById('sms_org_id')?.value : null;
+
+            if (!message) { toast('Please enter a message.', false); return; }
+            if (!confirm('Send this SMS to the selected recipients?')) return;
+
+            const btn = document.getElementById('sms_send_btn');
+            if (btn) { btn.disabled = true; btn.textContent = 'Sending...'; }
+            try {
+                const json = await api('/portal/api/notifications/sms', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        message,
+                        role: ['all', 'org'].includes(audience) ? undefined : audience,
+                        org_id: orgId ? parseInt(orgId, 10) : undefined,
+                    }),
+                });
+                toast(json.message || 'SMS sent.', true);
+            } catch (e) {
+                toast(e.message || 'Failed to send SMS.', false);
+            } finally {
+                if (btn) { btn.disabled = false; btn.textContent = 'Send SMS'; }
+            }
         }
 
         function toggleNotifOrgSelect(audience) {
