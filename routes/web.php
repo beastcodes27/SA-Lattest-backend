@@ -22,6 +22,7 @@ Route::prefix('portal')->group(function () {
             Route::post('organizations/{organization}/approve', [SystemController::class, 'approve']);
             Route::post('organizations/{organization}/status', [SystemController::class, 'setStatus']);
             Route::post('organizations/{organization}/subscription', [SystemController::class, 'updateSubscription']);
+            Route::delete('organizations/{organization}', [SystemController::class, 'destroyOrganization']);
 
             Route::get('packages', [PackagesController::class, 'systemIndex']);
             Route::post('packages', [PackagesController::class, 'store']);
@@ -34,6 +35,7 @@ Route::prefix('portal')->group(function () {
             Route::get('notifications/history', [NotificationController::class, 'systemHistory']);
             Route::post('notifications/broadcast', [NotificationController::class, 'systemBroadcast']);
             Route::post('notifications/sms', [NotificationController::class, 'systemSms']);
+            Route::delete('notifications/{id}', [NotificationController::class, 'destroyBroadcast']);
         });
     });
 });

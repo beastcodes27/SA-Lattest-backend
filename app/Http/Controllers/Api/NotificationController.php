@@ -271,6 +271,30 @@ class NotificationController extends Controller
     }
 
     /**
+     * Delete a system broadcast history entry.
+     */
+    public function destroyBroadcast(int $id): JsonResponse
+    {
+        $notification = AppNotification::where('type', 'system_broadcast')->find($id);
+
+        if (! $notification) {
+            return response()->json(['success' => false, 'message' => 'Broadcast entry not found.'], 404);
+        }
+
+        // Remove the whole broadcast (one row was stored per recipient).
+        $deleted = AppNotification::where('type', 'system_broadcast')
+            ->where('title', $notification->title)
+            ->where('body', $notification->body)
+            ->where('created_at', $notification->created_at)
+            ->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => "Deleted {$deleted} broadcast record(s).",
+        ]);
+    }
+
+    /**
      * System admin notifications history and push token device statistics.
      */
     public function systemHistory(Request $request): JsonResponse

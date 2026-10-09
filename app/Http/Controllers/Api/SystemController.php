@@ -13,6 +13,7 @@ use App\Support\PlanLimits;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
@@ -255,6 +256,21 @@ class SystemController extends Controller
                 ? $organization->name.' reactivated.'
                 : $organization->name.' suspended. Users can no longer sign in.',
             'organization' => $this->payload($organization->fresh()),
+        ]);
+    }
+
+    public function destroyOrganization(Organization $organization): JsonResponse
+    {
+        $name = $organization->name;
+
+        DB::transaction(function () use ($organization) {
+            $orgId = $organization->id;
+            $organization->delete();
+            User::where('org_id', $orgId)->delete();
+        });
+
+        return response()->json([
+            'message' => "Organization {$name} and all its data were deleted.",
         ]);
     }
 

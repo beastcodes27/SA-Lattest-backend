@@ -663,7 +663,7 @@
                     </div>
                     ${trial}
                     ${planWarning}
-                    <div class="actions">${view}${buttons}</div>
+                    <div class="actions">${view}${buttons}<button class="btn danger" onclick="deleteOrg(${o.id})">Delete</button></div>
                 </div>`;
             }).join('');
         }
@@ -705,6 +705,17 @@
                 await Promise.all([loadStats(), loadOrgs()]);
             } catch (e) {
                 toast(e.message, false);
+            }
+        }
+
+        async function deleteOrg(id) {
+            if (!confirm('Delete this organization and ALL of its data (users, branches, attendance and payments)? This cannot be undone.')) return;
+            try {
+                const json = await api('/portal/api/organizations/' + id, { method: 'DELETE' });
+                toast(json.message || 'Organization deleted.', true);
+                await Promise.all([loadStats(), loadOrgs()]);
+            } catch (e) {
+                if (e.message !== 'expired') toast(e.message, false);
             }
         }
 
@@ -773,7 +784,7 @@
                         <thead><tr><th>Name</th><th>ID</th><th>Branch</th><th>Face</th><th>Status</th></tr></thead>
                         <tbody>${o.employees.map(e => `<tr><td>${esc(e.name)}</td><td>${esc(e.employee_id)}</td><td>${esc(e.branch)}</td><td>${e.face_enrolled ? 'Yes' : 'No'}</td><td>${e.active ? 'Active' : 'Inactive'}</td></tr>`).join('')}</tbody>
                     </table>`}
-                    <div class="actions">${actions}</div>
+                    <div class="actions">${actions}<button class="btn danger" onclick="deleteOrg(${o.id})">Delete organization</button></div>
                 </div>`;
         }
 
@@ -1102,6 +1113,7 @@
                             <th>Audience</th>
                             <th>Sent By</th>
                             <th>Date &amp; Time</th>
+                            <th></th>
                         </tr>
                     </thead>
                     <tbody>
@@ -1114,6 +1126,7 @@
                                 <td><span class="pill" style="color:var(--ink);background:rgba(32,15,53,.07)">${esc(b.organization?.name || 'System Wide')}</span></td>
                                 <td style="color:var(--muted)">${esc(b.sender?.name || 'Admin')}</td>
                                 <td style="color:var(--muted);white-space:nowrap">${fmtDateTime(b.created_at)}</td>
+                                <td><button class="btn danger" onclick="deleteBroadcast(${b.id})">Delete</button></td>
                             </tr>
                         `).join('')}
                     </tbody>
@@ -1204,6 +1217,17 @@
                 toast(e.message || 'Failed to send SMS.', false);
             } finally {
                 if (btn) { btn.disabled = false; btn.textContent = 'Send SMS'; }
+            }
+        }
+
+        async function deleteBroadcast(id) {
+            if (!confirm('Delete this broadcast from the history? This removes all its recipient records.')) return;
+            try {
+                const json = await api('/portal/api/notifications/' + id, { method: 'DELETE' });
+                toast(json.message || 'Broadcast deleted.', true);
+                await loadNotifications();
+            } catch (e) {
+                if (e.message !== 'expired') toast(e.message, false);
             }
         }
 
