@@ -905,6 +905,12 @@
                     <input class="pfield" id="pk_tag_${p.id}" value="${esc(p.tagline || '')}">
                     <label class="plabel">Price label (e.g. TZS 50,000/mo)</label>
                     <input class="pfield" id="pk_price_${p.id}" value="${esc(p.price_label || '')}">
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+                        <div><label class="plabel">Monthly price (numbers only)</label>
+                        <input class="pfield" id="pk_month_${p.id}" type="number" min="0" value="${p.monthly_price || 0}"></div>
+                        <div><label class="plabel">Annual price (numbers only)</label>
+                        <input class="pfield" id="pk_year_${p.id}" type="number" min="0" value="${p.annual_price || 0}"></div>
+                    </div>
                     <label class="plabel">Employee limit (blank = unlimited)</label>
                     <input class="pfield" id="pk_emp_${p.id}" type="number" min="1" value="${p.employee_limit == null ? '' : p.employee_limit}">
                     <label class="plabel">Branch limit (blank = unlimited)</label>
@@ -927,6 +933,8 @@
                 name: val('pk_name_' + id) || document.getElementById('pk_name_' + id).value,
                 tagline: val('pk_tag_' + id) || null,
                 price_label: val('pk_price_' + id) || null,
+                monthly_price: val('pk_month_' + id) ? parseInt(val('pk_month_' + id), 10) : 0,
+                annual_price: val('pk_year_' + id) ? parseInt(val('pk_year_' + id), 10) : 0,
                 features: featRaw ? featRaw.split('\n').map(s => s.trim()).filter(Boolean) : [],
                 employee_limit: empRaw ? parseInt(empRaw, 10) : null,
                 branch_limit: brRaw ? parseInt(brRaw, 10) : null,
