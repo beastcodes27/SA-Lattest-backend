@@ -8,6 +8,7 @@ use App\Models\Organization;
 use App\Models\Promo;
 use App\Models\PromoRedemption;
 use App\Models\User;
+use App\Services\SmsService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -209,6 +210,19 @@ class AuthController extends Controller
             PromoRedemption::create(['promo_id' => $promo->id, 'org_id' => $organization->id]);
             $organization->forceFill(['discount_percent' => min(90, (int) $promo->value)])->save();
             $promo->increment('uses_count');
+        }
+
+        // Text the system administrators so they can review the new request.
+        try {
+            $systemAdmins = User::whereIn('role', ['superadmin', 'minor_admin', 'sysadmin'])
+                ->where('active', true)
+                ->get();
+            SmsService::sendMany(
+                $systemAdmins,
+                "New SmartAttend registration request: {$organization->name}. Admin {$admin->name} ({$admin->phone}). Review it in the system portal."
+            );
+        } catch (\Throwable $e) {
+            Log::warning('Failed to SMS system admins about registration: '.$e->getMessage());
         }
 
         return response()->json([
