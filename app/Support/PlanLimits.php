@@ -79,18 +79,16 @@ class PlanLimits
     {
         $package = self::package($code);
 
-        return ($package && $package->annual_price > 0)
-            ? $package->annual_price
-            : (self::FALLBACK_ANNUAL_PRICES[$code ?? 'starter'] ?? 432000);
+        if ($package && $package->annual_price > 0) {
+            return $package->annual_price;
+        }
+
+        // Default to 20% off 12 months when no explicit annual price is set.
+        return (int) round(self::monthlyPrice($code) * 12 * 0.80);
     }
 
     public static function calculateAmount(string $code, string $billingCycle = 'monthly', int $discountPercent = 0): array
     {
-        $package = self::package($code);
-        if ($package) {
-            return $package->calculateAmount($billingCycle, $discountPercent);
-        }
-
         $isAnnual = strtolower($billingCycle) === 'annual';
         $base = $isAnnual ? self::annualPrice($code) : self::monthlyPrice($code);
         $discountPercent = max(0, min(100, $discountPercent));
