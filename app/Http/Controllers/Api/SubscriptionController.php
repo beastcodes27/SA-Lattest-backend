@@ -4,9 +4,11 @@ namespace App\Http\Controllers\Api;
 
 use App\Models\Organization;
 use App\Models\Package;
+use App\Services\SmsService;
 use App\Support\PlanLimits;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 
@@ -29,6 +31,13 @@ class SubscriptionController extends Controller
         }
 
         $org->cancelTrial();
+
+        try {
+            $admins = $org->users()->where('role', 'admin')->where('active', true)->get();
+            SmsService::sendMany($admins, "SmartAttend: The free trial for {$org->name} has been canceled. Choose a package to keep managing your organization. Thank you.");
+        } catch (\Throwable $e) {
+            Log::warning('Failed to SMS trial cancellation: '.$e->getMessage());
+        }
 
         return response()->json([
             'message' => 'Free trial canceled. You can now select your desired plan and pay with Mobile Money.',
@@ -72,17 +81,21 @@ class SubscriptionController extends Controller
             return response()->json(['message' => 'Your subscription is already canceled.', 'subscription' => $this->payload($org)], 422);
         }
 
-        if (! $org->trial_ends_at) {
-            return response()->json(['message' => 'Cannot cancel an active paid subscription here. Contact support.'], 422);
-        }
-
         $org->forceFill([
             'subscription_status' => 'canceled',
             'canceled_at' => now(),
+            'trial_ends_at' => $org->onTrial() ? now() : $org->trial_ends_at,
         ])->save();
 
+        try {
+            $admins = $org->users()->where('role', 'admin')->where('active', true)->get();
+            SmsService::sendMany($admins, "SmartAttend: The subscription for {$org->name} has been canceled. You can subscribe again anytime to restore access. Thank you.");
+        } catch (\Throwable $e) {
+            Log::warning('Failed to SMS subscription cancellation: '.$e->getMessage());
+        }
+
         return response()->json([
-            'message' => 'Your subscription is canceled. You keep access until '.$org->fresh()->trial_ends_at?->toDateString().'.',
+            'message' => 'Your subscription has been canceled. You can subscribe again anytime to restore access.',
             'subscription' => $this->payload($org->fresh()),
         ]);
     }
