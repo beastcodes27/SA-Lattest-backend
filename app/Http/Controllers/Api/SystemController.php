@@ -201,9 +201,15 @@ class SystemController extends Controller
                 "{$organization->name} has been approved. You can now sign in to SmartAttend and start using your free trial.",
                 'broadcast'
             );
+            $alertPhone = $organization->users()->where('role', 'admin')->where('active', true)->value('phone')
+                ?: $organization->contact_phone;
+
             SmsService::notifyOrgAdmins(
                 $organization,
-                SmsService::withSupport("SmartAttend: {$organization->name} has been approved. You can sign in and start managing your organization and adding employees details. Thank you.")
+                SmsService::withSupport(
+                    "SmartAttend: {$organization->name} has been approved. You can sign in and start managing your organization and adding employees details. Thank you."
+                    .($alertPhone ? " Your SMS alerts go to {$alertPhone}; change it in your profile anytime." : '')
+                )
             );
         } catch (\Throwable $e) {
             Log::warning('Failed to notify approved organization: '.$e->getMessage());

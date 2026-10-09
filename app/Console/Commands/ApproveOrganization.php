@@ -46,9 +46,15 @@ class ApproveOrganization extends Command
                     "{$org->name} has been approved. You can now sign in to SmartAttend and start using your free trial.",
                     'broadcast'
                 );
+                $alertPhone = $org->users()->where('role', 'admin')->where('active', true)->value('phone')
+                    ?: $org->contact_phone;
+
                 SmsService::notifyOrgAdmins(
                     $org,
-                    SmsService::withSupport("SmartAttend: {$org->name} has been approved. You can sign in and start managing your organization and adding employees details. Thank you."),
+                    SmsService::withSupport(
+                        "SmartAttend: {$org->name} has been approved. You can sign in and start managing your organization and adding employees details. Thank you."
+                        .($alertPhone ? " Your SMS alerts go to {$alertPhone}; change it in your profile anytime." : '')
+                    ),
                     false
                 );
             } catch (\Throwable $e) {
