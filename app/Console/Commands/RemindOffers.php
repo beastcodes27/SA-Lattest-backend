@@ -52,7 +52,7 @@ class RemindOffers extends Command
         foreach ($orgs as $org) {
             $message = "SmartAttend offer: use code {$offer->code} - {$offer->label()}. Ends {$offer->ends_at->toDateString()}. Apply it before it expires.";
 
-            $sent += SmsService::sendMany($org->users, $message);
+            $sent += SmsService::notifyOrgAdmins($org, $message, false);
 
             $org->forceFill(['offer_reminder_sent_at' => $now])->save();
         }

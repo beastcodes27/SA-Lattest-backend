@@ -104,20 +104,6 @@ class SmsService
     }
 
     /**
-     * Queue a single SMS to run after the HTTP response is sent.
-     */
-    public static function sendLater(?string $phone, string $message): void
-    {
-        $normalized = self::normalizePhone($phone);
-
-        if (! $normalized) {
-            return;
-        }
-
-        app()->terminating(fn () => self::send($normalized, $message));
-    }
-
-    /**
      * Send the same SMS to a collection of users that have phone numbers.
      */
     public static function sendMany($users, string $message): int
@@ -132,6 +118,20 @@ class SmsService
         }
 
         return $sent;
+    }
+
+    /**
+     * Queue a single SMS to run after the HTTP response is sent.
+     */
+    public static function sendLater(?string $phone, string $message): void
+    {
+        $normalized = self::normalizePhone($phone);
+
+        if (! $normalized) {
+            return;
+        }
+
+        app()->terminating(fn () => self::send($normalized, $message));
     }
 
     /**
@@ -155,5 +155,47 @@ class SmsService
                 self::send($phone, $message);
             }
         });
+    }
+
+    /**
+     * Notify an organization's admins by SMS, falling back to the organization
+     * contact phone when an admin has no number on file.
+     */
+    public static function notifyOrgAdmins($org, string $message, bool $defer = true): int
+    {
+        $phones = $org->users()
+            ->where('role', 'admin')
+            ->where('active', true)
+            ->pluck('phone')
+            ->filter()
+            ->values()
+            ->all();
+
+        if (empty($phones) && ! empty($org->contact_phone)) {
+            $phones = [$org->contact_phone];
+        }
+
+        if (empty($phones)) {
+            return 0;
+        }
+
+        $worker = function () use ($phones, $message) {
+            $sent = 0;
+            foreach ($phones as $phone) {
+                if (self::send($phone, $message)) {
+                    $sent++;
+                }
+            }
+
+            return $sent;
+        };
+
+        if ($defer) {
+            app()->terminating(fn () => $worker());
+
+            return count($phones);
+        }
+
+        return $worker();
     }
 }

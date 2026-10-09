@@ -197,7 +197,7 @@ class AuthController extends Controller
             'name' => $data['admin']['name'],
             'email' => $data['admin']['email'],
             'employee_id' => $data['admin']['employee_id'],
-            'phone' => $data['admin']['phone'] ?? null,
+            'phone' => $data['admin']['phone'] ?? ($data['organization']['phone'] ?? null),
             'role' => 'admin',
             'org_id' => $organization->id,
             'branch_id' => $firstBranch?->id,

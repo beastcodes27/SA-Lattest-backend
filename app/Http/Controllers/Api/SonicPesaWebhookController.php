@@ -110,8 +110,8 @@ class SonicPesaWebhookController extends Controller
                 try {
                     $admins = $org->users()->where('role', 'admin')->where('active', true)->get();
                     $amount = number_format((int) $payment->amount);
-                    SmsService::sendManyLater(
-                        $admins,
+                    SmsService::notifyOrgAdmins(
+                        $org,
                         "SmartAttend: Payment of TZS {$amount} was successful. Your ".ucfirst((string) $payment->plan)." subscription for {$org->name} is now active. Thank you."
                     );
                 } catch (\Throwable $e) {

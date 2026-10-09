@@ -35,7 +35,7 @@ class RemindRenewals extends Command
             $daysLeft = $org->trialDaysLeft() ?? 0;
             $message = SmsService::withSupport("SmartAttend: Your package for {$org->name} ends in {$daysLeft} day(s) on {$org->trial_ends_at->toDateString()}. Renew now to keep employee check-ins running.");
 
-            $sent += SmsService::sendMany($org->users, $message);
+            $sent += SmsService::notifyOrgAdmins($org, $message, false);
 
             $org->forceFill(['renewal_reminder_sent_at' => $now])->save();
         }

@@ -201,8 +201,8 @@ class SystemController extends Controller
                 "{$organization->name} has been approved. You can now sign in to SmartAttend and start using your free trial.",
                 'broadcast'
             );
-            SmsService::sendManyLater(
-                $admins,
+            SmsService::notifyOrgAdmins(
+                $organization,
                 SmsService::withSupport("SmartAttend: {$organization->name} has been approved. You can sign in and start managing your organization and adding employees details. Thank you.")
             );
         } catch (\Throwable $e) {
@@ -239,8 +239,8 @@ class SystemController extends Controller
 
         try {
             $admins = $organization->users()->where('role', 'admin')->where('active', true)->get();
-            SmsService::sendManyLater(
-                $admins,
+            SmsService::notifyOrgAdmins(
+                $organization,
                 SmsService::withSupport(
                     $status === 'active'
                         ? "SmartAttend: {$organization->name} has been reactivated. You can sign in again."

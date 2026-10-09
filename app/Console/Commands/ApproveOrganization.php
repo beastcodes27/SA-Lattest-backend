@@ -46,9 +46,10 @@ class ApproveOrganization extends Command
                     "{$org->name} has been approved. You can now sign in to SmartAttend and start using your free trial.",
                     'broadcast'
                 );
-                SmsService::sendMany(
-                    $admins,
-                    SmsService::withSupport("SmartAttend: {$org->name} has been approved. You can sign in and start managing your organization and adding employees details. Thank you.")
+                SmsService::notifyOrgAdmins(
+                    $org,
+                    SmsService::withSupport("SmartAttend: {$org->name} has been approved. You can sign in and start managing your organization and adding employees details. Thank you."),
+                    false
                 );
             } catch (\Throwable $e) {
                 Log::warning('Failed to notify approved organization: '.$e->getMessage());
