@@ -7,10 +7,12 @@ use App\Models\Branch;
 use App\Models\Organization;
 use App\Models\PromoRedemption;
 use App\Models\User;
+use App\Services\ExpoPushService;
 use App\Support\PlanLimits;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 
@@ -186,6 +188,18 @@ class SystemController extends Controller
 
         if ($organization->trial_started_at === null) {
             $organization->startTrial((int) ($request->days ?? 30));
+        }
+
+        try {
+            $admins = $organization->users()->where('role', 'admin')->where('active', true)->get();
+            ExpoPushService::notifyUsers(
+                $admins,
+                'Organization Approved',
+                "{$organization->name} has been approved. You can now sign in to SmartAttend and start using your free trial.",
+                'broadcast'
+            );
+        } catch (\Throwable $e) {
+            Log::warning('Failed to notify approved organization: '.$e->getMessage());
         }
 
         return response()->json([

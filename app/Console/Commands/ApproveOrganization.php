@@ -3,7 +3,9 @@
 namespace App\Console\Commands;
 
 use App\Models\Organization;
+use App\Services\ExpoPushService;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Log;
 
 class ApproveOrganization extends Command
 {
@@ -34,6 +36,19 @@ class ApproveOrganization extends Command
             if ($org->trial_started_at === null) {
                 $org->startTrial(30);
             }
+
+            try {
+                $admins = $org->users()->where('role', 'admin')->where('active', true)->get();
+                ExpoPushService::notifyUsers(
+                    $admins,
+                    'Organization Approved',
+                    "{$org->name} has been approved. You can now sign in to SmartAttend and start using your free trial.",
+                    'broadcast'
+                );
+            } catch (\Throwable $e) {
+                Log::warning('Failed to notify approved organization: '.$e->getMessage());
+            }
+
             $this->info("Approved: #{$org->id} {$org->name} — free trial until {$org->fresh()->trial_ends_at?->toDateString()}");
         }
 
