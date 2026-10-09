@@ -61,6 +61,9 @@ class AuthController extends Controller
             'organization.tin_document_base64' => ['nullable', 'string'],
             'organization.photos' => ['nullable', 'array', 'max:5'],
             'organization.photos.*' => ['nullable', 'string'],
+            'tin_document' => ['nullable', 'file', 'mimes:pdf,jpg,jpeg,png', 'max:10240'],
+            'photos' => ['nullable', 'array', 'max:5'],
+            'photos.*' => ['nullable', 'file', 'mimes:jpg,jpeg,png,webp', 'max:8192'],
             'organization.employee_id_prefix' => ['nullable', 'string', 'max:20'],
             'organization.plan' => ['required', Rule::exists('packages', 'code')->where('active', true)],
             'organization.promo_code' => ['nullable', 'string', 'max:40'],
@@ -114,8 +117,18 @@ class AuthController extends Controller
             }
         }
 
-        // Process optional registration photos (base64 data URLs)
+        // Process optional registration photos: multipart files first, then base64 fallback.
         $photoPaths = [];
+        $photoUploads = $request->file('photos');
+        if ($photoUploads) {
+            foreach ((array) $photoUploads as $upload) {
+                foreach (is_array($upload) ? $upload : [$upload] as $file) {
+                    if ($file && count($photoPaths) < 5) {
+                        $photoPaths[] = $file->store('documents/photos', 'public');
+                    }
+                }
+            }
+        }
         if (! empty($data['organization']['photos']) && is_array($data['organization']['photos'])) {
             foreach (array_slice($data['organization']['photos'], 0, 5) as $photoBase64) {
                 try {
