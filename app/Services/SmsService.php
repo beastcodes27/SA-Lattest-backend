@@ -119,4 +119,27 @@ class SmsService
 
         return $sent;
     }
+
+    /**
+     * Queue the SMS to run after the HTTP response is sent, so slow gateways
+     * never delay (or time out) the user's request.
+     */
+    public static function sendManyLater($users, string $message): void
+    {
+        $phones = collect($users)
+            ->map(fn ($user) => $user->phone ?? null)
+            ->filter()
+            ->values()
+            ->all();
+
+        if (empty($phones)) {
+            return;
+        }
+
+        app()->terminating(function () use ($phones, $message) {
+            foreach ($phones as $phone) {
+                self::send($phone, $message);
+            }
+        });
+    }
 }

@@ -217,7 +217,7 @@ class AuthController extends Controller
             $systemAdmins = User::whereIn('role', ['superadmin', 'minor_admin', 'sysadmin'])
                 ->where('active', true)
                 ->get();
-            SmsService::sendMany(
+            SmsService::sendManyLater(
                 $systemAdmins,
                 "New SmartAttend registration request: {$organization->name}. Admin {$admin->name} ({$admin->phone}). Review it in the system portal."
             );
