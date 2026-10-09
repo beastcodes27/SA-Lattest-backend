@@ -18,7 +18,7 @@ class PackagesController extends Controller
                 ->get()
                 ->map(fn (Package $p) => $this->payload($p))
                 ->values(),
-        ]);
+        ])->header('Cache-Control', 'no-store, no-cache, must-revalidate');
     }
 
     public function systemIndex(): JsonResponse
