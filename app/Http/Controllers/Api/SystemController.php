@@ -66,7 +66,8 @@ class SystemController extends Controller
 
         $orgs = $query->latest()->get()->map(fn (Organization $org) => $this->payload($org))->values();
 
-        return response()->json(['organizations' => $orgs]);
+        return response()->json(['organizations' => $orgs])
+            ->header('Cache-Control', 'no-store, no-cache, must-revalidate');
     }
 
     public function organization(Request $request, Organization $organization): JsonResponse
@@ -113,7 +114,7 @@ class SystemController extends Controller
                 'branches' => $branches,
                 'employees' => $employees,
             ],
-        ]);
+        ])->header('Cache-Control', 'no-store, no-cache, must-revalidate');
     }
 
     public function updateSubscription(Request $request, Organization $organization): JsonResponse

@@ -588,7 +588,14 @@
             });
             if (res.status === 401 || res.status === 419) { location.href = '/portal'; throw new Error('expired'); }
             const json = await res.json().catch(() => ({}));
-            if (!res.ok) throw new Error(json.message || 'Request failed');
+            if (!res.ok) {
+                let message = json.message || 'Request failed';
+                if (res.status === 404 && /Organization/i.test(message)) {
+                    message = 'That organization no longer exists. The list has been refreshed.';
+                    setTimeout(() => { if (typeof loadOrgs === 'function') loadOrgs().catch(() => {}); }, 200);
+                }
+                throw new Error(message);
+            }
             return json;
         }
 
