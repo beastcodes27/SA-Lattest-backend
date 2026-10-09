@@ -26,6 +26,8 @@ use Illuminate\Database\Eloquent\Relations\HasManyThrough;
     'subscription_status',
     'canceled_at',
     'discount_percent',
+    'renewal_reminder_sent_at',
+    'offer_reminder_sent_at',
 ])]
 class Organization extends Model
 {
@@ -37,6 +39,8 @@ class Organization extends Model
             'canceled_at' => 'datetime',
             'discount_percent' => 'integer',
             'photos' => 'array',
+            'renewal_reminder_sent_at' => 'datetime',
+            'offer_reminder_sent_at' => 'datetime',
         ];
     }
 
