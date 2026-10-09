@@ -1040,7 +1040,7 @@
 
             const composerHtml = `
                 <div class="org" style="margin-bottom:20px">
-                    <h3 style="display:flex;align-items:center;gap:8px">📣 Dispatch Push Notification</h3>
+                    <h3 style="display:flex;align-items:center;gap:8px">Dispatch Push Notification</h3>
                     <p style="color:var(--muted);font-size:13px;margin:4px 0 14px">Broadcast instant push alerts with sound and heads-up banner to app users.</p>
                     
                     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">

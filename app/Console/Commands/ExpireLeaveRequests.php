@@ -42,7 +42,7 @@ class ExpireLeaveRequests extends Command
                         'leave_expired',
                         [
                             'permission_id' => $permission->id,
-                            'status'        => 'expired',
+                            'status' => 'expired',
                         ],
                         null
                     );
@@ -73,12 +73,12 @@ class ExpireLeaveRequests extends Command
                 if ($orgAdmins->isNotEmpty() && $permission->user) {
                     ExpoPushService::notifyUsers(
                         $orgAdmins,
-                        '⏰ Pending Request Expiring Soon',
+                        'Pending Request Expiring Soon',
                         "{$permission->user->name}'s {$permission->category_label} request will expire in less than 24 hours with no action taken.",
                         'leave_reminder',
                         [
                             'permission_id' => $permission->id,
-                            'employee_id'   => $permission->user_id,
+                            'employee_id' => $permission->user_id,
                             'employee_name' => $permission->user->name,
                         ],
                         $permission->user
@@ -98,4 +98,3 @@ class ExpireLeaveRequests extends Command
         return self::SUCCESS;
     }
 }
-

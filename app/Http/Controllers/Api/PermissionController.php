@@ -3,8 +3,11 @@
 namespace App\Http\Controllers\Api;
 
 use App\Models\PermissionRequest;
+use App\Models\User;
+use App\Services\ExpoPushService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 
 class PermissionController extends Controller
@@ -32,7 +35,7 @@ class PermissionController extends Controller
 
         return response()->json([
             'categories' => $categories,
-            'requests'   => $requests,
+            'requests' => $requests,
         ]);
     }
 
@@ -45,21 +48,21 @@ class PermissionController extends Controller
 
         $validator = Validator::make($request->all(), [
             'reason_category' => ['required', 'string', 'in:'.$validCategories],
-            'reason'          => ['required', 'string', 'max:255'],
-            'description'     => ['nullable', 'string', 'max:1000'],
-            'start_date'      => ['required', 'date'],
-            'end_date'        => ['required', 'date', 'after_or_equal:start_date'],
+            'reason' => ['required', 'string', 'max:255'],
+            'description' => ['nullable', 'string', 'max:1000'],
+            'start_date' => ['required', 'date'],
+            'end_date' => ['required', 'date', 'after_or_equal:start_date'],
         ]);
 
         if ($validator->fails()) {
             return response()->json([
                 'message' => 'Validation error',
-                'errors'  => $validator->errors(),
+                'errors' => $validator->errors(),
             ], 422);
         }
 
         $user = $request->user();
-        $org  = $user->organization;
+        $org = $user->organization;
 
         if (! $org || $org->status !== 'active') {
             return response()->json(['message' => 'Your organization is not active yet.'], 403);
@@ -74,40 +77,40 @@ class PermissionController extends Controller
         }
 
         $permission = PermissionRequest::create([
-            'user_id'         => $user->id,
+            'user_id' => $user->id,
             'organization_id' => $org->id,
             'reason_category' => $request->reason_category,
-            'reason'          => $request->reason,
-            'description'     => $request->description,
-            'start_date'      => $request->start_date,
-            'end_date'        => $request->end_date,
-            'status'          => PermissionRequest::STATUS_PENDING,
+            'reason' => $request->reason,
+            'description' => $request->description,
+            'start_date' => $request->start_date,
+            'end_date' => $request->end_date,
+            'status' => PermissionRequest::STATUS_PENDING,
             // Auto-expire after configured number of days if admin takes no action
-            'expires_at'      => now()->addDays(PermissionRequest::AUTO_EXPIRE_DAYS),
+            'expires_at' => now()->addDays(PermissionRequest::AUTO_EXPIRE_DAYS),
         ]);
 
         // Notify Organization Admins of new leave request
         try {
-            $orgAdmins = \App\Models\User::where('org_id', $org->id)
+            $orgAdmins = User::where('org_id', $org->id)
                 ->where('role', 'org_admin')
                 ->where('active', true)
                 ->get();
 
-            \App\Services\ExpoPushService::notifyUsers(
+            ExpoPushService::notifyUsers(
                 $orgAdmins,
                 "New Request: {$user->name}",
                 "{$user->name} submitted a {$permission->category_label} request ({$permission->start_date->format('M d')} – {$permission->end_date->format('M d')}). Respond within {$this->expiryDaysLabel()} days.",
                 'leave_request',
                 [
                     'permission_id' => $permission->id,
-                    'employee_id'   => $user->id,
+                    'employee_id' => $user->id,
                     'employee_name' => $user->name,
-                    'expires_at'    => $permission->expires_at->toIso8601String(),
+                    'expires_at' => $permission->expires_at->toIso8601String(),
                 ],
                 $user
             );
         } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\Log::warning('Failed to send admin notification for request: '.$e->getMessage());
+            Log::warning('Failed to send admin notification for request: '.$e->getMessage());
         }
 
         return response()->json([
@@ -121,7 +124,7 @@ class PermissionController extends Controller
      */
     public function cancel(Request $request, int $id): JsonResponse
     {
-        $user       = $request->user();
+        $user = $request->user();
         $permission = PermissionRequest::where('id', $id)
             ->where('user_id', $user->id)
             ->first();
@@ -153,11 +156,11 @@ class PermissionController extends Controller
 
         $baseQuery = PermissionRequest::where('organization_id', $orgId);
 
-        $pendingCount  = (clone $baseQuery)->where('status', PermissionRequest::STATUS_PENDING)->count();
+        $pendingCount = (clone $baseQuery)->where('status', PermissionRequest::STATUS_PENDING)->count();
         $approvedCount = (clone $baseQuery)->where('status', PermissionRequest::STATUS_APPROVED)->count();
         $rejectedCount = (clone $baseQuery)->where('status', PermissionRequest::STATUS_REJECTED)->count();
-        $expiredCount  = (clone $baseQuery)->where('status', PermissionRequest::STATUS_EXPIRED)->count();
-        $totalCount    = (clone $baseQuery)->count();
+        $expiredCount = (clone $baseQuery)->where('status', PermissionRequest::STATUS_EXPIRED)->count();
+        $totalCount = (clone $baseQuery)->count();
 
         $query = PermissionRequest::where('organization_id', $orgId)
             ->with(['user', 'actionedBy'])
@@ -184,14 +187,14 @@ class PermissionController extends Controller
 
         return response()->json([
             'counts' => [
-                'pending'  => $pendingCount,
+                'pending' => $pendingCount,
                 'approved' => $approvedCount,
                 'rejected' => $rejectedCount,
-                'expired'  => $expiredCount,
-                'total'    => $totalCount,
+                'expired' => $expiredCount,
+                'total' => $totalCount,
             ],
             'categories' => $categories,
-            'requests'   => $requests,
+            'requests' => $requests,
         ]);
     }
 
@@ -200,7 +203,7 @@ class PermissionController extends Controller
      */
     public function adminApprove(Request $request, int $id): JsonResponse
     {
-        $admin      = $request->user();
+        $admin = $request->user();
         $permission = PermissionRequest::where('id', $id)
             ->where('organization_id', $admin->org_id)
             ->with('user')
@@ -214,30 +217,30 @@ class PermissionController extends Controller
             return response()->json(['message' => 'Only pending or expired requests can be approved.'], 422);
         }
 
-        $permission->status         = PermissionRequest::STATUS_APPROVED;
+        $permission->status = PermissionRequest::STATUS_APPROVED;
         $permission->actioned_by_id = $admin->id;
-        $permission->actioned_at    = now();
-        $permission->admin_remarks  = $request->input('remarks');
+        $permission->actioned_at = now();
+        $permission->admin_remarks = $request->input('remarks');
         $permission->save();
 
         // Notify Employee of approval
         try {
             if ($permission->user) {
-                \App\Services\ExpoPushService::notifyUser(
+                ExpoPushService::notifyUser(
                     $permission->user,
-                    'Request Approved ✅',
+                    'Request Approved',
                     "Your {$permission->category_label} request ({$permission->start_date->format('M d')} – {$permission->end_date->format('M d')}) was approved.",
                     'leave_approved',
                     [
                         'permission_id' => $permission->id,
-                        'status'        => 'approved',
+                        'status' => 'approved',
                         'admin_remarks' => $permission->admin_remarks,
                     ],
                     $admin
                 );
             }
         } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\Log::warning('Failed to send employee approval notification: '.$e->getMessage());
+            Log::warning('Failed to send employee approval notification: '.$e->getMessage());
         }
 
         return response()->json([
@@ -251,7 +254,7 @@ class PermissionController extends Controller
      */
     public function adminReject(Request $request, int $id): JsonResponse
     {
-        $admin      = $request->user();
+        $admin = $request->user();
         $permission = PermissionRequest::where('id', $id)
             ->where('organization_id', $admin->org_id)
             ->with('user')
@@ -265,30 +268,30 @@ class PermissionController extends Controller
             return response()->json(['message' => 'Only pending or expired requests can be rejected.'], 422);
         }
 
-        $permission->status         = PermissionRequest::STATUS_REJECTED;
+        $permission->status = PermissionRequest::STATUS_REJECTED;
         $permission->actioned_by_id = $admin->id;
-        $permission->actioned_at    = now();
-        $permission->admin_remarks  = $request->input('remarks');
+        $permission->actioned_at = now();
+        $permission->admin_remarks = $request->input('remarks');
         $permission->save();
 
         // Notify Employee of rejection
         try {
             if ($permission->user) {
-                \App\Services\ExpoPushService::notifyUser(
+                ExpoPushService::notifyUser(
                     $permission->user,
                     'Request Declined',
                     "Your {$permission->category_label} request was declined.".($permission->admin_remarks ? " Reason: {$permission->admin_remarks}" : ''),
                     'leave_rejected',
                     [
                         'permission_id' => $permission->id,
-                        'status'        => 'rejected',
+                        'status' => 'rejected',
                         'admin_remarks' => $permission->admin_remarks,
                     ],
                     $admin
                 );
             }
         } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\Log::warning('Failed to send employee rejection notification: '.$e->getMessage());
+            Log::warning('Failed to send employee rejection notification: '.$e->getMessage());
         }
 
         return response()->json([
@@ -303,6 +306,7 @@ class PermissionController extends Controller
     private function expiryDaysLabel(): string
     {
         $days = PermissionRequest::AUTO_EXPIRE_DAYS;
+
         return $days === 1 ? '1 day' : "{$days} days";
     }
 }
