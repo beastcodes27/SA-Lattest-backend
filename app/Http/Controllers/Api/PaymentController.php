@@ -2,12 +2,15 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Models\Organization;
 use App\Models\Payment;
 use App\Services\MobilePaymentService;
+use App\Services\SmsService;
 use App\Services\SonicPesaService;
 use App\Support\PlanLimits;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 
@@ -143,6 +146,7 @@ class PaymentController extends Controller
                         'sonicpesa_status_response' => $statusCheck['raw'],
                     ]);
                     $org->activateSubscription($payment->plan, $payment->billing_cycle, $payment);
+                    $this->notifyPaymentSuccess($org, $payment);
                 } elseif ($statusCheck['is_failed']) {
                     $payment->markAsFailed($statusCheck['raw']['message'] ?? 'Payment failed on SonicPesa');
                 }
@@ -150,6 +154,7 @@ class PaymentController extends Controller
                 // In local sandbox or unconfigured mode, mark as completed for seamless testing
                 $payment->markAsCompleted();
                 $org->activateSubscription($payment->plan, $payment->billing_cycle, $payment);
+                $this->notifyPaymentSuccess($org, $payment);
             }
         }
 
@@ -171,6 +176,7 @@ class PaymentController extends Controller
 
         $payment->markAsCompleted('SIM-'.strtoupper(bin2hex(random_bytes(5))));
         $org->activateSubscription($payment->plan, $payment->billing_cycle, $payment);
+        $this->notifyPaymentSuccess($org, $payment);
 
         return response()->json([
             'message' => "Payment successful! Your {$payment->plan} subscription is now active.",
@@ -211,6 +217,20 @@ class PaymentController extends Controller
         return response()->json([
             'payment' => $this->formatPayment($payment),
         ]);
+    }
+
+    private function notifyPaymentSuccess(Organization $org, Payment $payment): void
+    {
+        try {
+            $admins = $org->users()->where('role', 'admin')->where('active', true)->get();
+            $amount = number_format((int) $payment->amount);
+            SmsService::sendMany(
+                $admins,
+                "SmartAttend: Payment of TZS {$amount} was successful. Your ".ucfirst((string) $payment->plan)." subscription for {$org->name} is now active. Thank you."
+            );
+        } catch (\Throwable $e) {
+            Log::warning('Failed to SMS payment success: '.$e->getMessage());
+        }
     }
 
     private function formatPayment(Payment $payment): array

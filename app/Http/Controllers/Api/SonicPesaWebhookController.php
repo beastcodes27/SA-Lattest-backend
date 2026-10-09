@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Models\Payment;
+use App\Services\SmsService;
 use App\Services\SonicPesaService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -91,7 +92,7 @@ class SonicPesaWebhookController extends Controller
             DB::transaction(function () use ($payment, $data, $payload) {
                 $payment->forceFill([
                     'status' => Payment::STATUS_COMPLETED,
-                    'external_transaction_id' => $data['transaction_id'] ?? $payment->external_transaction_id ?? ('SP-' . strtoupper(bin2hex(random_bytes(5)))),
+                    'external_transaction_id' => $data['transaction_id'] ?? $payment->external_transaction_id ?? ('SP-'.strtoupper(bin2hex(random_bytes(5)))),
                     'paid_at' => now(),
                     'sonicpesa_response' => $payload,
                 ])->save();
@@ -103,6 +104,20 @@ class SonicPesaWebhookController extends Controller
             });
 
             Log::info("SonicPesa Webhook: Successfully processed payment {$payment->id} and activated subscription for Org {$payment->organization_id}");
+
+            $org = $payment->organization;
+            if ($org) {
+                try {
+                    $admins = $org->users()->where('role', 'admin')->where('active', true)->get();
+                    $amount = number_format((int) $payment->amount);
+                    SmsService::sendMany(
+                        $admins,
+                        "SmartAttend: Payment of TZS {$amount} was successful. Your ".ucfirst((string) $payment->plan)." subscription for {$org->name} is now active. Thank you."
+                    );
+                } catch (\Throwable $e) {
+                    Log::warning('Failed to SMS payment success (webhook): '.$e->getMessage());
+                }
+            }
 
             return response()->json([
                 'status' => 'success',
