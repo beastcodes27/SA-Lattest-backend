@@ -70,17 +70,19 @@ class PlanLimits
     {
         $package = self::package($code);
 
-        return ($package && $package->monthly_price > 0)
-            ? $package->monthly_price
-            : (self::FALLBACK_MONTHLY_PRICES[$code ?? 'starter'] ?? 45000);
+        if ($package && $package->resolvedMonthlyPrice() > 0) {
+            return $package->resolvedMonthlyPrice();
+        }
+
+        return self::FALLBACK_MONTHLY_PRICES[$code ?? 'starter'] ?? 45000;
     }
 
     public static function annualPrice(?string $code): int
     {
         $package = self::package($code);
 
-        if ($package && $package->annual_price > 0) {
-            return $package->annual_price;
+        if ($package && $package->resolvedAnnualPrice() > 0) {
+            return $package->resolvedAnnualPrice();
         }
 
         // Default to 20% off 12 months when no explicit annual price is set.

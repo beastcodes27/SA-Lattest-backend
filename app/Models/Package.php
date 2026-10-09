@@ -43,22 +43,48 @@ class Package extends Model
 
     public function getFormattedMonthlyPriceAttribute(): string
     {
-        $amount = $this->monthly_price ?: 0;
-        return 'TZS '.number_format($amount);
+        return 'TZS '.number_format($this->resolvedMonthlyPrice());
     }
 
     public function getFormattedAnnualPriceAttribute(): string
     {
-        $amount = $this->annual_price ?: 0;
-        return 'TZS '.number_format($amount);
+        return 'TZS '.number_format($this->resolvedAnnualPrice());
+    }
+
+    /**
+     * Monthly price, falling back to a number parsed from the price label
+     * (so admins who only set a label still get correct pricing).
+     */
+    public function resolvedMonthlyPrice(): int
+    {
+        if ((int) $this->monthly_price > 0) {
+            return (int) $this->monthly_price;
+        }
+
+        $digits = preg_replace('/[^0-9]/', '', (string) ($this->price_label ?? ''));
+
+        return $digits !== '' ? (int) $digits : 0;
+    }
+
+    /**
+     * Annual price, falling back to the monthly price with the standard
+     * 20% annual discount when no explicit annual value is configured.
+     */
+    public function resolvedAnnualPrice(): int
+    {
+        if ((int) $this->annual_price > 0) {
+            return (int) $this->annual_price;
+        }
+
+        $monthly = $this->resolvedMonthlyPrice();
+
+        return $monthly > 0 ? (int) round($monthly * 12 * 0.80) : 0;
     }
 
     public function calculateAmount(string $billingCycle = 'monthly', int $discountPercent = 0): array
     {
         $isAnnual = strtolower($billingCycle) === 'annual';
-        $base = $isAnnual
-            ? ($this->annual_price ?: ($this->monthly_price ? $this->monthly_price * 12 : 0))
-            : ($this->monthly_price ?: 0);
+        $base = $isAnnual ? $this->resolvedAnnualPrice() : $this->resolvedMonthlyPrice();
 
         $discountPercent = max(0, min(100, $discountPercent));
         $discountAmount = (int) round(($base * $discountPercent) / 100);
