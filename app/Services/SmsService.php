@@ -42,6 +42,20 @@ class SmsService
     }
 
     /**
+     * Append the configured support contact to a message, when set.
+     */
+    public static function withSupport(string $message): string
+    {
+        $contact = trim((string) config('services.sms.support_contact'));
+
+        if ($contact === '') {
+            return $message;
+        }
+
+        return rtrim($message, ' ')." For support, contact {$contact}.";
+    }
+
+    /**
      * Send a single SMS via Textify Africa. Returns true on success.
      */
     public static function send(?string $phone, string $message): bool

@@ -49,6 +49,7 @@ return [
         'api_url' => rtrim(env('SMS_API_URL', 'https://portal.textify.africa/api/v1'), '/'),
         'api_key' => env('SMS_API_KEY'),
         'sender_name' => env('SMS_SENDER_NAME', 'SMARTATTEND'),
+        'support_contact' => env('SMS_SUPPORT_CONTACT', ''),
         'timeout' => (int) env('SMS_TIMEOUT', 15),
     ],
 

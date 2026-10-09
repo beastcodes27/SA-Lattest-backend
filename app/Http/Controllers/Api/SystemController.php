@@ -201,7 +201,7 @@ class SystemController extends Controller
             );
             SmsService::sendMany(
                 $admins,
-                "SmartAttend: {$organization->name} has been approved. You can sign in and start managing your organization and adding employees details. Thank you."
+                SmsService::withSupport("SmartAttend: {$organization->name} has been approved. You can sign in and start managing your organization and adding employees details. Thank you.")
             );
         } catch (\Throwable $e) {
             Log::warning('Failed to notify approved organization: '.$e->getMessage());
@@ -239,9 +239,11 @@ class SystemController extends Controller
             $admins = $organization->users()->where('role', 'admin')->where('active', true)->get();
             SmsService::sendMany(
                 $admins,
-                $status === 'active'
-                    ? "SmartAttend: {$organization->name} has been reactivated. You can sign in again."
-                    : "SmartAttend: {$organization->name} has been suspended. Please contact support to restore access."
+                SmsService::withSupport(
+                    $status === 'active'
+                        ? "SmartAttend: {$organization->name} has been reactivated. You can sign in again."
+                        : "SmartAttend: {$organization->name} has been suspended. Please contact support to restore access."
+                )
             );
         } catch (\Throwable $e) {
             Log::warning('Failed to SMS organization on status change: '.$e->getMessage());
