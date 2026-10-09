@@ -44,4 +44,12 @@ return [
         'timeout' => (int) env('SONICPESA_TIMEOUT', 30),
     ],
 
+    'sms' => [
+        'enabled' => env('SMS_ENABLED', false),
+        'api_url' => rtrim(env('SMS_API_URL', 'https://portal.textify.africa/api/v1'), '/'),
+        'api_key' => env('SMS_API_KEY'),
+        'sender_name' => env('SMS_SENDER_NAME', 'SMARTATTEND'),
+        'timeout' => (int) env('SMS_TIMEOUT', 15),
+    ],
+
 ];
