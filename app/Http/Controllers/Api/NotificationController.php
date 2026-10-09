@@ -4,8 +4,10 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\AppNotification;
+use App\Models\Organization;
 use App\Models\User;
 use App\Services\ExpoPushService;
+use App\Services\SmsService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -52,7 +54,7 @@ class NotificationController extends Controller
 
         $type = $request->input('type');
         $query = AppNotification::where('user_id', $user->id);
-        if (!empty($type)) {
+        if (! empty($type)) {
             $query->where('type', $type);
         }
 
@@ -137,7 +139,7 @@ class NotificationController extends Controller
     public function orgBroadcast(Request $request): JsonResponse
     {
         $admin = $request->user();
-        if (!$admin->org_id) {
+        if (! $admin->org_id) {
             return response()->json(['message' => 'Admin does not belong to an organization.'], 403);
         }
 
@@ -151,11 +153,11 @@ class NotificationController extends Controller
         $query = User::where('org_id', $admin->org_id)
             ->where('active', true);
 
-        if (!empty($validated['branch_id'])) {
+        if (! empty($validated['branch_id'])) {
             $query->where('branch_id', $validated['branch_id']);
         }
 
-        if (!empty($validated['role']) && $validated['role'] !== 'all') {
+        if (! empty($validated['role']) && $validated['role'] !== 'all') {
             $query->where('role', $validated['role']);
         }
 
@@ -193,15 +195,16 @@ class NotificationController extends Controller
             'body' => 'required|string|max:1000',
             'org_id' => 'nullable|integer|exists:organizations,id',
             'role' => 'nullable|string|in:employee,org_admin,system_admin,all',
+            'send_sms' => 'nullable|boolean',
         ]);
 
         $query = User::where('active', true);
 
-        if (!empty($validated['org_id'])) {
+        if (! empty($validated['org_id'])) {
             $query->where('org_id', $validated['org_id']);
         }
 
-        if (!empty($validated['role']) && $validated['role'] !== 'all') {
+        if (! empty($validated['role']) && $validated['role'] !== 'all') {
             $query->where('role', $validated['role']);
         }
 
@@ -220,10 +223,16 @@ class NotificationController extends Controller
             $sysAdmin
         );
 
+        $smsSent = 0;
+        if (! empty($validated['send_sms'])) {
+            $smsSent = SmsService::sendMany($recipients, $validated['body']);
+        }
+
         return response()->json([
             'success' => true,
-            'message' => "System broadcast sent to {$notifiedCount} user(s).",
+            'message' => "System broadcast sent to {$notifiedCount} user(s).".($smsSent > 0 ? " SMS sent to {$smsSent} user(s)." : ''),
             'recipients_count' => $notifiedCount,
+            'sms_sent' => $smsSent,
         ]);
     }
 
@@ -254,7 +263,7 @@ class NotificationController extends Controller
             ->take(30)
             ->get();
 
-        $organizations = \App\Models\Organization::select('id', 'name', 'status')
+        $organizations = Organization::select('id', 'name', 'status')
             ->orderBy('name')
             ->get();
 
@@ -271,4 +280,3 @@ class NotificationController extends Controller
         ]);
     }
 }
-

@@ -1067,8 +1067,10 @@
                     <label class="plabel">Message Body</label>
                     <textarea class="pfield" id="nb_body" rows="3" maxlength="500" placeholder="Enter broadcast announcement message..."></textarea>
 
+                    <label class="switch" style="margin-top:12px"><input type="checkbox" id="nb_sms"> Also send as SMS to recipients' phone numbers</label>
+
                     <div class="actions" style="margin-top:14px">
-                        <button class="btn primary" id="nb_submit_btn" onclick="sendBroadcast()">Dispatch Push Broadcast</button>
+                        <button class="btn primary" id="nb_submit_btn" onclick="sendBroadcast()">Dispatch Broadcast</button>
                     </div>
                 </div>`;
 
@@ -1117,11 +1119,12 @@
             const body = document.getElementById('nb_body')?.value.trim();
             const audience = document.getElementById('nb_audience')?.value || 'all';
             const orgId = audience === 'org' ? document.getElementById('nb_org_id')?.value : null;
+            const sendSms = !!document.getElementById('nb_sms')?.checked;
 
             if (!title) { toast('Please enter a notification title.', false); return; }
             if (!body) { toast('Please enter a message body.', false); return; }
 
-            if (!confirm(`Dispatch this push broadcast to ${audience === 'all' ? 'all users' : audience}?`)) return;
+            if (!confirm(`Dispatch this ${sendSms ? 'push + SMS ' : 'push '}broadcast to ${audience === 'all' ? 'all users' : audience}?`)) return;
 
             const btn = document.getElementById('nb_submit_btn');
             if (btn) { btn.disabled = true; btn.textContent = 'Sending...'; }
@@ -1132,16 +1135,17 @@
                     body,
                     org_id: orgId ? parseInt(orgId, 10) : undefined,
                     role: ['all', 'org'].includes(audience) ? undefined : audience,
+                    send_sms: sendSms,
                 };
                 const json = await api('/portal/api/notifications/broadcast', {
                     method: 'POST',
                     body: JSON.stringify(payload),
                 });
-                toast(json.message || 'Push broadcast sent successfully!', true);
+                toast(json.message || 'Broadcast sent successfully!', true);
                 await loadNotifications();
             } catch (e) {
                 toast(e.message || 'Failed to dispatch notification.', false);
-                if (btn) { btn.disabled = false; btn.textContent = 'Dispatch Push Broadcast'; }
+                if (btn) { btn.disabled = false; btn.textContent = 'Dispatch Broadcast'; }
             }
         }
 
