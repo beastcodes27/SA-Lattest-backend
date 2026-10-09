@@ -8,6 +8,7 @@ use App\Models\Organization;
 use App\Models\PromoRedemption;
 use App\Models\User;
 use App\Services\ExpoPushService;
+use App\Services\SmsService;
 use App\Support\PlanLimits;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
@@ -198,6 +199,10 @@ class SystemController extends Controller
                 "{$organization->name} has been approved. You can now sign in to SmartAttend and start using your free trial.",
                 'broadcast'
             );
+            SmsService::sendMany(
+                $admins,
+                "SmartAttend: {$organization->name} has been approved. You can now sign in and start your free trial."
+            );
         } catch (\Throwable $e) {
             Log::warning('Failed to notify approved organization: '.$e->getMessage());
         }
@@ -228,6 +233,18 @@ class SystemController extends Controller
 
         if ($status === 'active' && $organization->trial_started_at === null) {
             $organization->startTrial(30);
+        }
+
+        try {
+            $admins = $organization->users()->where('role', 'admin')->where('active', true)->get();
+            SmsService::sendMany(
+                $admins,
+                $status === 'active'
+                    ? "SmartAttend: {$organization->name} has been reactivated. You can sign in again."
+                    : "SmartAttend: {$organization->name} has been suspended. Please contact support to restore access."
+            );
+        } catch (\Throwable $e) {
+            Log::warning('Failed to SMS organization on status change: '.$e->getMessage());
         }
 
         return response()->json([

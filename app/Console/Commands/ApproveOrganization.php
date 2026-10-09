@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Models\Organization;
 use App\Services\ExpoPushService;
+use App\Services\SmsService;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
 
@@ -44,6 +45,10 @@ class ApproveOrganization extends Command
                     'Organization Approved',
                     "{$org->name} has been approved. You can now sign in to SmartAttend and start using your free trial.",
                     'broadcast'
+                );
+                SmsService::sendMany(
+                    $admins,
+                    "SmartAttend: {$org->name} has been approved. You can now sign in and start your free trial."
                 );
             } catch (\Throwable $e) {
                 Log::warning('Failed to notify approved organization: '.$e->getMessage());
