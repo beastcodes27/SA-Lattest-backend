@@ -88,6 +88,17 @@ class PaymentController extends Controller
             ],
         ]);
 
+        // Surface gateway failures instead of pretending the prompt was sent.
+        if (empty($orderResult['success'])) {
+            $payment->markAsFailed($orderResult['message'] ?? 'Payment gateway could not create the order.');
+
+            return response()->json([
+                'message' => $orderResult['message'] ?? 'Could not initiate mobile payment. Please try again.',
+                'payment' => $this->formatPayment($payment->fresh()),
+                'gateway' => Payment::GATEWAY_SONICPESA,
+            ], 502);
+        }
+
         $payment->forceFill([
             'sonicpesa_order_id' => $orderResult['order_id'] ?? $reference,
             'sonicpesa_checkout_url' => $orderResult['checkout_url'] ?? null,
