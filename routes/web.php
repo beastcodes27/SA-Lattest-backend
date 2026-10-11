@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\AppVersionController;
 use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\PackagesController;
 use App\Http\Controllers\Api\PromoManagerController;
@@ -37,6 +38,9 @@ Route::prefix('portal')->group(function () {
             Route::post('notifications/broadcast', [NotificationController::class, 'systemBroadcast']);
             Route::post('notifications/sms', [NotificationController::class, 'systemSms']);
             Route::delete('notifications/{id}', [NotificationController::class, 'destroyBroadcast']);
+
+            Route::get('app-version', [AppVersionController::class, 'adminShow']);
+            Route::post('app-version', [AppVersionController::class, 'adminUpdate']);
         });
     });
 });

@@ -792,6 +792,12 @@
                     </span>
                     <span class="nav-label">Send SMS</span>
                 </button>
+                <button class="nav-item" data-mode="updates">
+                    <span class="nav-icon">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                    </span>
+                    <span class="nav-label">App Updates</span>
+                </button>
             </div>
 
             <div class="sidebar-footer">
@@ -850,6 +856,7 @@
                 <div id="notificationsArea" style="display:none"></div>
 
                 <div id="smsArea" style="display:none"></div>
+                <div id="updatesArea" style="display:none"></div>
             </main>
         </div>
     </div>
@@ -1378,7 +1385,7 @@
         let mode = 'orgs';
 
         function switchTab(targetMode, updateHash = true) {
-            const validModes = ['orgs', 'subs', 'packages', 'promos', 'notifications', 'sms'];
+            const validModes = ['orgs', 'subs', 'packages', 'promos', 'notifications', 'sms', 'updates'];
             if (!validModes.includes(targetMode)) targetMode = 'orgs';
             mode = targetMode;
 
@@ -1396,6 +1403,7 @@
                 promos: ['Promos & Offers', 'Console · Promotional Codes & Discounts'],
                 notifications: ['Push Broadcasts', 'Console · Live Alerts & Dispatch Center'],
                 sms: ['Send SMS', 'Console · Text Messaging to Organization Admins'],
+                updates: ['App Updates', 'Console · Mobile Version Control & OTA Rollouts'],
             };
             const [title, breadcrumb] = titles[mode] || ['Console', 'SmartAttend'];
             document.getElementById('pageTitle').textContent = title;
@@ -1407,6 +1415,7 @@
             const prArea = document.getElementById('promosArea');
             const notifArea = document.getElementById('notificationsArea');
             const smsArea = document.getElementById('smsArea');
+            const updArea = document.getElementById('updatesArea');
             
             orgArea.style.display = mode === 'orgs' ? '' : 'none';
             subsArea.style.display = mode === 'subs' ? '' : 'none';
@@ -1414,6 +1423,7 @@
             prArea.style.display = mode === 'promos' ? '' : 'none';
             notifArea.style.display = mode === 'notifications' ? '' : 'none';
             smsArea.style.display = mode === 'sms' ? '' : 'none';
+            if (updArea) updArea.style.display = mode === 'updates' ? '' : 'none';
 
             if (updateHash && window.location.hash !== '#' + mode) {
                 history.replaceState(null, null, '#' + mode);
@@ -1425,6 +1435,7 @@
             else if (mode === 'promos') loadPromos().catch(() => {});
             else if (mode === 'notifications') loadNotifications().catch(() => {});
             else if (mode === 'sms') loadSms().catch(() => {});
+            else if (mode === 'updates') loadAppVersion().catch(() => {});
         }
 
         document.getElementById('sidebarNav').addEventListener('click', (e) => {
@@ -1870,6 +1881,175 @@
             }, 100);
         }
 
+        let currentVersionPlatform = 'android';
+
+        async function loadAppVersion(targetPlatform = currentVersionPlatform) {
+            currentVersionPlatform = targetPlatform;
+            const box = document.getElementById('updatesArea');
+            if (!box) return;
+            box.innerHTML = `<div class="org" style="text-align:center;padding:36px;color:var(--muted)">Loading app version settings...</div>`;
+            try {
+                const res = await api(`/portal/api/app-version?platform=${encodeURIComponent(targetPlatform)}`);
+                const cfg = res.config || {};
+                const isForced = !!cfg.force_update;
+                const platformLabel = targetPlatform === 'ios' ? 'Apple iOS' : 'Google Android';
+
+                box.innerHTML = `
+                    <div style="display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:16px;flex-wrap:wrap">
+                        <div style="display:flex;gap:8px;background:rgba(32,15,53,0.06);padding:4px;border-radius:12px">
+                            <button type="button" class="btn ${targetPlatform === 'android' ? 'primary' : 'secondary'}" style="padding:7px 18px;font-size:13px;border-radius:8px" onclick="loadAppVersion('android')">
+                                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px"><path d="M17 19H7a4 4 0 0 1-4-4V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4v8a4 4 0 0 1-4 4Z"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+                                Android APK
+                            </button>
+                            <button type="button" class="btn ${targetPlatform === 'ios' ? 'primary' : 'secondary'}" style="padding:7px 18px;font-size:13px;border-radius:8px" onclick="loadAppVersion('ios')">
+                                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2Z"/></svg>
+                                Apple iOS
+                            </button>
+                        </div>
+                        <div style="font-size:12.5px;color:var(--muted)">
+                            Platform: <strong style="color:var(--ink)">${platformLabel}</strong> &middot; Last updated: ${cfg.updated_at ? fmtDate(cfg.updated_at) : 'recently'}
+                        </div>
+                    </div>
+
+                    <div class="org" style="margin-bottom:16px">
+                        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:14px;flex-wrap:wrap">
+                            <div>
+                                <h3 style="margin:0 0 4px">Version Control &amp; Rollout Configuration</h3>
+                                <p style="color:var(--muted);font-size:13px;margin:0">Set the active version numbers and control whether updates are optional (soft) or mandatory (forced).</p>
+                            </div>
+                            <span class="pill" style="font-size:12px;padding:4px 10px;background:${isForced ? 'rgba(239,68,68,0.1)' : 'rgba(16,185,129,0.1)'};color:${isForced ? 'var(--red)' : 'var(--green)'}">
+                                ${isForced ? 'Force Update Active' : 'Normal / Soft Updates'}
+                            </span>
+                        </div>
+
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:16px">
+                            <div>
+                                <label class="plabel">Latest Available Version</label>
+                                <input class="pfield" id="ver_latest" value="${esc(cfg.latest_version || '1.0.0')}" placeholder="e.g. 1.0.4">
+                                <div style="font-size:11.5px;color:var(--muted);margin-top:4px">Any installed app older than this version is prompted with an update.</div>
+                            </div>
+                            <div>
+                                <label class="plabel">Minimum Required Version</label>
+                                <input class="pfield" id="ver_min" value="${esc(cfg.min_version || '1.0.0')}" placeholder="e.g. 1.0.0">
+                                <div style="font-size:11.5px;color:var(--muted);margin-top:4px">Installed apps older than this version are <strong>strictly forced</strong> to update before using the app.</div>
+                            </div>
+                        </div>
+
+                        <div style="margin-top:14px;padding:12px 14px;border-radius:10px;background:rgba(32,15,53,0.03);border:1px solid rgba(32,15,53,0.06)">
+                            <label class="switch" style="font-weight:600;display:flex;align-items:center;gap:8px;cursor:pointer">
+                                <input type="checkbox" id="ver_force" ${isForced ? 'checked' : ''}>
+                                <span>Force all older versions to update immediately (Mandatory Update)</span>
+                            </label>
+                            <div style="font-size:11.5px;color:var(--muted);margin-top:4px;margin-left:26px">
+                                When enabled, anyone with a version lower than Latest Version cannot dismiss the dialog or access the app.
+                            </div>
+                        </div>
+
+                        <div style="margin-top:14px">
+                            <label class="plabel">Update Dialog Title</label>
+                            <input class="pfield" id="ver_title" value="${esc(cfg.title || 'Update Available')}" placeholder="e.g. New Version Available">
+                        </div>
+
+                        <div style="margin-top:14px">
+                            <label class="plabel">Direct APK Download Link (Android)</label>
+                            <input class="pfield" id="ver_apk" value="${esc(cfg.apk_url || '')}" placeholder="https://sa.devtz.com/downloads/SmartAttend.apk or EAS build download URL">
+                            <div style="font-size:11.5px;color:var(--muted);margin-top:4px">When user taps "Update Now" on Android, this APK file is downloaded/opened directly.</div>
+                        </div>
+
+                        <div style="margin-top:14px">
+                            <label class="plabel">Play Store / App Store URL (Fallback)</label>
+                            <input class="pfield" id="ver_store" value="${esc(cfg.store_url || '')}" placeholder="https://play.google.com/store/apps/details?id=com.smartattend.app">
+                        </div>
+
+                        <div style="margin-top:14px">
+                            <label class="plabel">Release Notes &amp; What's New</label>
+                            <textarea class="pfield" id="ver_notes" rows="4" placeholder="List new features, improvements, and bug fixes...">${esc(cfg.release_notes || '')}</textarea>
+                        </div>
+
+                        <div class="actions" style="margin-top:18px;display:flex;gap:10px;justify-content:flex-end">
+                            <button class="btn primary" id="ver_save_btn" onclick="saveAppVersion()">
+                                Save &amp; Push Update
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="org" style="border-left:4px solid var(--accent);background:rgba(124,58,237,0.02)">
+                        <h4 style="margin:0 0 8px;display:flex;align-items:center;gap:8px">
+                            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                            How Updates Work (Soft vs Forced)
+                        </h4>
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;font-size:13px;color:var(--muted);line-height:1.6;margin-top:10px">
+                            <div style="background:#fff;padding:12px;border-radius:8px;border:1px solid rgba(32,15,53,0.08)">
+                                <div style="font-weight:700;color:var(--ink);margin-bottom:4px">🟢 Soft Update (Smooth / Optional)</div>
+                                <div>Occurs when user version &lt; <strong>Latest Version</strong> and &ge; <strong>Minimum Required Version</strong> (and Force Update is OFF).</div>
+                                <div style="margin-top:4px">The app displays an update dialog with <em>"Update Now"</em> and <em>"Later"</em> buttons. If dismissed, user is not prompted again for that version.</div>
+                            </div>
+                            <div style="background:#fff;padding:12px;border-radius:8px;border:1px solid rgba(32,15,53,0.08)">
+                                <div style="font-weight:700;color:var(--ink);margin-bottom:4px">🔴 Forced Update (Mandatory)</div>
+                                <div>Occurs when user version &lt; <strong>Minimum Required Version</strong> OR when <strong>Force Update</strong> is turned ON.</div>
+                                <div style="margin-top:4px">The dialog has <strong>no close or later button</strong>, hardware back button is blocked, and user cannot use the app until updated.</div>
+                            </div>
+                        </div>
+                        <div style="font-size:12.5px;color:var(--muted);margin-top:12px">
+                            <strong>Release Workflow:</strong> 1. Run <code>npx eas-cli build --platform android --profile preview</code> &rarr; 2. Host the APK or copy EAS build URL &rarr; 3. Enter new version in "Latest Available Version" and APK URL in "Direct APK Download Link" &rarr; 4. Click "Save &amp; Push Update".
+                        </div>
+                    </div>
+                `;
+            } catch (e) {
+                box.innerHTML = `<div class="org" style="color:var(--red)">Failed to load version configuration: ${esc(e.message)}</div>`;
+            }
+        }
+
+        async function saveAppVersion() {
+            const latest = document.getElementById('ver_latest')?.value?.trim();
+            const min = document.getElementById('ver_min')?.value?.trim();
+            const force = document.getElementById('ver_force')?.checked || false;
+            const title = document.getElementById('ver_title')?.value?.trim();
+            const apk = document.getElementById('ver_apk')?.value?.trim();
+            const store = document.getElementById('ver_store')?.value?.trim();
+            const notes = document.getElementById('ver_notes')?.value?.trim();
+
+            if (!latest || !min || !title) {
+                toast('Please provide Latest Version, Minimum Version, and Title.', false);
+                return;
+            }
+
+            const ok = await customConfirm(
+                `Push version ${latest} update for ${currentVersionPlatform.toUpperCase()}? ${force ? 'This will FORCE all users to update immediately.' : 'This will offer an optional/soft update to users.'}`,
+                {
+                    title: 'Confirm App Update Rollout',
+                    tone: force ? 'warning' : 'info',
+                    confirmText: 'Push Update',
+                }
+            );
+            if (!ok) return;
+
+            const btn = document.getElementById('ver_save_btn');
+            if (btn) { btn.disabled = true; btn.textContent = 'Saving...'; }
+
+            try {
+                const res = await api('/portal/api/app-version', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        platform: currentVersionPlatform,
+                        latest_version: latest,
+                        min_version: min,
+                        force_update: force,
+                        title: title,
+                        apk_url: apk || null,
+                        store_url: store || null,
+                        release_notes: notes || null,
+                    }),
+                });
+                toast(res.message || 'App update settings saved successfully.', true);
+                await loadAppVersion(currentVersionPlatform);
+            } catch (e) {
+                toast(e.message || 'Failed to update app version.', false);
+            } finally {
+                if (btn) { btn.disabled = false; btn.textContent = 'Save & Push Update'; }
+            }
+        }
+
         async function syncAllData() {
             try {
                 toast('Refreshing live data...', true);
@@ -1879,6 +2059,8 @@
                 else if (mode === 'packages') await loadPackages();
                 else if (mode === 'promos') await loadPromos();
                 else if (mode === 'notifications') await loadNotifications();
+                else if (mode === 'sms') await loadSms();
+                else if (mode === 'updates') await loadAppVersion();
                 toast('Data synced successfully', true);
             } catch (e) {
                 toast(e.message || 'Sync error', false);
@@ -1907,7 +2089,7 @@
             updateClock();
             setInterval(updateClock, 1000);
             const initialHash = window.location.hash.replace(/^#/, '');
-            if (initialHash && ['orgs', 'subs', 'packages', 'promos', 'notifications'].includes(initialHash)) {
+            if (initialHash && ['orgs', 'subs', 'packages', 'promos', 'notifications', 'sms', 'updates'].includes(initialHash)) {
                 switchTab(initialHash, false);
             } else {
                 switchTab('orgs', false);
