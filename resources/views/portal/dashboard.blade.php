@@ -1234,7 +1234,7 @@
             const configs = {
                 reject: {
                     title: 'Reject Registration',
-                    message: 'Reject this registration request? The applicant organization will not be granted access.',
+                    message: 'Reject this registration request? The applicant admin will be notified via SMS and push notification.',
                     tone: 'danger',
                     confirmText: 'Reject Registration',
                     action: () => api(`/portal/api/organizations/${id}/reject`, { method: 'POST' }),

@@ -230,14 +230,25 @@ class SystemController extends Controller
         $organization->forceFill(['status' => 'suspended'])->save();
 
         try {
+            $admins = $organization->users()->where('role', 'admin')->where('active', true)->get();
+            ExpoPushService::notifyUsers(
+                $admins,
+                'Registration Update',
+                "Your registration request for {$organization->name} was not approved. Please contact SmartAttend support for more information.",
+                'broadcast'
+            );
+
+            $reason = $request->input('reason');
+            $smsText = $reason
+                ? "SmartAttend: Your organization registration for {$organization->name} was not approved. Reason: {$reason}. Please contact support for more details."
+                : "SmartAttend: Your organization registration for {$organization->name} was not approved. Please contact support for more details.";
+
             SmsService::notifyOrgAdmins(
                 $organization,
-                SmsService::withSupport(
-                    "SmartAttend: Your organization registration for {$organization->name} was not approved. Please contact support for more details."
-                )
+                SmsService::withSupport($smsText)
             );
         } catch (\Throwable $e) {
-            Log::warning('Failed to SMS organization on rejection: '.$e->getMessage());
+            Log::warning('Failed to notify organization on rejection: '.$e->getMessage());
         }
 
         return response()->json([
@@ -266,6 +277,17 @@ class SystemController extends Controller
         }
 
         try {
+            $admins = $organization->users()->where('role', 'admin')->where('active', true)->get();
+
+            if ($wasPending && $status === 'suspended') {
+                ExpoPushService::notifyUsers(
+                    $admins,
+                    'Registration Update',
+                    "Your registration request for {$organization->name} was not approved. Please contact SmartAttend support for more information.",
+                    'broadcast'
+                );
+            }
+
             $smsMessage = $status === 'active'
                 ? ($wasPending
                     ? "SmartAttend: {$organization->name} has been approved and activated. You can sign in now."
@@ -279,7 +301,7 @@ class SystemController extends Controller
                 SmsService::withSupport($smsMessage)
             );
         } catch (\Throwable $e) {
-            Log::warning('Failed to SMS organization on status change: '.$e->getMessage());
+            Log::warning('Failed to notify organization on status change: '.$e->getMessage());
         }
 
         return response()->json([
