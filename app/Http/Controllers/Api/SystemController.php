@@ -221,21 +221,43 @@ class SystemController extends Controller
         ]);
     }
 
-    public function setStatus(Request $request, Organization $organization): JsonResponse
+    public function reject(Request $request, Organization $organization): JsonResponse
     {
-        if ($organization->status === 'pending') {
-            return response()->json(['message' => 'Pending organizations must be approved or rejected first.'], 422);
+        if ($organization->status !== 'pending') {
+            return response()->json(['message' => 'Only pending registration requests can be rejected.'], 422);
         }
 
+        $organization->forceFill(['status' => 'suspended'])->save();
+
+        try {
+            SmsService::notifyOrgAdmins(
+                $organization,
+                SmsService::withSupport(
+                    "SmartAttend: Your organization registration for {$organization->name} was not approved. Please contact support for more details."
+                )
+            );
+        } catch (\Throwable $e) {
+            Log::warning('Failed to SMS organization on rejection: '.$e->getMessage());
+        }
+
+        return response()->json([
+            'message' => $organization->name.' registration rejected.',
+            'organization' => $this->payload($organization->fresh()),
+        ]);
+    }
+
+    public function setStatus(Request $request, Organization $organization): JsonResponse
+    {
         $validator = Validator::make($request->all(), [
-            'status' => ['required', Rule::in(['active', 'suspended'])],
+            'status' => ['required', Rule::in(['active', 'suspended', 'rejected'])],
         ]);
 
         if ($validator->fails()) {
             return response()->json(['message' => 'Invalid status.'], 422);
         }
 
-        $status = $request->status;
+        $wasPending = $organization->status === 'pending';
+        $status = $request->status === 'rejected' ? 'suspended' : $request->status;
 
         $organization->forceFill(['status' => $status])->save();
 
@@ -244,14 +266,17 @@ class SystemController extends Controller
         }
 
         try {
-            $admins = $organization->users()->where('role', 'admin')->where('active', true)->get();
+            $smsMessage = $status === 'active'
+                ? ($wasPending
+                    ? "SmartAttend: {$organization->name} has been approved and activated. You can sign in now."
+                    : "SmartAttend: {$organization->name} has been reactivated. You can sign in again.")
+                : ($wasPending
+                    ? "SmartAttend: Your organization registration for {$organization->name} was not approved. Please contact support for more details."
+                    : "SmartAttend: {$organization->name} has been suspended. Please contact support to restore access.");
+
             SmsService::notifyOrgAdmins(
                 $organization,
-                SmsService::withSupport(
-                    $status === 'active'
-                        ? "SmartAttend: {$organization->name} has been reactivated. You can sign in again."
-                        : "SmartAttend: {$organization->name} has been suspended. Please contact support to restore access."
-                )
+                SmsService::withSupport($smsMessage)
             );
         } catch (\Throwable $e) {
             Log::warning('Failed to SMS organization on status change: '.$e->getMessage());
@@ -259,8 +284,8 @@ class SystemController extends Controller
 
         return response()->json([
             'message' => $status === 'active'
-                ? $organization->name.' reactivated.'
-                : $organization->name.' suspended. Users can no longer sign in.',
+                ? ($wasPending ? $organization->name.' approved and activated.' : $organization->name.' reactivated.')
+                : ($wasPending ? $organization->name.' registration rejected.' : $organization->name.' suspended. Users can no longer sign in.'),
             'organization' => $this->payload($organization->fresh()),
         ]);
     }

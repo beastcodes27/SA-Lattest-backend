@@ -1234,10 +1234,10 @@
             const configs = {
                 reject: {
                     title: 'Reject Registration',
-                    message: 'Reject and suspend this registration? The applicant organization will not be granted access.',
+                    message: 'Reject this registration request? The applicant organization will not be granted access.',
                     tone: 'danger',
-                    confirmText: 'Reject & Suspend',
-                    action: () => api(`/portal/api/organizations/${id}/status`, { method: 'POST', body: JSON.stringify({ status: 'suspended' }) }),
+                    confirmText: 'Reject Registration',
+                    action: () => api(`/portal/api/organizations/${id}/reject`, { method: 'POST' }),
                 },
                 suspend: {
                     title: 'Suspend Organization',

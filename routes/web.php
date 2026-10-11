@@ -20,6 +20,7 @@ Route::prefix('portal')->group(function () {
             Route::get('organizations', [SystemController::class, 'organizations']);
             Route::get('organizations/{organization}', [SystemController::class, 'organization']);
             Route::post('organizations/{organization}/approve', [SystemController::class, 'approve']);
+            Route::post('organizations/{organization}/reject', [SystemController::class, 'reject']);
             Route::post('organizations/{organization}/status', [SystemController::class, 'setStatus']);
             Route::post('organizations/{organization}/subscription', [SystemController::class, 'updateSubscription']);
             Route::delete('organizations/{organization}', [SystemController::class, 'destroyOrganization']);
