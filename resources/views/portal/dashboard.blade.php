@@ -354,21 +354,317 @@
         .btn.ghost:hover { background: rgba(32, 15, 53, 0.1); }
         .btn[disabled] { opacity: 0.5; cursor: default; }
 
-        .msg {
+        /* Custom Toast Notification Container & Items */
+        .toast-container {
             position: fixed;
-            left: 50%;
-            transform: translateX(-50%);
-            top: 20px;
-            border-radius: 14px;
-            padding: 13px 24px;
-            font-weight: 700;
-            color: #fff;
-            box-shadow: var(--shadow-lg);
-            display: none;
-            z-index: 1000;
+            top: 24px;
+            right: 24px;
+            z-index: 100020;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            max-width: 400px;
+            width: calc(100% - 48px);
+            pointer-events: none;
         }
-        .msg.ok { background: var(--green); }
-        .msg.err { background: var(--red); }
+        .toast-item {
+            pointer-events: auto;
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            padding: 13px 16px;
+            border-radius: 16px;
+            background: #FFFFFF;
+            box-shadow: 0 16px 45px rgba(24, 9, 44, 0.16), 0 2px 8px rgba(24, 9, 44, 0.06);
+            border: 1px solid rgba(32, 15, 53, 0.08);
+            color: var(--text);
+            font-size: 13.5px;
+            line-height: 1.45;
+            transform: translateY(-16px) scale(0.96);
+            opacity: 0;
+            transition: all 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+            position: relative;
+            overflow: hidden;
+        }
+        .toast-item.show {
+            transform: translateY(0) scale(1);
+            opacity: 1;
+        }
+        .toast-item.hide {
+            transform: translateY(-12px) scale(0.94);
+            opacity: 0;
+        }
+        .toast-icon {
+            width: 28px;
+            height: 28px;
+            border-radius: 9px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        .toast-item.ok .toast-icon,
+        .toast-item.success .toast-icon {
+            background: rgba(16, 185, 129, 0.14);
+            color: var(--green);
+        }
+        .toast-item.err .toast-icon,
+        .toast-item.danger .toast-icon,
+        .toast-item.error .toast-icon {
+            background: rgba(239, 68, 68, 0.14);
+            color: var(--red);
+        }
+        .toast-item.warning .toast-icon {
+            background: rgba(245, 158, 11, 0.14);
+            color: var(--amber);
+        }
+        .toast-item.info .toast-icon {
+            background: rgba(124, 58, 237, 0.14);
+            color: var(--accent);
+        }
+        .toast-content {
+            flex: 1;
+            min-width: 0;
+            padding-top: 3px;
+        }
+        .toast-message {
+            color: var(--ink);
+            font-size: 13px;
+            font-weight: 600;
+            word-break: break-word;
+        }
+        .toast-close {
+            background: transparent;
+            border: 0;
+            color: var(--muted-light);
+            cursor: pointer;
+            padding: 4px;
+            margin: -2px -4px 0 0;
+            border-radius: 6px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            transition: color 0.15s, background 0.15s;
+        }
+        .toast-close:hover {
+            color: var(--ink);
+            background: rgba(32, 15, 53, 0.06);
+        }
+        .toast-progress {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            height: 3px;
+            width: 100%;
+            transform-origin: left;
+            transition: width linear;
+        }
+        .toast-item.ok .toast-progress,
+        .toast-item.success .toast-progress { background: var(--green); }
+        .toast-item.err .toast-progress,
+        .toast-item.danger .toast-progress,
+        .toast-item.error .toast-progress { background: var(--red); }
+        .toast-item.warning .toast-progress { background: var(--amber); }
+        .toast-item.info .toast-progress { background: var(--accent); }
+
+        /* Custom Modal Backdrop & Dialog */
+        .app-modal-backdrop {
+            position: fixed;
+            inset: 0;
+            background: rgba(18, 7, 30, 0.68);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            z-index: 100010;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.22s ease, visibility 0.22s ease;
+        }
+        .app-modal-backdrop.active {
+            opacity: 1;
+            visibility: visible;
+        }
+        .app-modal-dialog {
+            width: 100%;
+            max-width: 460px;
+            background: #FFFFFF;
+            border-radius: 24px;
+            border: 1px solid rgba(255, 255, 255, 0.7);
+            box-shadow: 0 32px 85px rgba(20, 8, 38, 0.32), 0 6px 20px rgba(20, 8, 38, 0.10);
+            padding: 28px 26px 24px;
+            position: relative;
+            transform: scale(0.92) translateY(16px);
+            opacity: 0;
+            transition: transform 0.26s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.22s ease;
+        }
+        .app-modal-backdrop.active .app-modal-dialog {
+            transform: scale(1) translateY(0);
+            opacity: 1;
+        }
+        .app-modal-header {
+            display: flex;
+            align-items: flex-start;
+            gap: 16px;
+            margin-bottom: 14px;
+        }
+        .app-modal-icon {
+            width: 46px;
+            height: 46px;
+            border-radius: 14px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        .app-modal-icon.danger {
+            background: rgba(239, 68, 68, 0.12);
+            color: var(--red);
+            box-shadow: 0 4px 14px rgba(239, 68, 68, 0.18);
+        }
+        .app-modal-icon.warning {
+            background: rgba(245, 158, 11, 0.12);
+            color: var(--amber);
+            box-shadow: 0 4px 14px rgba(245, 158, 11, 0.18);
+        }
+        .app-modal-icon.info {
+            background: rgba(124, 58, 237, 0.12);
+            color: var(--accent);
+            box-shadow: 0 4px 14px rgba(124, 58, 237, 0.18);
+        }
+        .app-modal-icon.success {
+            background: rgba(16, 185, 129, 0.12);
+            color: var(--green);
+            box-shadow: 0 4px 14px rgba(16, 185, 129, 0.18);
+        }
+        .app-modal-titles {
+            flex: 1;
+            padding-top: 3px;
+        }
+        .app-modal-title {
+            font-size: 19px;
+            font-weight: 800;
+            color: var(--ink);
+            letter-spacing: -0.3px;
+            margin: 0;
+        }
+        .app-modal-body {
+            font-size: 14px;
+            line-height: 1.55;
+            color: var(--muted);
+            margin-top: 6px;
+            word-break: break-word;
+        }
+        .app-modal-input-wrap {
+            margin-top: 16px;
+        }
+        .app-modal-input-label {
+            display: block;
+            font-size: 11px;
+            font-weight: 800;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 0.7px;
+            margin-bottom: 7px;
+        }
+        .app-modal-input {
+            width: 100%;
+            padding: 12px 14px;
+            border-radius: 12px;
+            border: 1px solid rgba(32, 15, 53, 0.16);
+            font-size: 14.5px;
+            font-family: inherit;
+            color: var(--text);
+            background: #FCFDFE;
+            transition: border-color 0.15s, box-shadow 0.15s;
+        }
+        .app-modal-input:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: var(--ring);
+            background: #fff;
+        }
+        .app-modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            gap: 10px;
+            margin-top: 24px;
+        }
+        .app-modal-btn {
+            border-radius: 12px;
+            padding: 11px 18px;
+            font-size: 13.5px;
+            font-weight: 700;
+            font-family: inherit;
+            cursor: pointer;
+            border: 0;
+            transition: all 0.18s cubic-bezier(0.22, 1, 0.36, 1);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 90px;
+        }
+        .app-modal-btn.cancel {
+            background: rgba(32, 15, 53, 0.05);
+            color: var(--ink);
+            border: 1px solid rgba(32, 15, 53, 0.1);
+        }
+        .app-modal-btn.cancel:hover {
+            background: rgba(32, 15, 53, 0.1);
+        }
+        .app-modal-btn.confirm-primary {
+            background: var(--ink);
+            color: #fff;
+            box-shadow: 0 4px 14px rgba(32, 15, 53, 0.22);
+        }
+        .app-modal-btn.confirm-primary:hover {
+            background: var(--accent);
+            transform: translateY(-1px);
+            box-shadow: 0 8px 22px rgba(124, 58, 237, 0.3);
+        }
+        .app-modal-btn.confirm-danger {
+            background: var(--red);
+            color: #fff;
+            box-shadow: 0 4px 14px rgba(239, 68, 68, 0.28);
+        }
+        .app-modal-btn.confirm-danger:hover {
+            background: #DC2626;
+            transform: translateY(-1px);
+            box-shadow: 0 8px 22px rgba(239, 68, 68, 0.38);
+        }
+        .app-modal-btn.confirm-success {
+            background: var(--green);
+            color: #0B1F16;
+            box-shadow: 0 4px 14px rgba(16, 185, 129, 0.28);
+        }
+        .app-modal-btn.confirm-success:hover {
+            background: #059669;
+            color: #fff;
+            transform: translateY(-1px);
+            box-shadow: 0 8px 22px rgba(16, 185, 129, 0.38);
+        }
+        .app-modal-close {
+            position: absolute;
+            top: 18px;
+            right: 18px;
+            background: transparent;
+            border: 0;
+            color: var(--muted-light);
+            cursor: pointer;
+            padding: 6px;
+            border-radius: 8px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            transition: color 0.15s, background 0.15s;
+        }
+        .app-modal-close:hover {
+            color: var(--ink);
+            background: rgba(32, 15, 53, 0.06);
+        }
 
         .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; }
         .grid span { display: block; color: var(--muted-light); font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.6px; font-weight: 800; }
@@ -499,9 +795,9 @@
             </div>
 
             <div class="sidebar-footer">
-                <form method="POST" action="{{ route('portal.logout') }}" onsubmit="return confirm('Are you sure you want to sign out of the System Admin Console?');">
+                <form id="logoutForm" method="POST" action="{{ route('portal.logout') }}">
                     @csrf
-                    <button class="logout-btn" type="submit">
+                    <button class="logout-btn" type="button" onclick="confirmSignOut()">
                         <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
                         <span>Sign out of Console</span>
                     </button>
@@ -558,12 +854,38 @@
         </div>
     </div>
 
-    <div class="msg" id="msg"></div>
+    <!-- Toast notification container -->
+    <div class="toast-container" id="toastContainer" aria-live="polite"></div>
+
+    <!-- Custom Modal Backdrop & Dialog -->
+    <div class="app-modal-backdrop" id="appModalBackdrop" role="dialog" aria-modal="true" aria-hidden="true">
+        <div class="app-modal-dialog" id="appModalDialog">
+            <button type="button" class="app-modal-close" id="appModalCloseBtn" onclick="closeAppModal(false)" aria-label="Close dialog">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+            <div class="app-modal-header">
+                <div class="app-modal-icon info" id="appModalIcon">
+                    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                </div>
+                <div class="app-modal-titles">
+                    <h3 class="app-modal-title" id="appModalTitle">Confirm Action</h3>
+                    <div class="app-modal-body" id="appModalBody">Are you sure you want to proceed?</div>
+                </div>
+            </div>
+            <div class="app-modal-input-wrap" id="appModalInputWrap" style="display:none">
+                <label class="app-modal-input-label" id="appModalInputLabel" for="appModalInput">Value</label>
+                <input class="app-modal-input" id="appModalInput" type="text" autocomplete="off">
+            </div>
+            <div class="app-modal-actions">
+                <button type="button" class="app-modal-btn cancel" id="appModalCancelBtn" onclick="closeAppModal(false)">Cancel</button>
+                <button type="button" class="app-modal-btn confirm-primary" id="appModalConfirmBtn" onclick="confirmAppModal()">Confirm</button>
+            </div>
+        </div>
+    </div>
 
     <script>
         const csrf = document.querySelector('meta[name="csrf-token"]').content;
         let current = '';
-        const $msg = document.getElementById('msg');
         const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
         const cap = (s) => s ? s.charAt(0).toUpperCase() + s.slice(1) : '';
 
@@ -573,13 +895,213 @@
             });
         }
 
-        function toast(text, ok) {
-            $msg.textContent = text;
-            $msg.className = 'msg ' + (ok ? 'ok' : 'err');
-            $msg.style.display = 'block';
-            clearTimeout(toast._t);
-            toast._t = setTimeout(() => $msg.style.display = 'none', 3500);
+        /* Toast Popup Notification System */
+        function toast(text, ok = true) {
+            const container = document.getElementById('toastContainer');
+            if (!container) return;
+
+            let type = 'success';
+            if (typeof ok === 'string') {
+                type = ok;
+            } else if (ok === false) {
+                type = 'danger';
+            }
+
+            const toastEl = document.createElement('div');
+            toastEl.className = `toast-item ${type}`;
+
+            const icons = {
+                success: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`,
+                ok: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`,
+                danger: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>`,
+                error: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>`,
+                err: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>`,
+                warning: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`,
+                info: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>`,
+            };
+
+            const iconHtml = icons[type] || icons.info;
+
+            toastEl.innerHTML = `
+                <div class="toast-icon">${iconHtml}</div>
+                <div class="toast-content">
+                    <div class="toast-message">${esc(text)}</div>
+                </div>
+                <button type="button" class="toast-close" title="Dismiss" aria-label="Dismiss">&times;</button>
+                <div class="toast-progress"></div>
+            `;
+
+            container.appendChild(toastEl);
+            requestAnimationFrame(() => toastEl.classList.add('show'));
+
+            let dismissTimer;
+            const duration = 4000;
+            const progressEl = toastEl.querySelector('.toast-progress');
+            if (progressEl) {
+                progressEl.style.transition = `width ${duration}ms linear`;
+                requestAnimationFrame(() => { progressEl.style.width = '0%'; });
+            }
+
+            const remove = () => {
+                clearTimeout(dismissTimer);
+                toastEl.classList.remove('show');
+                toastEl.classList.add('hide');
+                setTimeout(() => toastEl.remove(), 280);
+            };
+
+            toastEl.querySelector('.toast-close').addEventListener('click', remove);
+            dismissTimer = setTimeout(remove, duration);
         }
+
+        toast.success = (msg) => toast(msg, 'success');
+        toast.error = (msg) => toast(msg, 'danger');
+        toast.warning = (msg) => toast(msg, 'warning');
+        toast.info = (msg) => toast(msg, 'info');
+
+        /* Custom Modal Dialog & Popups System */
+        let activeModalResolver = null;
+
+        function showAppModal({
+            title = 'Confirm Action',
+            message = '',
+            tone = 'info',
+            confirmText = 'Confirm',
+            cancelText = 'Cancel',
+            showCancel = true,
+            input = null,
+        } = {}) {
+            return new Promise((resolve) => {
+                const backdrop = document.getElementById('appModalBackdrop');
+                const iconEl = document.getElementById('appModalIcon');
+                const titleEl = document.getElementById('appModalTitle');
+                const bodyEl = document.getElementById('appModalBody');
+                const inputWrap = document.getElementById('appModalInputWrap');
+                const inputEl = document.getElementById('appModalInput');
+                const inputLabel = document.getElementById('appModalInputLabel');
+                const cancelBtn = document.getElementById('appModalCancelBtn');
+                const confirmBtn = document.getElementById('appModalConfirmBtn');
+
+                activeModalResolver = resolve;
+
+                const icons = {
+                    danger: `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`,
+                    warning: `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>`,
+                    success: `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>`,
+                    info: `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>`,
+                };
+
+                iconEl.className = `app-modal-icon ${tone}`;
+                iconEl.innerHTML = icons[tone] || icons.info;
+
+                titleEl.textContent = title;
+                bodyEl.innerHTML = esc(message).replace(/\n/g, '<br>');
+
+                if (input) {
+                    inputWrap.style.display = 'block';
+                    inputLabel.textContent = input.label || 'Value';
+                    inputEl.value = input.value ?? '';
+                    inputEl.placeholder = input.placeholder || '';
+                    inputEl.type = input.type || 'text';
+                } else {
+                    inputWrap.style.display = 'none';
+                }
+
+                cancelBtn.style.display = showCancel ? 'inline-flex' : 'none';
+                cancelBtn.textContent = cancelText;
+
+                confirmBtn.className = `app-modal-btn confirm-${tone === 'danger' ? 'danger' : tone === 'success' ? 'success' : 'primary'}`;
+                confirmBtn.textContent = confirmText;
+
+                backdrop.classList.add('active');
+
+                if (input) {
+                    setTimeout(() => { inputEl.focus(); inputEl.select(); }, 60);
+                } else {
+                    setTimeout(() => confirmBtn.focus(), 60);
+                }
+            });
+        }
+
+        function closeAppModal(result) {
+            const backdrop = document.getElementById('appModalBackdrop');
+            if (!backdrop) return;
+            backdrop.classList.remove('active');
+            if (activeModalResolver) {
+                const res = activeModalResolver;
+                activeModalResolver = null;
+                res(result);
+            }
+        }
+
+        function confirmAppModal() {
+            const inputWrap = document.getElementById('appModalInputWrap');
+            const inputEl = document.getElementById('appModalInput');
+            if (inputWrap && inputWrap.style.display !== 'none') {
+                closeAppModal(inputEl ? inputEl.value : true);
+            } else {
+                closeAppModal(true);
+            }
+        }
+
+        function customConfirm(message, { title = 'Are you sure?', tone = 'warning', confirmText = 'Confirm', cancelText = 'Cancel' } = {}) {
+            return showAppModal({ title, message, tone, confirmText, cancelText, showCancel: true });
+        }
+
+        function customAlert(message, { title = 'Notice', tone = 'info', buttonText = 'OK' } = {}) {
+            return showAppModal({ title, message, tone, confirmText: buttonText, showCancel: false });
+        }
+
+        function customPrompt(message, defaultValue = '', { title = 'Enter Value', label = 'Value', inputType = 'text', placeholder = '', confirmText = 'OK', cancelText = 'Cancel' } = {}) {
+            return new Promise(async (resolve) => {
+                const inputWrap = document.getElementById('appModalInput');
+                const result = await showAppModal({
+                    title,
+                    message,
+                    tone: 'info',
+                    confirmText,
+                    cancelText,
+                    showCancel: true,
+                    input: { label, value: defaultValue, placeholder, type: inputType },
+                });
+                if (result !== false && result !== null) {
+                    resolve(typeof result === 'string' ? result : (inputWrap ? inputWrap.value : defaultValue));
+                } else {
+                    resolve(null);
+                }
+            });
+        }
+
+        async function confirmSignOut() {
+            const ok = await customConfirm('Are you sure you want to sign out of the System Admin Console?', {
+                title: 'Sign Out',
+                tone: 'warning',
+                confirmText: 'Sign Out',
+                cancelText: 'Stay Signed In',
+            });
+            if (ok) {
+                document.getElementById('logoutForm').submit();
+            }
+        }
+
+        document.addEventListener('keydown', (e) => {
+            const backdrop = document.getElementById('appModalBackdrop');
+            if (!backdrop || !backdrop.classList.contains('active')) return;
+            if (e.key === 'Escape') {
+                e.preventDefault();
+                closeAppModal(false);
+            } else if (e.key === 'Enter') {
+                if (e.target && e.target.tagName !== 'BUTTON') {
+                    e.preventDefault();
+                    confirmAppModal();
+                }
+            }
+        });
+
+        document.getElementById('appModalBackdrop')?.addEventListener('click', (e) => {
+            if (e.target === document.getElementById('appModalBackdrop')) {
+                closeAppModal(false);
+            }
+        });
 
         async function api(path, opts = {}) {
             const res = await fetch(path, {
@@ -680,42 +1202,87 @@
         }
 
         async function approve(id) {
-            const raw = prompt('Free trial length in days for this organization?', '30');
+            const raw = await customPrompt('Set the initial free trial duration in days for this organization.', '30', {
+                title: 'Approve Organization',
+                label: 'Trial Length (Days)',
+                inputType: 'number',
+                placeholder: '30',
+                confirmText: 'Next',
+            });
             if (raw === null) return;
             const days = parseInt(raw, 10);
-            if (!days || days < 1 || days > 365) { toast('Enter a trial length between 1 and 365 days.', false); return; }
-            if (!confirm('Approve this organization and start a ' + days + '-day free trial?')) return;
+            if (!days || days < 1 || days > 365) {
+                toast.warning('Enter a trial length between 1 and 365 days.');
+                return;
+            }
+            const ok = await customConfirm(`Approve this organization and start a ${days}-day free trial?`, {
+                title: 'Confirm Approval',
+                tone: 'success',
+                confirmText: 'Approve & Start Trial',
+            });
+            if (!ok) return;
             try {
                 const json = await api(`/portal/api/organizations/${id}/approve`, { method: 'POST', body: JSON.stringify({ days }) });
-                toast(json.message || 'Organization approved', true);
+                toast.success(json.message || 'Organization approved');
                 await Promise.all([loadStats(), loadOrgs()]);
-            } catch (e) { toast(e.message, false); }
+            } catch (e) {
+                toast.error(e.message);
+            }
         }
 
         async function act(id, type) {
-            const names = {
-                reject: ['Reject and suspend this registration?', () => api(`/portal/api/organizations/${id}/status`, { method: 'POST', body: JSON.stringify({ status: 'suspended' }) })],
-                suspend: ['Suspend this organization? Users will lose access.', () => api(`/portal/api/organizations/${id}/status`, { method: 'POST', body: JSON.stringify({ status: 'suspended' }) })],
-                reactivate: ['Reactivate this organization?', () => api(`/portal/api/organizations/${id}/status`, { method: 'POST', body: JSON.stringify({ status: 'active' }) })],
+            const configs = {
+                reject: {
+                    title: 'Reject Registration',
+                    message: 'Reject and suspend this registration? The applicant organization will not be granted access.',
+                    tone: 'danger',
+                    confirmText: 'Reject & Suspend',
+                    action: () => api(`/portal/api/organizations/${id}/status`, { method: 'POST', body: JSON.stringify({ status: 'suspended' }) }),
+                },
+                suspend: {
+                    title: 'Suspend Organization',
+                    message: 'Suspend this organization? All employees and branch members will lose access immediately.',
+                    tone: 'danger',
+                    confirmText: 'Suspend Organization',
+                    action: () => api(`/portal/api/organizations/${id}/status`, { method: 'POST', body: JSON.stringify({ status: 'suspended' }) }),
+                },
+                reactivate: {
+                    title: 'Reactivate Organization',
+                    message: 'Reactivate this organization? Full access will be restored for all users and branches.',
+                    tone: 'success',
+                    confirmText: 'Reactivate',
+                    action: () => api(`/portal/api/organizations/${id}/status`, { method: 'POST', body: JSON.stringify({ status: 'active' }) }),
+                },
             }[type];
-            if (!names || !confirm(names[0])) return;
+            if (!configs) return;
+            const ok = await customConfirm(configs.message, {
+                title: configs.title,
+                tone: configs.tone,
+                confirmText: configs.confirmText,
+            });
+            if (!ok) return;
             try {
-                const json = await names[1]();
-                toast(json.message || 'Done', true);
+                const json = await configs.action();
+                toast.success(json.message || 'Done');
                 await Promise.all([loadStats(), loadOrgs()]);
             } catch (e) {
-                toast(e.message, false);
+                toast.error(e.message);
             }
         }
 
         async function deleteOrg(id) {
-            if (!confirm('Delete this organization and ALL of its data (users, branches, attendance and payments)? This cannot be undone.')) return;
+            const ok = await customConfirm('Delete this organization and ALL of its data (users, branches, attendance and payments)? This action is permanent and cannot be undone.', {
+                title: 'Delete Organization',
+                tone: 'danger',
+                confirmText: 'Delete Permanently',
+            });
+            if (!ok) return;
             try {
                 const json = await api('/portal/api/organizations/' + id, { method: 'DELETE' });
-                toast(json.message || 'Organization deleted.', true);
+                toast.success(json.message || 'Organization deleted.');
                 await Promise.all([loadStats(), loadOrgs()]);
             } catch (e) {
-                if (e.message !== 'expired') toast(e.message, false);
+                if (e.message !== 'expired') toast.error(e.message);
             }
         }
 
@@ -906,10 +1473,19 @@
         }
 
         async function extendTrial(id) {
-            const raw = prompt('Add how many trial days?', '30');
+            const raw = await customPrompt('How many days would you like to add to this trial?', '30', {
+                title: 'Extend Free Trial',
+                label: 'Additional Trial Days',
+                inputType: 'number',
+                placeholder: '30',
+                confirmText: 'Extend Trial',
+            });
             if (raw === null) return;
             const days = parseInt(raw, 10);
-            if (!days || days < 1 || days > 365) { toast('Enter between 1 and 365 days.', false); return; }
+            if (!days || days < 1 || days > 365) {
+                toast.warning('Enter between 1 and 365 days.');
+                return;
+            }
             await subAction(id, 'extend_trial', { days });
         }
 
@@ -1198,8 +1774,13 @@
             const audience = document.getElementById('sms_audience')?.value || 'org_admin';
             const orgId = audience === 'org' ? document.getElementById('sms_org_id')?.value : null;
 
-            if (!message) { toast('Please enter a message.', false); return; }
-            if (!confirm('Send this SMS to the selected recipients?')) return;
+            if (!message) { toast.warning('Please enter an SMS message.'); return; }
+            const ok = await customConfirm('Send this SMS to the selected recipients?', {
+                title: 'Send SMS Broadcast',
+                tone: 'info',
+                confirmText: 'Send SMS',
+            });
+            if (!ok) return;
 
             const btn = document.getElementById('sms_send_btn');
             if (btn) { btn.disabled = true; btn.textContent = 'Sending...'; }
@@ -1221,7 +1802,12 @@
         }
 
         async function deleteBroadcast(id) {
-            if (!confirm('Delete this broadcast from the history? This removes all its recipient records.')) return;
+            const ok = await customConfirm('Delete this broadcast from the history? This removes all of its recipient records.', {
+                title: 'Delete Broadcast',
+                tone: 'danger',
+                confirmText: 'Delete Broadcast',
+            });
+            if (!ok) return;
             try {
                 const json = await api('/portal/api/notifications/' + id, { method: 'DELETE' });
                 toast(json.message || 'Broadcast deleted.', true);
@@ -1243,10 +1829,16 @@
             const orgId = audience === 'org' ? document.getElementById('nb_org_id')?.value : null;
             const sendSms = !!document.getElementById('nb_sms')?.checked;
 
-            if (!title) { toast('Please enter a notification title.', false); return; }
-            if (!body) { toast('Please enter a message body.', false); return; }
+            if (!title) { toast.warning('Please enter a notification title.'); return; }
+            if (!body) { toast.warning('Please enter a message body.'); return; }
 
-            if (!confirm(`Dispatch this ${sendSms ? 'push + SMS ' : 'push '}broadcast to ${audience === 'all' ? 'all users' : audience}?`)) return;
+            const targetDesc = audience === 'all' ? 'all users' : audience;
+            const ok = await customConfirm(`Dispatch this ${sendSms ? 'push + SMS ' : 'push '}broadcast to ${targetDesc}?`, {
+                title: 'Dispatch Broadcast',
+                tone: 'warning',
+                confirmText: 'Dispatch Broadcast',
+            });
+            if (!ok) return;
 
             const btn = document.getElementById('nb_submit_btn');
             if (btn) { btn.disabled = true; btn.textContent = 'Sending...'; }
