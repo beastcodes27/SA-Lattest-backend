@@ -1598,10 +1598,21 @@
                         <div><label class="plabel">Description</label><input class="pfield" id="pm_desc_${p.id}" value="${esc(p.description || '')}"></div>
                     </div>
                     <label class="switch"><input type="checkbox" id="pm_active_${p.id}" ${p.active ? 'checked' : ''}> Active</label>
-                    <div class="actions"><button class="btn primary" onclick="updatePromo(${p.id})">Save</button></div>
+                    <div class="actions"><button class="btn primary" onclick="updatePromo(${p.id})">Save</button><button class="btn danger" onclick="deletePromo(${p.id})">Delete</button></div>
                 </div>`;
             }).join('');
             box.innerHTML = newCard + list;
+        }
+
+        async function deletePromo(id) {
+            if (!confirm('Delete this promo code? Its redemption history will also be removed. This cannot be undone.')) return;
+            try {
+                const json = await api('/portal/api/promos/' + id, { method: 'DELETE' });
+                toast(json.message || 'Promo deleted.', true);
+                await loadPromos();
+            } catch (e) {
+                if (e.message !== 'expired') toast(e.message, false);
+            }
         }
 
         async function createPromo() {

@@ -85,6 +85,14 @@ class PromoManagerController extends Controller
         return response()->json(['message' => "Promo {$promo->code} updated.", 'promo' => $this->payload($promo->fresh())]);
     }
 
+    public function destroy(Promo $promo): JsonResponse
+    {
+        $code = $promo->code;
+        $promo->delete();
+
+        return response()->json(['message' => "Promo {$code} deleted."]);
+    }
+
     private function payload(Promo $promo): array
     {
         return [

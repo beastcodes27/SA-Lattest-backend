@@ -33,6 +33,7 @@ Route::prefix('portal')->group(function () {
             Route::get('promos', [PromoManagerController::class, 'index']);
             Route::post('promos', [PromoManagerController::class, 'store']);
             Route::put('promos/{promo}', [PromoManagerController::class, 'update']);
+            Route::delete('promos/{promo}', [PromoManagerController::class, 'destroy']);
 
             Route::get('notifications/history', [NotificationController::class, 'systemHistory']);
             Route::post('notifications/broadcast', [NotificationController::class, 'systemBroadcast']);
