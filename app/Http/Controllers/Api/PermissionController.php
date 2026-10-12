@@ -92,7 +92,7 @@ class PermissionController extends Controller
         // Notify Organization Admins of new leave request
         try {
             $orgAdmins = User::where('org_id', $org->id)
-                ->where('role', 'org_admin')
+                ->whereIn('role', ['admin', 'org_admin'])
                 ->where('active', true)
                 ->get();
 

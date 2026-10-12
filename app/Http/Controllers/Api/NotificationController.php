@@ -205,7 +205,7 @@ class NotificationController extends Controller
         }
 
         if (! empty($validated['role']) && $validated['role'] !== 'all') {
-            $query->where('role', $validated['role']);
+            $this->applyRoleScope($query, $validated['role']);
         }
 
         $recipients = $query->get();
@@ -256,7 +256,7 @@ class NotificationController extends Controller
         }
 
         if (! empty($validated['role']) && $validated['role'] !== 'all') {
-            $query->where('role', $validated['role']);
+            $this->applyRoleScope($query, $validated['role']);
         }
 
         $recipients = $query->get();
@@ -292,6 +292,32 @@ class NotificationController extends Controller
             'success' => true,
             'message' => "Deleted {$deleted} broadcast record(s).",
         ]);
+    }
+
+    /**
+     * Map a friendly audience key to the actual user role(s).
+     * Org admins are stored with role "admin" (legacy "org_admin" also accepted);
+     * system admins are superadmin / minor_admin / sysadmin.
+     */
+    private function applyRoleScope($query, ?string $role): void
+    {
+        if (empty($role) || $role === 'all') {
+            return;
+        }
+
+        if ($role === 'org_admin') {
+            $query->whereIn('role', ['admin', 'org_admin']);
+
+            return;
+        }
+
+        if ($role === 'system_admin') {
+            $query->whereIn('role', ['superadmin', 'minor_admin', 'sysadmin']);
+
+            return;
+        }
+
+        $query->where('role', $role);
     }
 
     /**
