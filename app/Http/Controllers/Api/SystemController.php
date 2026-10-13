@@ -157,12 +157,9 @@ class SystemController extends Controller
             ])->save();
             $message = 'Subscription canceled. Access continues until the current period ends.';
         } elseif ($action === 'renew') {
-            $organization->forceFill([
-                'subscription_status' => 'active',
-                'canceled_at' => null,
-                'trial_ends_at' => null,
-            ])->save();
-            $message = 'Subscription renewed. Access restored.';
+            $organization->resumeSubscription();
+            $resumedPlan = $organization->plan ? ucfirst($organization->plan) : 'their plan';
+            $message = 'Subscription renewed on the '.$resumedPlan.' package, continuing where it was paused.';
 
             try {
                 SmsService::notifyOrgAdmins(
@@ -173,12 +170,16 @@ class SystemController extends Controller
                 Log::warning('Failed to SMS renewal: '.$e->getMessage());
             }
         } else { // reactivate
-            $organization->forceFill([
-                'subscription_status' => null,
-                'canceled_at' => null,
-            ])->save();
-            if ($organization->trial_started_at === null) {
-                $organization->startTrial(30);
+            if ($organization->hasPausedPeriod()) {
+                $organization->resumeSubscription();
+            } else {
+                $organization->forceFill([
+                    'subscription_status' => null,
+                    'canceled_at' => null,
+                ])->save();
+                if ($organization->trial_started_at === null) {
+                    $organization->startTrial(30);
+                }
             }
             $message = 'Subscription reactivated.';
         }
@@ -526,6 +527,9 @@ class SystemController extends Controller
             'trial_days_left' => $org->trialDaysLeft(),
             'trial_started_at' => $org->trial_started_at?->toIso8601String(),
             'trial_ends_at' => $org->trial_ends_at?->toIso8601String(),
+            'subscription_ends_at' => $org->subscription_ends_at?->toIso8601String(),
+            'paused_plan' => $org->paused_plan,
+            'paused_days_left' => $org->pausedDaysLeft(),
             'canceled_at' => $org->canceled_at?->toIso8601String(),
             'subscription_status' => $org->subscription_status,
             'plan_state' => $planState,

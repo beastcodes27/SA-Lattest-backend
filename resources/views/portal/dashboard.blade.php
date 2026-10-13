@@ -1458,6 +1458,7 @@
             if (!list.length) { box.innerHTML = '<p style="color:var(--muted)">No subscriptions yet.</p>'; return; }
             box.innerHTML = list.map(o => {
                 const sub = o.subscription_status === 'canceled' ? 'Canceled'
+                    : (o.subscription_status === 'active' && o.subscription_ends_at && new Date(o.subscription_ends_at) < new Date()) ? 'Expired'
                     : o.on_trial ? 'Free trial'
                     : o.subscription_status === 'active' ? 'Active' : 'No trial';
                 const subColor = o.subscription_status === 'canceled' ? 'var(--red)' : (o.subscription_status === 'active' || o.on_trial ? 'var(--green)' : 'var(--amber)');
@@ -1467,14 +1468,22 @@
                     : `<button class="btn ghost" onclick="subAction(${o.id},'set_plan')">Set plan</button>
                        <button class="btn ghost" onclick="extendTrial(${o.id})">Extend trial</button>
                        ${o.subscription_status === 'canceled'
-                            ? `<button class="btn primary" onclick="subAction(${o.id},'renew')">Renew subscription</button>`
+                            ? `<button class="btn primary" onclick="subAction(${o.id},'renew')">Resume subscription</button>`
                             : `<button class="btn danger" onclick="subAction(${o.id},'cancel')">Cancel</button>`}`;
+                const pausedLine = o.subscription_status === 'canceled' && o.paused_plan
+                    ? `<span style="color:var(--red);font-weight:700">Paused package: ${cap(o.paused_plan)}${o.paused_days_left ? ' · ' + o.paused_days_left + 'd left' : ''}</span>`
+                    : '';
+                const periodLine = o.subscription_status === 'active' && o.subscription_ends_at
+                    ? `<span>Package ends <b>${fmtDate(o.subscription_ends_at)}</b></span>`
+                    : '';
                 return `<div class="org">
                     <h3>${esc(o.name)} <span class="pill" style="color:${subColor};background:${subColor}1A">${sub}</span></h3>
                     <div class="meta">
                         <span>Plan: <b>${cap(o.plan)}</b></span>
                         <span>Trial ends <b>${fmtDate(o.trial_ends_at)}</b></span>
                         <span>${o.on_trial ? o.trial_days_left + 'd left' : ''}</span>
+                        ${periodLine}
+                        ${pausedLine}
                         <span>Employees ${o.employees_count}/${o.employees_limit === null ? '∞' : o.employees_limit}</span>
                         <span>Branches ${o.branches_count}/${o.branches_limit === null ? '∞' : o.branches_limit}</span>
                     </div>

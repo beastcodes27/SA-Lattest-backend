@@ -23,9 +23,13 @@ use Illuminate\Database\Eloquent\Relations\HasManyThrough;
     'status',
     'trial_started_at',
     'trial_ends_at',
+    'subscription_ends_at',
     'subscription_status',
     'canceled_at',
     'discount_percent',
+    'paused_plan',
+    'paused_remaining_seconds',
+    'paused_was_trial',
     'renewal_reminder_sent_at',
     'offer_reminder_sent_at',
 ])]
@@ -36,8 +40,11 @@ class Organization extends Model
         return [
             'trial_started_at' => 'datetime',
             'trial_ends_at' => 'datetime',
+            'subscription_ends_at' => 'datetime',
             'canceled_at' => 'datetime',
             'discount_percent' => 'integer',
+            'paused_remaining_seconds' => 'integer',
+            'paused_was_trial' => 'boolean',
             'photos' => 'array',
             'renewal_reminder_sent_at' => 'datetime',
             'offer_reminder_sent_at' => 'datetime',
@@ -64,6 +71,8 @@ class Organization extends Model
 
     public function cancelTrial(): void
     {
+        $this->capturePausedPeriod();
+
         $this->forceFill([
             'trial_ends_at' => now(),
             'subscription_status' => 'canceled',
@@ -78,7 +87,64 @@ class Organization extends Model
             'subscription_status' => 'active',
             'trial_ends_at' => null,
             'canceled_at' => null,
+            'subscription_ends_at' => now()->addMonths($billingCycle === 'annual' ? 12 : 1),
+            'paused_plan' => null,
+            'paused_remaining_seconds' => 0,
+            'paused_was_trial' => false,
         ])->save();
+    }
+
+    /**
+     * Remember the package and the time left on the current period so that
+     * reactivation can resume exactly where the subscription was paused.
+     */
+    public function capturePausedPeriod(): void
+    {
+        $wasTrial = $this->onTrial();
+        $end = $wasTrial ? $this->trial_ends_at : $this->subscription_ends_at;
+        $remaining = $end ? max(0, $end->getTimestamp() - now()->getTimestamp()) : 0;
+
+        $this->forceFill([
+            'paused_plan' => $this->plan,
+            'paused_remaining_seconds' => $remaining,
+            'paused_was_trial' => $wasTrial,
+        ])->save();
+    }
+
+    /**
+     * Restore the cancelled package and continue the remaining time that was
+     * paused, instead of starting a fresh period.
+     */
+    public function resumeSubscription(): void
+    {
+        $plan = $this->paused_plan ?: $this->plan;
+        $seconds = (int) $this->paused_remaining_seconds;
+        $wasTrial = (bool) $this->paused_was_trial;
+
+        $this->forceFill([
+            'plan' => $plan,
+            'subscription_status' => $wasTrial ? null : 'active',
+            'canceled_at' => null,
+            'trial_ends_at' => $wasTrial ? ($seconds > 0 ? now()->addSeconds($seconds) : now()) : null,
+            'subscription_ends_at' => $wasTrial ? null : ($seconds > 0 ? now()->addSeconds($seconds) : now()->addMonth()),
+            'paused_plan' => null,
+            'paused_remaining_seconds' => 0,
+            'paused_was_trial' => false,
+        ])->save();
+    }
+
+    public function hasPausedPeriod(): bool
+    {
+        return $this->paused_plan !== null || (int) $this->paused_remaining_seconds > 0;
+    }
+
+    public function pausedDaysLeft(): ?int
+    {
+        if (! $this->hasPausedPeriod()) {
+            return null;
+        }
+
+        return (int) ceil(((int) $this->paused_remaining_seconds) / 86400);
     }
 
     public function trialDaysLeft(): ?int
@@ -129,7 +195,8 @@ class Organization extends Model
 
     public function subscriptionActive(): bool
     {
-        return $this->subscription_status === 'active';
+        return $this->subscription_status === 'active'
+            && ($this->subscription_ends_at === null || $this->subscription_ends_at->isFuture());
     }
 
     public function activeBranches(): HasMany

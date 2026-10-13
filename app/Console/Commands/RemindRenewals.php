@@ -19,9 +19,17 @@ class RemindRenewals extends Command
 
         $orgs = Organization::query()
             ->where('status', 'active')
-            ->whereNotNull('trial_ends_at')
-            ->where('trial_ends_at', '>', $now)
-            ->where('trial_ends_at', '<=', $threshold)
+            ->where(function ($q) use ($now, $threshold) {
+                $q->where(function ($trial) use ($now, $threshold) {
+                    $trial->whereNotNull('trial_ends_at')
+                        ->where('trial_ends_at', '>', $now)
+                        ->where('trial_ends_at', '<=', $threshold);
+                })->orWhere(function ($sub) use ($now, $threshold) {
+                    $sub->whereNotNull('subscription_ends_at')
+                        ->where('subscription_ends_at', '>', $now)
+                        ->where('subscription_ends_at', '<=', $threshold);
+                });
+            })
             ->where(function ($q) use ($now) {
                 $q->whereNull('renewal_reminder_sent_at')
                     ->orWhere('renewal_reminder_sent_at', '<', $now->copy()->subDays(3));
@@ -32,8 +40,17 @@ class RemindRenewals extends Command
         $sent = 0;
 
         foreach ($orgs as $org) {
-            $daysLeft = $org->trialDaysLeft() ?? 0;
-            $message = SmsService::withSupport("SmartAttend: Your package for {$org->name} ends in {$daysLeft} day(s) on {$org->trial_ends_at->toDateString()}. Renew now to keep employee check-ins running.");
+            $end = collect([$org->trial_ends_at, $org->subscription_ends_at])
+                ->filter(fn ($date) => $date && $date->isFuture())
+                ->sort()
+                ->first();
+
+            if (! $end) {
+                continue;
+            }
+
+            $daysLeft = max(0, (int) ceil($now->diffInMinutes($end, false) / 1440));
+            $message = SmsService::withSupport("SmartAttend: Your package for {$org->name} ends in {$daysLeft} day(s) on {$end->toDateString()}. Renew now to keep employee check-ins running.");
 
             $sent += SmsService::notifyOrgAdmins($org, $message, false);
 

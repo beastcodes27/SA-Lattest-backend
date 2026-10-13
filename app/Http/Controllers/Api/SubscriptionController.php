@@ -81,6 +81,8 @@ class SubscriptionController extends Controller
             return response()->json(['message' => 'Your subscription is already canceled.', 'subscription' => $this->payload($org)], 422);
         }
 
+        $org->capturePausedPeriod();
+
         $org->forceFill([
             'subscription_status' => 'canceled',
             'canceled_at' => now(),
@@ -150,6 +152,9 @@ class SubscriptionController extends Controller
             'can_cancel_trial' => $onTrial,
             'trial_days_left' => $org->trialDaysLeft(),
             'trial_ends_at' => $org->trial_ends_at?->toIso8601String(),
+            'subscription_ends_at' => $org->subscription_ends_at?->toIso8601String(),
+            'paused_plan' => $org->paused_plan,
+            'paused_days_left' => $org->pausedDaysLeft(),
             'canceled_at' => $org->canceled_at?->toIso8601String(),
             'discount_percent' => (int) $org->discount_percent,
             'accessible' => $org->isAccessible(),
