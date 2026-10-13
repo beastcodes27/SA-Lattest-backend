@@ -1467,7 +1467,7 @@
                     : `<button class="btn ghost" onclick="subAction(${o.id},'set_plan')">Set plan</button>
                        <button class="btn ghost" onclick="extendTrial(${o.id})">Extend trial</button>
                        ${o.subscription_status === 'canceled'
-                            ? `<button class="btn primary" onclick="subAction(${o.id},'reactivate')">Reactivate</button>`
+                            ? `<button class="btn primary" onclick="subAction(${o.id},'renew')">Renew subscription</button>`
                             : `<button class="btn danger" onclick="subAction(${o.id},'cancel')">Cancel</button>`}`;
                 return `<div class="org">
                     <h3>${esc(o.name)} <span class="pill" style="color:${subColor};background:${subColor}1A">${sub}</span></h3>

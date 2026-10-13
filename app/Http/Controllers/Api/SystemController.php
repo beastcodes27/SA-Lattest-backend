@@ -121,7 +121,7 @@ class SystemController extends Controller
     public function updateSubscription(Request $request, Organization $organization): JsonResponse
     {
         $validator = Validator::make($request->all(), [
-            'action' => ['required', Rule::in(['set_plan', 'extend_trial', 'cancel', 'reactivate'])],
+            'action' => ['required', Rule::in(['set_plan', 'extend_trial', 'cancel', 'renew', 'reactivate'])],
             'plan' => ['nullable', Rule::exists('packages', 'code')->where('active', true)],
             'days' => ['nullable', 'integer', 'between:1,365'],
         ]);
@@ -156,6 +156,22 @@ class SystemController extends Controller
                 'canceled_at' => now(),
             ])->save();
             $message = 'Subscription canceled. Access continues until the current period ends.';
+        } elseif ($action === 'renew') {
+            $organization->forceFill([
+                'subscription_status' => 'active',
+                'canceled_at' => null,
+                'trial_ends_at' => null,
+            ])->save();
+            $message = 'Subscription renewed. Access restored.';
+
+            try {
+                SmsService::notifyOrgAdmins(
+                    $organization,
+                    SmsService::withSupport("SmartAttend: Your subscription for {$organization->name} has been renewed and access is restored. Thank you.")
+                );
+            } catch (\Throwable $e) {
+                Log::warning('Failed to SMS renewal: '.$e->getMessage());
+            }
         } else { // reactivate
             $organization->forceFill([
                 'subscription_status' => null,
