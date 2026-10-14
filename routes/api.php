@@ -19,11 +19,15 @@ use Illuminate\Support\Facades\Route;
 Route::get('app/version', [AppVersionController::class, 'check']);
 
 // Public & Payment Gateway Webhooks
-Route::post('webhooks/sonicpesa', [SonicPesaWebhookController::class, 'handle'])->name('webhooks.sonicpesa');
+Route::post('webhooks/sonicpesa', [SonicPesaWebhookController::class, 'handle'])
+    ->middleware('throttle:120,1')
+    ->name('webhooks.sonicpesa');
 
 Route::prefix('auth')->group(function () {
-    Route::post('register-organization', [AuthController::class, 'registerOrganization']);
-    Route::post('login', [AuthController::class, 'login']);
+    Route::post('register-organization', [AuthController::class, 'registerOrganization'])
+        ->middleware('throttle:5,1');
+    Route::post('login', [AuthController::class, 'login'])
+        ->middleware('throttle:10,1');
 });
 
 Route::get('packages', [PackagesController::class, 'publicList']);
@@ -34,8 +38,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('me', [ProfileController::class, 'me']);
     Route::put('me', [ProfileController::class, 'update']);
     Route::post('me/avatar', [ProfileController::class, 'uploadAvatar']);
-    Route::put('me/password', [ProfileController::class, 'changePassword']);
-    Route::put('me/password/force', [ProfileController::class, 'forceChangePassword']);
+    Route::put('me/password', [ProfileController::class, 'changePassword'])->middleware('throttle:10,1');
+    Route::put('me/password/force', [ProfileController::class, 'forceChangePassword'])->middleware('throttle:10,1');
     // Mobile User Profile & Device Push Registration
     Route::post('me/push-token', [NotificationController::class, 'updatePushToken']);
     Route::post('profile/push-token', [NotificationController::class, 'updatePushToken']);
@@ -65,6 +69,9 @@ Route::middleware(['auth:sanctum', 'org-admin'])->prefix('admin')->group(functio
     Route::patch('employees/{employee}/transfer-branch', [AdminController::class, 'transferBranch']);
     Route::post('employees/{employee}/reset-password', [AdminController::class, 'resetEmployeePassword']);
     Route::delete('employees/{employee}', [AdminController::class, 'destroyEmployee']);
+    Route::get('admins', [AdminController::class, 'admins']);
+    Route::post('admins', [AdminController::class, 'storeAdmin']);
+    Route::delete('admins/{admin}', [AdminController::class, 'destroyAdmin']);
     Route::get('reports', [AdminController::class, 'reports']);
     Route::get('reports/cumulative', [AdminController::class, 'cumulativeReports']);
     Route::get('branches', [AdminController::class, 'branches']);
