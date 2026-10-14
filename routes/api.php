@@ -64,6 +64,7 @@ Route::middleware(['auth:sanctum', 'org-admin'])->prefix('admin')->group(functio
     Route::patch('employees/{employee}', [AdminController::class, 'toggleEmployee']);
     Route::patch('employees/{employee}/transfer-branch', [AdminController::class, 'transferBranch']);
     Route::post('employees/{employee}/reset-password', [AdminController::class, 'resetEmployeePassword']);
+    Route::delete('employees/{employee}', [AdminController::class, 'destroyEmployee']);
     Route::get('reports', [AdminController::class, 'reports']);
     Route::get('reports/cumulative', [AdminController::class, 'cumulativeReports']);
     Route::get('branches', [AdminController::class, 'branches']);

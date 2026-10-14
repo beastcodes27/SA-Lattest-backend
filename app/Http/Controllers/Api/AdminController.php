@@ -13,6 +13,7 @@ use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 
@@ -306,6 +307,34 @@ class AdminController extends Controller
         return response()->json([
             'message' => "Password reset successfully for {$employee->name}.",
             'employee' => $this->employeePayload($employee->load('branch:id,name')->refresh()),
+        ]);
+    }
+
+    public function destroyEmployee(Request $request, User $employee): JsonResponse
+    {
+        $org = $request->user()->organization;
+
+        if ($employee->org_id !== $org->id || $employee->role !== 'employee') {
+            return response()->json(['message' => 'Employee not found.'], 404);
+        }
+
+        $name = $employee->name;
+        $employeeId = $employee->id;
+
+        foreach (array_filter([$employee->avatar_path, $employee->face_photo_path]) as $path) {
+            Storage::disk('public')->delete($path);
+        }
+
+        // Revoke any active API tokens so the account can no longer authenticate.
+        $employee->tokens()->delete();
+
+        // Soft delete so the account is removed from active staff lists while
+        // attendance history (and other records) remain saved for reporting.
+        $employee->delete();
+
+        return response()->json([
+            'message' => "{$name} has been deleted.",
+            'id' => $employeeId,
         ]);
     }
 
@@ -692,7 +721,8 @@ class AdminController extends Controller
         }
 
         $max = 0;
-        $existing = User::where('employee_id', 'like', $prefix.'-%')->pluck('employee_id');
+        // Include soft-deleted employees so their IDs are never reused.
+        $existing = User::withTrashed()->where('employee_id', 'like', $prefix.'-%')->pluck('employee_id');
         foreach ($existing as $id) {
             $suffix = substr($id, strlen($prefix) + 1);
             if ($suffix !== false && ctype_digit($suffix)) {
@@ -701,7 +731,7 @@ class AdminController extends Controller
         }
 
         $next = $max + 1;
-        while (User::where('employee_id', $this->formatEmployeeId($prefix, $next))->exists()) {
+        while (User::withTrashed()->where('employee_id', $this->formatEmployeeId($prefix, $next))->exists()) {
             $next++;
         }
 
