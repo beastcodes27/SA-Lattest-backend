@@ -130,8 +130,10 @@ class ProfileController extends Controller
 
         $validator = Validator::make($request->all(), [
             'new_password' => ['required', 'string', 'min:6'],
-            'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user->id)],
-            'phone' => ['required', 'string', 'max:40'],
+            // Contact details are only required when the account does not already
+            // have them (e.g. after an admin password reset the profile is intact).
+            'email' => [$user->email ? 'nullable' : 'required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user->id)],
+            'phone' => [$user->phone ? 'nullable' : 'required', 'string', 'max:40'],
         ]);
 
         if ($validator->fails()) {
@@ -149,9 +151,14 @@ class ProfileController extends Controller
         $updates = [
             'password' => $request->new_password,
             'must_change_password' => false,
-            'email' => $request->email,
-            'phone' => $request->phone,
         ];
+
+        if ($request->filled('email')) {
+            $updates['email'] = $request->email;
+        }
+        if ($request->filled('phone')) {
+            $updates['phone'] = $request->phone;
+        }
 
         $user->forceFill($updates)->save();
 

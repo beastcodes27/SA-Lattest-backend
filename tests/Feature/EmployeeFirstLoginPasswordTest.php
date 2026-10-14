@@ -126,6 +126,26 @@ class EmployeeFirstLoginPasswordTest extends TestCase
             ->assertJsonPath('message', 'New password cannot be the organization default or temporary password. Please choose a unique password.');
     }
 
+    public function test_first_login_requires_only_password_when_contact_details_exist(): void
+    {
+        $this->employee->forceFill([
+            'email' => 'baraka@apexlogistics.tz',
+            'phone' => '0755112233',
+        ])->save();
+
+        Sanctum::actingAs($this->employee);
+
+        $this->putJson('/api/me/password/force', [
+            'new_password' => 'MyVeryOwnPass1',
+        ])->assertOk();
+
+        $employee = $this->employee->fresh();
+        $this->assertTrue(Hash::check('MyVeryOwnPass1', $employee->password));
+        $this->assertFalse($employee->must_change_password);
+        $this->assertSame('baraka@apexlogistics.tz', $employee->email);
+        $this->assertSame('0755112233', $employee->phone);
+    }
+
     public function test_first_login_saves_contact_details_and_new_password(): void
     {
         Sanctum::actingAs($this->employee);
