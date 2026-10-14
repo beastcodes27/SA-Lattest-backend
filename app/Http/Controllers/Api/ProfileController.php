@@ -70,7 +70,7 @@ class ProfileController extends Controller
             if ($imageBinary === false) {
                 return response()->json(['message' => 'Invalid image data.'], 422);
             }
-            $filename = 'avatars/' . uniqid('avatar_', true) . '.' . $type;
+            $filename = 'avatars/'.uniqid('avatar_', true).'.'.$type;
             Storage::disk('public')->put($filename, $imageBinary);
             $path = $filename;
         } else {
@@ -107,6 +107,11 @@ class ProfileController extends Controller
             return response()->json(['message' => 'Your current password is incorrect.'], 422);
         }
 
+        $orgDefaultPassword = $user->organization?->default_employee_password;
+        if ($orgDefaultPassword && $request->new_password === $orgDefaultPassword) {
+            return response()->json(['message' => 'New password cannot be the organization default password. Please choose a unique password.'], 422);
+        }
+
         $user->forceFill([
             'password' => $request->new_password,
             'must_change_password' => false,
@@ -125,8 +130,8 @@ class ProfileController extends Controller
 
         $validator = Validator::make($request->all(), [
             'new_password' => ['required', 'string', 'min:6'],
-            'email' => ['nullable', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user->id)],
-            'phone' => ['nullable', 'string', 'max:40'],
+            'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user->id)],
+            'phone' => ['required', 'string', 'max:40'],
         ]);
 
         if ($validator->fails()) {
@@ -144,14 +149,9 @@ class ProfileController extends Controller
         $updates = [
             'password' => $request->new_password,
             'must_change_password' => false,
+            'email' => $request->email,
+            'phone' => $request->phone,
         ];
-
-        if ($request->has('email')) {
-            $updates['email'] = $request->email ?: null;
-        }
-        if ($request->has('phone')) {
-            $updates['phone'] = $request->phone ?: null;
-        }
 
         $user->forceFill($updates)->save();
 
