@@ -23,6 +23,7 @@ use Laravel\Sanctum\HasApiTokens;
     'phone',
     'avatar_path',
     'role',
+    'is_default_admin',
     'active',
     'must_change_password',
     'face_enrolled',
@@ -48,6 +49,7 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'active' => 'boolean',
+            'is_default_admin' => 'boolean',
             'must_change_password' => 'boolean',
             'face_enrolled' => 'boolean',
         ];
