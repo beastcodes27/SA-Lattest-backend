@@ -137,6 +137,97 @@ class AdminController extends Controller
         return response()->json(['employees' => $employees]);
     }
 
+    public function admins(Request $request): JsonResponse
+    {
+        $admins = $request->user()->organization->users()
+            ->where('role', 'admin')
+            ->with('branch:id,name')
+            ->orderByDesc('is_default_admin')
+            ->orderBy('name')
+            ->get()
+            ->map(fn (User $u) => $this->adminPayload($u))
+            ->values();
+
+        return response()->json(['admins' => $admins]);
+    }
+
+    public function storeAdmin(Request $request): JsonResponse
+    {
+        $org = $request->user()->organization;
+
+        $validator = Validator::make($request->all(), [
+            'name' => ['required', 'string', 'max:255'],
+            'employee_id' => ['nullable', 'string', 'max:60', 'unique:users,employee_id'],
+            'password' => ['nullable', 'string', 'min:6'],
+            'phone' => ['nullable', 'string', 'max:40'],
+            'email' => ['nullable', 'email', 'max:255', 'unique:users,email'],
+            'branch_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('branches', 'id')->where('org_id', $org->id),
+            ],
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['message' => 'The given data was invalid.', 'errors' => $validator->errors()], 422);
+        }
+
+        $data = $validator->validated();
+        $password = ! empty($data['password'])
+            ? $data['password']
+            : ($org->default_employee_password ?: 'SmartAttend@123');
+
+        $admin = new User([
+            'name' => $data['name'],
+            'employee_id' => $data['employee_id'] ?? $this->nextEmployeeIdFor($org),
+            'password' => $password,
+            'phone' => $data['phone'] ?? null,
+            'email' => $data['email'] ?? null,
+            'branch_id' => $data['branch_id'] ?? null,
+            'role' => 'admin',
+            'is_default_admin' => false,
+            'org_id' => $org->id,
+            'active' => true,
+            'must_change_password' => true,
+        ]);
+        $admin->save();
+
+        return response()->json([
+            'message' => 'Administrator added.',
+            'admin' => $this->adminPayload($admin->load('branch:id,name')->refresh()),
+        ], 201);
+    }
+
+    public function destroyAdmin(Request $request, User $admin): JsonResponse
+    {
+        $org = $request->user()->organization;
+
+        if ($admin->org_id !== $org->id || $admin->role !== 'admin') {
+            return response()->json(['message' => 'Administrator not found.'], 404);
+        }
+
+        if ($admin->is_default_admin) {
+            return response()->json(['message' => 'The default organization administrator cannot be removed.'], 422);
+        }
+
+        if ($admin->id === $request->user()->id) {
+            return response()->json(['message' => 'You cannot remove your own administrator account.'], 422);
+        }
+
+        $name = $admin->name;
+
+        foreach (array_filter([$admin->avatar_path, $admin->face_photo_path]) as $path) {
+            Storage::disk('public')->delete($path);
+        }
+
+        $admin->tokens()->delete();
+        $admin->delete();
+
+        return response()->json([
+            'message' => "{$name} has been removed as an administrator.",
+        ]);
+    }
+
     public function storeEmployee(Request $request): JsonResponse
     {
         $org = $request->user()->organization;
@@ -272,18 +363,18 @@ class AdminController extends Controller
             return response()->json(['message' => 'Employee not found.'], 404);
         }
 
-        $validator = Validator::make($request->all(), [
-            'password' => ['required', 'string', 'min:6'],
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json(['message' => 'Password must be at least 6 characters.', 'errors' => $validator->errors()], 422);
-        }
+        // Reset to the organization's default employee password. The employee is
+        // forced to choose a new personal password on their next login.
+        $defaultPassword = $org->default_employee_password ?: 'SmartAttend@123';
 
         $employee->forceFill([
-            'password' => $request->password,
+            'password' => $defaultPassword,
             'must_change_password' => true,
         ])->save();
+
+        // Sign the employee out of any active session so they must re-authenticate
+        // with the default password before choosing a new one.
+        $employee->tokens()->delete();
 
         // Send Security Alert push notification to the employee
         $admin = $request->user();
@@ -291,7 +382,7 @@ class AdminController extends Controller
             ExpoPushService::notifyUser(
                 $employee,
                 'Security Alert: Password Changed',
-                "Your SmartAttend account password was reset by your administrator ({$admin->name}). Temporary password: {$request->password}. Please change your password upon login.",
+                "Your SmartAttend account password was reset by your administrator ({$admin->name}) to your organization's default password. Please sign in and set a new personal password.",
                 'password_reset',
                 [
                     'is_security_alert' => true,
@@ -305,7 +396,8 @@ class AdminController extends Controller
         }
 
         return response()->json([
-            'message' => "Password reset successfully for {$employee->name}.",
+            'message' => "{$employee->name}'s password has been reset to your organization default.",
+            'default_password' => $defaultPassword,
             'employee' => $this->employeePayload($employee->load('branch:id,name')->refresh()),
         ]);
     }
@@ -754,6 +846,25 @@ class AdminController extends Controller
             'avatar_path' => $user->avatar_path,
             'avatar_url' => $user->avatar_path ? asset('storage/'.$user->avatar_path) : null,
             'active' => (bool) $user->active,
+            'must_change_password' => (bool) $user->must_change_password,
+            'branch' => $user->branch?->name ?? 'Unassigned',
+            'branch_id' => $user->branch_id,
+            'created_at' => $user->created_at?->toIso8601String(),
+        ];
+    }
+
+    private function adminPayload(User $user): array
+    {
+        return [
+            'id' => $user->id,
+            'name' => $user->name,
+            'employee_id' => $user->employee_id,
+            'email' => $user->email,
+            'phone' => $user->phone,
+            'avatar_path' => $user->avatar_path,
+            'avatar_url' => $user->avatar_path ? asset('storage/'.$user->avatar_path) : null,
+            'active' => (bool) $user->active,
+            'is_default_admin' => (bool) $user->is_default_admin,
             'must_change_password' => (bool) $user->must_change_password,
             'branch' => $user->branch?->name ?? 'Unassigned',
             'branch_id' => $user->branch_id,
