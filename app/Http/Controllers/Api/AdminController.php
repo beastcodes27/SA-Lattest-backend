@@ -397,7 +397,6 @@ class AdminController extends Controller
 
         return response()->json([
             'message' => "{$employee->name}'s password has been reset to your organization default.",
-            'default_password' => $defaultPassword,
             'employee' => $this->employeePayload($employee->load('branch:id,name')->refresh()),
         ]);
     }

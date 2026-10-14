@@ -96,7 +96,7 @@ class EmployeeFirstLoginPasswordTest extends TestCase
         $response = $this->postJson("/api/admin/employees/{$this->employee->id}/reset-password");
 
         $response->assertOk()
-            ->assertJsonPath('default_password', self::ORG_DEFAULT_PASSWORD);
+            ->assertJsonMissingPath('default_password');
 
         $employee = $this->employee->fresh();
         $this->assertTrue(Hash::check(self::ORG_DEFAULT_PASSWORD, $employee->password));

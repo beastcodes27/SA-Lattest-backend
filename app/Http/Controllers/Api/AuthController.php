@@ -322,7 +322,11 @@ class AuthController extends Controller
                 'name' => $org->name,
                 'status' => $org->status,
                 'employee_id_prefix' => $org->employee_id_prefix,
-                'default_employee_password' => $org->default_employee_password ?? 'SmartAttend@123',
+                // Only admins receive the organization default password (needed by
+                // settings); it must not be exposed to employees via /me or login.
+                'default_employee_password' => $user->role === 'admin'
+                    ? ($org->default_employee_password ?? 'SmartAttend@123')
+                    : null,
                 'plan' => $org->plan,
                 'on_trial' => $org->onTrial(),
                 'trial_days_left' => $org->trialDaysLeft(),
