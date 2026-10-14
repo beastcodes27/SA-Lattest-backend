@@ -276,12 +276,19 @@ class SonicPesaService
      */
     public function verifyWebhookSignature(string $rawPayload, ?string $signature): bool
     {
-        // In sandbox or unconfigured mode, if no secret is set, allow permissive validation for testing
         $secret = $this->webhookSecret ?: $this->apiSecret;
         if (empty($secret)) {
-            Log::info('SonicPesa webhook secret not set; skipping HMAC verification in sandbox mode');
+            // Fail closed outside local/testing: an unconfigured secret must never
+            // allow unauthenticated webhooks to activate subscriptions.
+            if (app()->environment('local', 'testing')) {
+                Log::info('SonicPesa webhook secret not set; skipping HMAC verification in local/testing mode');
 
-            return true;
+                return true;
+            }
+
+            Log::error('SonicPesa webhook secret is not configured; rejecting webhook');
+
+            return false;
         }
 
         if (empty($signature)) {

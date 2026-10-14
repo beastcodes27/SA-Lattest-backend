@@ -384,6 +384,11 @@ class SystemController extends Controller
         }
 
         $data = $validator->validated();
+        $role = $data['role'] ?? 'minor_admin';
+
+        if ($role === 'superadmin' && $request->user()->role !== 'superadmin') {
+            return response()->json(['message' => 'Only a superadmin can create a superadmin account.'], 403);
+        }
 
         $admin = User::create([
             'name' => trim($data['name']),
@@ -391,7 +396,7 @@ class SystemController extends Controller
             'employee_id' => trim($data['employee_id']),
             'password' => $data['password'],
             'phone' => isset($data['phone']) ? trim($data['phone']) : null,
-            'role' => $data['role'] ?? 'minor_admin',
+            'role' => $role,
             'org_id' => null,
             'branch_id' => null,
             'active' => true,
@@ -418,8 +423,8 @@ class SystemController extends Controller
             return response()->json(['message' => 'You cannot deactivate your own account.'], 422);
         }
 
-        if ($user->employee_id === 'SYSTEM_SUPERADMIN' || $user->employee_id === 'SUPERADMIN') {
-            return response()->json(['message' => 'Cannot modify the root superadmin account.'], 422);
+        if ($error = $this->manageSystemAdminError($request, $user)) {
+            return $error;
         }
 
         $user->forceFill(['active' => ! $user->active])->save();
@@ -441,6 +446,10 @@ class SystemController extends Controller
 
     public function resetMinorAdminPassword(Request $request, User $user): JsonResponse
     {
+        if ($error = $this->manageSystemAdminError($request, $user)) {
+            return $error;
+        }
+
         $validator = Validator::make($request->all(), [
             'password' => ['required', 'string', 'min:6'],
         ]);
@@ -462,16 +471,39 @@ class SystemController extends Controller
             return response()->json(['message' => 'You cannot delete your own account.'], 422);
         }
 
-        if ($user->employee_id === 'SYSTEM_SUPERADMIN' || $user->employee_id === 'SUPERADMIN') {
-            return response()->json(['message' => 'Cannot delete the root superadmin account.'], 422);
+        if ($error = $this->manageSystemAdminError($request, $user)) {
+            return $error;
         }
 
         $name = $user->name;
+        $user->tokens()->delete();
         $user->delete();
 
         return response()->json([
             'message' => "Admin {$name} deleted successfully.",
         ]);
+    }
+
+    /**
+     * Guard system-admin management actions: only system-admin roles may be
+     * targeted, the root superadmin is protected, and only a superadmin may
+     * manage other superadmin accounts.
+     */
+    private function manageSystemAdminError(Request $request, User $target): ?JsonResponse
+    {
+        if ($target->org_id !== null || ! in_array($target->role, ['superadmin', 'minor_admin', 'sysadmin'], true)) {
+            return response()->json(['message' => 'Administrator not found.'], 404);
+        }
+
+        if (in_array($target->employee_id, ['SYSTEM_SUPERADMIN', 'SUPERADMIN'], true)) {
+            return response()->json(['message' => 'The root superadmin account is protected.'], 422);
+        }
+
+        if ($target->role === 'superadmin' && $request->user()->role !== 'superadmin') {
+            return response()->json(['message' => 'Only a superadmin can manage superadmin accounts.'], 403);
+        }
+
+        return null;
     }
 
     private function payload(Organization $org): array

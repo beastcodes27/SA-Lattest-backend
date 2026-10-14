@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Organization;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -28,11 +27,11 @@ class PortalController extends Controller
         if (Auth::attempt(['employee_id' => $credentials['employee_id'], 'password' => $credentials['password']], $request->boolean('remember'))) {
             $user = Auth::user();
 
-            if ($user->role !== 'superadmin') {
+            if ($user->role !== 'superadmin' || ! $user->active) {
                 Auth::logout();
                 $request->session()->invalidate();
 
-                return back()->withErrors(['employee_id' => 'This account is not a system admin.']);
+                return back()->withErrors(['employee_id' => 'This account is not an active system admin.']);
             }
 
             $request->session()->regenerate();
