@@ -35,6 +35,11 @@ return [
         ],
     ],
 
+    'email' => [
+        'enabled' => env('EMAIL_ENABLED', true),
+        'admin_address' => env('EMAIL_ADMIN_ADDRESS'),
+    ],
+
     'sonicpesa' => [
         'api_key' => env('SONICPESA_API_KEY'),
         'api_secret' => env('SONICPESA_API_SECRET'),
