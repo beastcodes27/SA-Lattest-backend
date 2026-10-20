@@ -3,13 +3,19 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Mail\Announcement;
+use App\Mail\PromotionMessage;
 use App\Models\AppNotification;
 use App\Models\Organization;
+use App\Models\Promo;
 use App\Models\User;
+use App\Services\EmailService;
 use App\Services\ExpoPushService;
 use App\Services\SmsService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\Rule;
 
 class NotificationController extends Controller
 {
@@ -196,6 +202,8 @@ class NotificationController extends Controller
             'org_id' => 'nullable|integer|exists:organizations,id',
             'role' => 'nullable|string|in:employee,org_admin,system_admin,all',
             'send_sms' => 'nullable|boolean',
+            'send_email' => 'nullable|boolean',
+            'promo_id' => ['nullable', 'integer', Rule::exists('promos', 'id')->where('active', true)],
         ]);
 
         $query = User::where('active', true);
@@ -228,11 +236,58 @@ class NotificationController extends Controller
             $smsSent = SmsService::sendMany($recipients, $validated['body']);
         }
 
+        $emailSent = 0;
+        $emailRecipients = 0;
+        if (! empty($validated['send_email'])) {
+            $emails = $recipients->pluck('email')->filter()->values();
+            $emailRecipients = $emails->count();
+
+            if ($emailRecipients > 0) {
+                $promo = ! empty($validated['promo_id']) ? Promo::find($validated['promo_id']) : null;
+
+                $mailable = $promo
+                    ? new PromotionMessage(
+                        $validated['title'],
+                        $validated['body'],
+                        $promo->code,
+                        $promo->label(),
+                        $promo->ends_at?->format('d M Y'),
+                        config('app.url'),
+                        'Claim this offer'
+                    )
+                    : new Announcement(
+                        $validated['title'],
+                        $validated['body'],
+                        null,
+                        config('app.url'),
+                        'Open '.config('mail_theme.brand_name')
+                    );
+
+                try {
+                    $emailSent = EmailService::sendBulk($emails->all(), $mailable);
+                } catch (\Throwable $e) {
+                    Log::warning('Failed to send broadcast email: '.$e->getMessage());
+                }
+            }
+        }
+
+        $message = "System broadcast sent to {$notifiedCount} user(s).";
+        if ($smsSent > 0) {
+            $message .= " SMS sent to {$smsSent} user(s).";
+        }
+        if (! empty($validated['send_email'])) {
+            $message .= $emailSent > 0
+                ? " Email sent to {$emailSent} recipient(s)."
+                : ' No recipients had an email address.';
+        }
+
         return response()->json([
             'success' => true,
-            'message' => "System broadcast sent to {$notifiedCount} user(s).".($smsSent > 0 ? " SMS sent to {$smsSent} user(s)." : ''),
+            'message' => $message,
             'recipients_count' => $notifiedCount,
             'sms_sent' => $smsSent,
+            'email_recipients' => $emailRecipients,
+            'email_sent' => $emailSent,
         ]);
     }
 
@@ -351,6 +406,18 @@ class NotificationController extends Controller
             ->orderBy('name')
             ->get();
 
+        $promos = Promo::where('active', true)
+            ->orderBy('code')
+            ->get()
+            ->map(fn (Promo $promo) => [
+                'id' => $promo->id,
+                'code' => $promo->code,
+                'title' => $promo->title,
+                'label' => $promo->label(),
+                'ends_at' => $promo->ends_at?->toIso8601String(),
+            ])
+            ->values();
+
         return response()->json([
             'stats' => [
                 'total_devices' => $totalDevices,
@@ -361,6 +428,7 @@ class NotificationController extends Controller
             ],
             'recent_broadcasts' => $recentBroadcasts,
             'organizations' => $organizations,
+            'promos' => $promos,
         ]);
     }
 }
