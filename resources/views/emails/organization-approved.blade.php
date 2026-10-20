@@ -1,23 +1,29 @@
 @extends('emails.layout')
 
-@section('title', 'Organization approved')
+@section('title', $organization->name.' has been approved')
+@section('preheader', 'Your organization is active on '.config('mail_theme.brand_name'))
+@section('badge', 'Account approved')
 
 @section('content')
-    <h1 style="margin:0 0 12px;font-size:20px;line-height:1.3;color:#200f35;">Your organization has been approved</h1>
+    <h1 style="margin:0 0 10px;font-size:22px;line-height:1.3;letter-spacing:-0.4px;color:#200F35;">Your organization has been approved</h1>
 
-    <p style="margin:0 0 16px;">Hello {{ $organization->name }} team,</p>
+    <p style="margin:0 0 4px;">Hello {{ $organization->name }} team,</p>
 
-    <p style="margin:0 0 16px;">
-        Your SmartAttend registration has been approved. Your organization is now active on the
-        <strong>{{ ucfirst($organization->plan) }}</strong> plan.
-        @if ($organization->trial_ends_at)
-            Your free trial runs until <strong>{{ $organization->trial_ends_at->format('d M Y') }}</strong>.
-        @endif
+    <p style="margin:0 0 4px;">
+        Your {{ config('mail_theme.brand_name') }} registration has been approved. You can now sign in with the employee ID and password you registered with, then start adding branches and employees.
     </p>
 
-    <p style="margin:0 0 20px;">You can now sign in to the SmartAttend app with the employee ID and password you registered with, and start adding branches and employees.</p>
+    @include('emails.partials.details', ['rows' => array_filter([
+        'Organization' => $organization->name,
+        'Plan' => ucfirst($organization->plan),
+        'Trial ends' => $organization->trial_ends_at?->format('d M Y'),
+    ])])
 
-    <a href="{{ config('app.url') }}" style="display:inline-block;background:#200f35;color:#ffffff;text-decoration:none;font-weight:600;font-size:14px;padding:12px 20px;border-radius:10px;">
-        Open SmartAttend
-    </a>
+    @include('emails.partials.panel', [
+        'tone' => 'success',
+        'title' => 'What happens next',
+        'body' => 'Add your branches, invite employees, and set your attendance rules. Your team can start checking in right away.',
+    ])
+
+    @include('emails.partials.button', ['url' => config('app.url'), 'label' => 'Open '.config('mail_theme.brand_name')])
 @endsection
