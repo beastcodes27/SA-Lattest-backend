@@ -798,6 +798,14 @@
                     </span>
                     <span class="nav-label">App Updates</span>
                 </button>
+
+                <div class="nav-section-title">Account</div>
+                <button class="nav-item" data-mode="account">
+                    <span class="nav-icon">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                    </span>
+                    <span class="nav-label">My Account</span>
+                </button>
             </div>
 
             <div class="sidebar-footer">
@@ -857,6 +865,28 @@
 
                 <div id="smsArea" style="display:none"></div>
                 <div id="updatesArea" style="display:none"></div>
+
+                <div id="accountArea" style="display:none">
+                    <div class="org" style="max-width:640px">
+                        <h3>My Account</h3>
+                        <div class="contact">
+                            Signed in as <b>{{ auth()->user()->name }}</b> &middot; ID {{ auth()->user()->employee_id }} &middot; {{ auth()->user()->role }}
+                        </div>
+                        <h4 style="margin:18px 0 4px">Change Password</h4>
+                        <p style="color:var(--muted);font-size:13px;margin:0">Use a strong password of at least 8 characters.</p>
+                        <form id="passwordForm" onsubmit="changeAdminPassword(event)" autocomplete="off">
+                            <label class="plabel" for="currentPassword">Current password</label>
+                            <input class="pfield" id="currentPassword" type="password" autocomplete="current-password" required>
+                            <label class="plabel" for="newPassword">New password</label>
+                            <input class="pfield" id="newPassword" type="password" autocomplete="new-password" minlength="8" required>
+                            <label class="plabel" for="confirmPassword">Confirm new password</label>
+                            <input class="pfield" id="confirmPassword" type="password" autocomplete="new-password" minlength="8" required>
+                            <div class="actions">
+                                <button class="btn primary" type="submit" id="passwordSubmitBtn">Update password</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
             </main>
         </div>
     </div>
@@ -1128,6 +1158,43 @@
             return json;
         }
 
+        async function changeAdminPassword(event) {
+            event.preventDefault();
+
+            const currentPassword = document.getElementById('currentPassword').value;
+            const newPassword = document.getElementById('newPassword').value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
+
+            if (newPassword.length < 8) {
+                toast.warning('New password must be at least 8 characters.');
+                return;
+            }
+            if (newPassword !== confirmPassword) {
+                toast.warning('New password and confirmation do not match.');
+                return;
+            }
+
+            const btn = document.getElementById('passwordSubmitBtn');
+            btn.disabled = true;
+
+            try {
+                const res = await api('/portal/api/password', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        current_password: currentPassword,
+                        new_password: newPassword,
+                        new_password_confirmation: confirmPassword,
+                    }),
+                });
+                document.getElementById('passwordForm').reset();
+                toast.success(res.message || 'Password changed successfully.');
+            } catch (err) {
+                toast.error(err.message || 'Could not change password.');
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
         async function loadStats() {
             const { stats } = await api('/portal/api/stats');
             if (stats.pending !== undefined) {
@@ -1385,7 +1452,7 @@
         let mode = 'orgs';
 
         function switchTab(targetMode, updateHash = true) {
-            const validModes = ['orgs', 'subs', 'packages', 'promos', 'notifications', 'sms', 'updates'];
+            const validModes = ['orgs', 'subs', 'packages', 'promos', 'notifications', 'sms', 'updates', 'account'];
             if (!validModes.includes(targetMode)) targetMode = 'orgs';
             mode = targetMode;
 
@@ -1404,6 +1471,7 @@
                 notifications: ['Push Broadcasts', 'Console · Live Alerts & Dispatch Center'],
                 sms: ['Send SMS', 'Console · Text Messaging to Organization Admins'],
                 updates: ['App Updates', 'Console · Mobile Version Control & OTA Rollouts'],
+                account: ['My Account', 'Console · System Admin Profile & Password'],
             };
             const [title, breadcrumb] = titles[mode] || ['Console', 'SmartAttend'];
             document.getElementById('pageTitle').textContent = title;
@@ -1416,6 +1484,7 @@
             const notifArea = document.getElementById('notificationsArea');
             const smsArea = document.getElementById('smsArea');
             const updArea = document.getElementById('updatesArea');
+            const accArea = document.getElementById('accountArea');
             
             orgArea.style.display = mode === 'orgs' ? '' : 'none';
             subsArea.style.display = mode === 'subs' ? '' : 'none';
@@ -1424,6 +1493,7 @@
             notifArea.style.display = mode === 'notifications' ? '' : 'none';
             smsArea.style.display = mode === 'sms' ? '' : 'none';
             if (updArea) updArea.style.display = mode === 'updates' ? '' : 'none';
+            if (accArea) accArea.style.display = mode === 'account' ? '' : 'none';
 
             if (updateHash && window.location.hash !== '#' + mode) {
                 history.replaceState(null, null, '#' + mode);

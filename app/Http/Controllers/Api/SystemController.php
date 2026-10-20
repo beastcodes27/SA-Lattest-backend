@@ -14,6 +14,7 @@ use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
@@ -342,6 +343,38 @@ class SystemController extends Controller
         return response()->json([
             'message' => "Organization {$name} and all its data were deleted.",
         ]);
+    }
+
+    public function changePassword(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'current_password' => ['required', 'string'],
+            'new_password' => ['required', 'string', 'min:8', 'confirmed'],
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'message' => $validator->errors()->first(),
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        $user = $request->user();
+
+        if (! Hash::check($request->input('current_password'), $user->password)) {
+            return response()->json(['message' => 'Your current password is incorrect.'], 422);
+        }
+
+        if (Hash::check($request->input('new_password'), $user->password)) {
+            return response()->json(['message' => 'Your new password must be different from your current password.'], 422);
+        }
+
+        $user->forceFill([
+            'password' => $request->input('new_password'),
+            'must_change_password' => false,
+        ])->save();
+
+        return response()->json(['message' => 'Password changed successfully.']);
     }
 
     public function minorAdmins(Request $request): JsonResponse

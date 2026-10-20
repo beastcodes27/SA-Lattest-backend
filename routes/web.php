@@ -42,6 +42,8 @@ Route::prefix('portal')->group(function () {
 
             Route::get('app-version', [AppVersionController::class, 'adminShow']);
             Route::post('app-version', [AppVersionController::class, 'adminUpdate']);
+
+            Route::post('password', [SystemController::class, 'changePassword']);
         });
     });
 });
