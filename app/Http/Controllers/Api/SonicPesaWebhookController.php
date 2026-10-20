@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Models\Payment;
+use App\Services\EmailService;
 use App\Services\SmsService;
 use App\Services\SonicPesaService;
 use Illuminate\Http\JsonResponse;
@@ -116,6 +117,12 @@ class SonicPesaWebhookController extends Controller
                     );
                 } catch (\Throwable $e) {
                     Log::warning('Failed to SMS payment success (webhook): '.$e->getMessage());
+                }
+
+                try {
+                    EmailService::sendPaymentReceipt($payment);
+                } catch (\Throwable $e) {
+                    Log::warning('Failed to email payment receipt (webhook): '.$e->getMessage());
                 }
             }
 

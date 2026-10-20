@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Models\Organization;
 use App\Models\Payment;
+use App\Services\EmailService;
 use App\Services\MobilePaymentService;
 use App\Services\SmsService;
 use App\Services\SonicPesaService;
@@ -230,6 +231,12 @@ class PaymentController extends Controller
             );
         } catch (\Throwable $e) {
             Log::warning('Failed to SMS payment success: '.$e->getMessage());
+        }
+
+        try {
+            EmailService::sendPaymentReceipt($payment);
+        } catch (\Throwable $e) {
+            Log::warning('Failed to email payment receipt: '.$e->getMessage());
         }
     }
 

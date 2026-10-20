@@ -2,11 +2,14 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Mail\OrganizationApproved;
+use App\Mail\OrganizationRejected;
 use App\Models\Attendance;
 use App\Models\Branch;
 use App\Models\Organization;
 use App\Models\PromoRedemption;
 use App\Models\User;
+use App\Services\EmailService;
 use App\Services\ExpoPushService;
 use App\Services\SmsService;
 use App\Support\PlanLimits;
@@ -229,6 +232,8 @@ class SystemController extends Controller
                     .($alertPhone ? " Your SMS alerts go to {$alertPhone}; change it in your profile anytime." : '')
                 )
             );
+
+            EmailService::sendToOrganizationAdmins($organization, new OrganizationApproved($organization));
         } catch (\Throwable $e) {
             Log::warning('Failed to notify approved organization: '.$e->getMessage());
         }
@@ -265,6 +270,8 @@ class SystemController extends Controller
                 $organization,
                 SmsService::withSupport($smsText)
             );
+
+            EmailService::sendToOrganizationAdmins($organization, new OrganizationRejected($organization, $reason));
         } catch (\Throwable $e) {
             Log::warning('Failed to notify organization on rejection: '.$e->getMessage());
         }
@@ -318,6 +325,12 @@ class SystemController extends Controller
                 $organization,
                 SmsService::withSupport($smsMessage)
             );
+
+            if ($wasPending && $status === 'active') {
+                EmailService::sendToOrganizationAdmins($organization, new OrganizationApproved($organization));
+            } elseif ($wasPending && $status === 'suspended') {
+                EmailService::sendToOrganizationAdmins($organization, new OrganizationRejected($organization, $request->input('reason')));
+            }
         } catch (\Throwable $e) {
             Log::warning('Failed to notify organization on status change: '.$e->getMessage());
         }
