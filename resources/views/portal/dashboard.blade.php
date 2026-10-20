@@ -1450,6 +1450,12 @@
         }
 
         let mode = 'orgs';
+        let pendingPromoCompose = null;
+
+        function emailPromo(id) {
+            pendingPromoCompose = String(id);
+            switchTab('notifications', true);
+        }
 
         function switchTab(targetMode, updateHash = true) {
             const validModes = ['orgs', 'subs', 'packages', 'promos', 'notifications', 'sms', 'updates', 'account'];
@@ -1677,7 +1683,7 @@
                         <div><label class="plabel">Description</label><input class="pfield" id="pm_desc_${p.id}" value="${esc(p.description || '')}"></div>
                     </div>
                     <label class="switch"><input type="checkbox" id="pm_active_${p.id}" ${p.active ? 'checked' : ''}> Active</label>
-                    <div class="actions"><button class="btn primary" onclick="updatePromo(${p.id})">Save</button><button class="btn danger" onclick="deletePromo(${p.id})">Delete</button></div>
+                    <div class="actions"><button class="btn primary" onclick="updatePromo(${p.id})">Save</button>${p.active ? `<button class="btn ghost" onclick="emailPromo(${p.id})">Email Promo</button>` : ''}<button class="btn danger" onclick="deletePromo(${p.id})">Delete</button></div>
                 </div>`;
             }).join('');
             box.innerHTML = newCard + list;
@@ -1735,6 +1741,7 @@
             const stats = data.stats || {};
             const orgs = data.organizations || [];
             const broadcasts = data.recent_broadcasts || [];
+            const promos = data.promos || [];
 
             const statsHtml = `
                 <div class="stats" style="grid-template-columns:repeat(auto-fit,minmax(140px,1fr))">
@@ -1744,11 +1751,12 @@
                 </div>`;
 
             const orgOptions = orgs.map(o => `<option value="${o.id}">${esc(o.name)}</option>`).join('');
+            const promoOptions = promos.map(p => `<option value="${p.id}">${esc(p.code)} — ${esc(p.title)}</option>`).join('');
 
             const composerHtml = `
                 <div class="org" style="margin-bottom:20px">
-                    <h3 style="display:flex;align-items:center;gap:8px">Dispatch Push Notification</h3>
-                    <p style="color:var(--muted);font-size:13px;margin:4px 0 14px">Broadcast instant push alerts with sound and heads-up banner to app users.</p>
+                    <h3 style="display:flex;align-items:center;gap:8px">Dispatch Announcement</h3>
+                    <p style="color:var(--muted);font-size:13px;margin:4px 0 14px">Send an in-app push alert, an SMS, and/or a branded email announcement to the selected audience.</p>
                     
                     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
                         <div>
@@ -1775,9 +1783,19 @@
                     <textarea class="pfield" id="nb_body" rows="3" maxlength="500" placeholder="Enter broadcast announcement message..."></textarea>
 
                     <label class="switch" style="margin-top:12px"><input type="checkbox" id="nb_sms"> Also send as SMS to recipients' phone numbers</label>
+                    <label class="switch" style="margin-top:8px"><input type="checkbox" id="nb_email" onchange="togglePromoSelect(this.checked)"> Also send as a branded email</label>
+
+                    <div id="nb_promo_wrap" style="display:none;margin-top:4px">
+                        <label class="plabel">Attach a promotion (optional)</label>
+                        <select class="pfield" id="nb_promo_id">
+                            <option value="">No promotion — plain announcement</option>
+                            ${promoOptions}
+                        </select>
+                        <div style="color:var(--muted);font-size:11px;margin-top:4px">The promo code, offer and expiry date will be included in the email.</div>
+                    </div>
 
                     <div class="actions" style="margin-top:14px">
-                        <button class="btn primary" id="nb_submit_btn" onclick="sendBroadcast()">Dispatch Broadcast</button>
+                        <button class="btn primary" id="nb_submit_btn" onclick="sendBroadcast()">Dispatch Announcement</button>
                     </div>
                 </div>`;
 
@@ -1816,6 +1834,42 @@
                 </div>`;
 
             box.innerHTML = statsHtml + composerHtml + historyHtml;
+            applyPendingPromoCompose(promos);
+        }
+
+        function togglePromoSelect(show) {
+            const wrap = document.getElementById('nb_promo_wrap');
+            if (wrap) wrap.style.display = show ? '' : 'none';
+            if (!show) {
+                const select = document.getElementById('nb_promo_id');
+                if (select) select.value = '';
+            }
+        }
+
+        function applyPendingPromoCompose(promos) {
+            if (!pendingPromoCompose) return;
+
+            const promo = (promos || []).find(p => String(p.id) === pendingPromoCompose);
+            pendingPromoCompose = null;
+            if (!promo) return;
+
+            const email = document.getElementById('nb_email');
+            if (email) email.checked = true;
+            togglePromoSelect(true);
+
+            const promoSelect = document.getElementById('nb_promo_id');
+            if (promoSelect) promoSelect.value = String(promo.id);
+
+            const audience = document.getElementById('nb_audience');
+            if (audience) audience.value = 'org_admin';
+
+            const title = document.getElementById('nb_title');
+            if (title && !title.value) title.value = promo.title;
+
+            const body = document.getElementById('nb_body');
+            if (body && !body.value) {
+                body.value = `${promo.title}. Use promo code ${promo.code} to get ${promo.label.toLowerCase()}.`;
+            }
         }
 
         async function loadSms() {
@@ -1929,15 +1983,18 @@
             const audience = document.getElementById('nb_audience')?.value || 'all';
             const orgId = audience === 'org' ? document.getElementById('nb_org_id')?.value : null;
             const sendSms = !!document.getElementById('nb_sms')?.checked;
+            const sendEmail = !!document.getElementById('nb_email')?.checked;
+            const promoId = sendEmail ? document.getElementById('nb_promo_id')?.value : null;
 
             if (!title) { toast.warning('Please enter a notification title.'); return; }
             if (!body) { toast.warning('Please enter a message body.'); return; }
 
             const targetDesc = audience === 'all' ? 'all users' : audience;
-            const ok = await customConfirm(`Dispatch this ${sendSms ? 'push + SMS ' : 'push '}broadcast to ${targetDesc}?`, {
-                title: 'Dispatch Broadcast',
+            const channels = ['push', sendSms ? 'SMS' : null, sendEmail ? 'email' : null].filter(Boolean).join(' + ');
+            const ok = await customConfirm(`Dispatch this ${channels} announcement to ${targetDesc}?`, {
+                title: 'Dispatch Announcement',
                 tone: 'warning',
-                confirmText: 'Dispatch Broadcast',
+                confirmText: 'Dispatch Announcement',
             });
             if (!ok) return;
 
@@ -1951,16 +2008,18 @@
                     org_id: orgId ? parseInt(orgId, 10) : undefined,
                     role: ['all', 'org'].includes(audience) ? undefined : audience,
                     send_sms: sendSms,
+                    send_email: sendEmail,
+                    promo_id: promoId ? parseInt(promoId, 10) : undefined,
                 };
                 const json = await api('/portal/api/notifications/broadcast', {
                     method: 'POST',
                     body: JSON.stringify(payload),
                 });
-                toast(json.message || 'Broadcast sent successfully!', true);
+                toast(json.message || 'Announcement sent successfully!', true);
                 await loadNotifications();
             } catch (e) {
-                toast(e.message || 'Failed to dispatch notification.', false);
-                if (btn) { btn.disabled = false; btn.textContent = 'Dispatch Broadcast'; }
+                toast(e.message || 'Failed to dispatch announcement.', false);
+                if (btn) { btn.disabled = false; btn.textContent = 'Dispatch Announcement'; }
             }
         }
 
