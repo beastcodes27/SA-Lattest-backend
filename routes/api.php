@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\AttendanceController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\PackagesController;
+use App\Http\Controllers\Api\PasswordResetController;
 use App\Http\Controllers\Api\PaymentController;
 use App\Http\Controllers\Api\PermissionController;
 use App\Http\Controllers\Api\ProfileController;
@@ -27,6 +28,10 @@ Route::prefix('auth')->group(function () {
     Route::post('register-organization', [AuthController::class, 'registerOrganization'])
         ->middleware('throttle:5,1');
     Route::post('login', [AuthController::class, 'login'])
+        ->middleware('throttle:10,1');
+    Route::post('forgot-password', [PasswordResetController::class, 'sendCode'])
+        ->middleware('throttle:5,1');
+    Route::post('reset-password', [PasswordResetController::class, 'reset'])
         ->middleware('throttle:10,1');
 });
 

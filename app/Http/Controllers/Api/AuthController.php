@@ -2,12 +2,14 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Mail\NewOrganizationRegistration;
 use App\Models\Attendance;
 use App\Models\Branch;
 use App\Models\Organization;
 use App\Models\Promo;
 use App\Models\PromoRedemption;
 use App\Models\User;
+use App\Services\EmailService;
 use App\Services\SmsService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
@@ -231,6 +233,12 @@ class AuthController extends Controller
             }
         } catch (\Throwable $e) {
             Log::warning('Failed to SMS system admins about registration: '.$e->getMessage());
+        }
+
+        try {
+            EmailService::sendToSystemAdmins(new NewOrganizationRegistration($organization, $admin));
+        } catch (\Throwable $e) {
+            Log::warning('Failed to email system admins about registration: '.$e->getMessage());
         }
 
         return response()->json([
