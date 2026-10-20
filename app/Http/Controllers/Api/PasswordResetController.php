@@ -11,6 +11,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Validator;
 
 class PasswordResetController extends Controller
@@ -31,6 +32,23 @@ class PasswordResetController extends Controller
         }
 
         $email = strtolower(trim((string) $request->input('email')));
+        $rateLimitKey = 'password-reset-email:'.sha1($email);
+        $dailyLimit = max(1, (int) config('services.email.password_reset_daily_limit', 2));
+
+        if (RateLimiter::tooManyAttempts($rateLimitKey, $dailyLimit)) {
+            $retryAfter = RateLimiter::availableIn($rateLimitKey);
+            $hours = max(1, (int) ceil($retryAfter / 3600));
+
+            return response()
+                ->json([
+                    'message' => "You have reached the limit of {$dailyLimit} reset emails per day. Please try again in about {$hours} hour(s).",
+                    'retry_after' => $retryAfter,
+                ], 429)
+                ->header('Retry-After', (string) $retryAfter);
+        }
+
+        RateLimiter::hit($rateLimitKey, 86400);
+
         $user = User::where('email', $email)->first();
 
         if ($user) {

@@ -21,17 +21,18 @@ class PasswordResetCode extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'Your SmartAttend password reset code',
+            subject: 'Your '.config('mail_theme.brand_name').' password reset code',
         );
     }
 
     public function content(): Content
     {
         return new Content(
-            view: 'emails.password-reset-code',
+            view: 'emails.otp',
             with: [
-                'user' => $this->user,
+                'name' => $this->user->name,
                 'code' => $this->code,
+                'purpose' => 'password reset',
                 'expiresInMinutes' => 15,
             ],
         );
