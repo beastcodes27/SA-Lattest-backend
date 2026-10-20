@@ -2,14 +2,19 @@
 
 namespace Tests\Feature;
 
+use App\Mail\Announcement;
 use App\Mail\NewOrganizationRegistration;
+use App\Mail\NotificationMessage;
+use App\Mail\OneTimePasscode;
 use App\Mail\OrganizationApproved;
 use App\Mail\OrganizationRejected;
 use App\Mail\PasswordResetCode;
 use App\Mail\PaymentReceipt;
+use App\Mail\PromotionMessage;
 use App\Models\Organization;
 use App\Models\Package;
 use App\Models\Payment;
+use App\Models\Promo;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -151,6 +156,17 @@ class EmailNotificationsTest extends TestCase
         $this->assertDatabaseMissing('password_reset_tokens', ['email' => $this->orgAdmin->email]);
     }
 
+    public function test_password_reset_emails_are_limited_to_two_per_day(): void
+    {
+        $payload = ['email' => $this->orgAdmin->email];
+
+        $this->postJson('/api/auth/forgot-password', $payload)->assertOk();
+        $this->postJson('/api/auth/forgot-password', $payload)->assertOk();
+        $this->postJson('/api/auth/forgot-password', $payload)->assertStatus(429);
+
+        Mail::assertSent(PasswordResetCode::class, 2);
+    }
+
     public function test_expired_password_reset_code_is_rejected(): void
     {
         DB::table('password_reset_tokens')->insert([
@@ -194,6 +210,55 @@ class EmailNotificationsTest extends TestCase
         $this->assertStringContainsString('unreadable', (new OrganizationRejected($this->organization, 'TIN was unreadable.'))->render());
         $this->assertStringContainsString('123456', (new PasswordResetCode($this->orgAdmin, '123456'))->render());
         $this->assertStringContainsString('SA-PAY-RENDER-01', (new PaymentReceipt($payment))->render());
+        $this->assertStringContainsString('654321', (new OneTimePasscode('654321', $this->orgAdmin->name, 'sign-in verification'))->render());
+        $this->assertStringContainsString('System maintenance', (new Announcement('System maintenance', 'We will be offline tonight for upgrades.'))->render());
+        $this->assertStringContainsString('Payment received', (new NotificationMessage('Payment received', 'Your payment was received.', $this->orgAdmin->name, 'Billing'))->render());
+        $this->assertStringContainsString('SAVE20', (new PromotionMessage('20% off upgrades', 'Upgrade today and save.', 'SAVE20', '20% off on your package', '31 Dec 2026'))->render());
+    }
+
+    public function test_system_broadcast_can_also_email_an_announcement(): void
+    {
+        Sanctum::actingAs($this->systemAdmin);
+
+        $this->postJson('/api/system/notifications/broadcast', [
+            'title' => 'Scheduled maintenance',
+            'body' => 'SmartAttend will be offline tonight from 22:00 to 23:00.',
+            'role' => 'org_admin',
+            'send_email' => true,
+        ])->assertOk()
+            ->assertJsonPath('email_sent', 1);
+
+        Mail::assertSent(Announcement::class, function (Announcement $mail) {
+            return $mail->title === 'Scheduled maintenance'
+                && collect($mail->bcc)->contains(fn ($address) => ($address['address'] ?? null) === 'admin@apex.tz');
+        });
+    }
+
+    public function test_system_broadcast_can_attach_a_promotion_to_the_email(): void
+    {
+        $promo = Promo::create([
+            'code' => 'SAVE20',
+            'title' => '20% off upgrades',
+            'type' => 'discount_percent',
+            'value' => 20,
+            'active' => true,
+            'ends_at' => now()->addMonth(),
+        ]);
+
+        Sanctum::actingAs($this->systemAdmin);
+
+        $this->postJson('/api/system/notifications/broadcast', [
+            'title' => 'Upgrade and save',
+            'body' => 'Upgrade today and save on your next subscription.',
+            'role' => 'org_admin',
+            'send_email' => true,
+            'promo_id' => $promo->id,
+        ])->assertOk();
+
+        Mail::assertSent(PromotionMessage::class, function (PromotionMessage $mail) {
+            return $mail->code === 'SAVE20'
+                && $mail->offerLabel === '20% off on your package';
+        });
     }
 
     public function test_payment_receipt_is_emailed_only_once(): void
