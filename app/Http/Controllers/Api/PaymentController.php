@@ -227,7 +227,7 @@ class PaymentController extends Controller
             $amount = number_format((int) $payment->amount);
             SmsService::notifyOrgAdmins(
                 $org,
-                "SmartAttend: Payment of TZS {$amount} was successful. Your ".ucfirst((string) $payment->plan)." subscription for {$org->name} is now active. Thank you."
+                "Payment of TZS {$amount} was successful. Your ".ucfirst((string) $payment->plan)." subscription for {$org->name} is now active. Thank you."
             );
         } catch (\Throwable $e) {
             Log::warning('Failed to SMS payment success: '.$e->getMessage());

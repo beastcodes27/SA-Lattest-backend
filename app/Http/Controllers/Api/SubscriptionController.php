@@ -34,7 +34,7 @@ class SubscriptionController extends Controller
 
         try {
             $admins = $org->users()->where('role', 'admin')->where('active', true)->get();
-            SmsService::notifyOrgAdmins($org, "SmartAttend: The free trial for {$org->name} has been canceled. Choose a package to keep managing your organization. Thank you.");
+            SmsService::notifyOrgAdmins($org, "The free trial for {$org->name} has been canceled. Choose a package to keep managing your organization. Thank you.");
         } catch (\Throwable $e) {
             Log::warning('Failed to SMS trial cancellation: '.$e->getMessage());
         }
@@ -91,7 +91,7 @@ class SubscriptionController extends Controller
 
         try {
             $admins = $org->users()->where('role', 'admin')->where('active', true)->get();
-            SmsService::notifyOrgAdmins($org, "SmartAttend: The subscription for {$org->name} has been canceled. You can subscribe again anytime to restore access. Thank you.");
+            SmsService::notifyOrgAdmins($org, "The subscription for {$org->name} has been canceled. You can subscribe again anytime to restore access. Thank you.");
         } catch (\Throwable $e) {
             Log::warning('Failed to SMS subscription cancellation: '.$e->getMessage());
         }

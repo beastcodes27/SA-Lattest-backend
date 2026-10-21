@@ -330,7 +330,7 @@ class AuthController extends Controller
         // Text the system administrator(s) so they can review the new request.
         try {
             $adminAlertPhone = trim((string) config('services.sms.admin_phone'));
-            $message = "New SmartAttend registration request: {$organization->name}. Admin {$admin->name} ({$admin->phone}). Review it in the system portal.";
+            $message = "New registration request: {$organization->name}. Admin {$admin->name} ({$admin->phone}). Review it in the system portal.";
 
             if ($adminAlertPhone !== '') {
                 SmsService::sendLater($adminAlertPhone, $message);

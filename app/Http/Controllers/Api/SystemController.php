@@ -168,7 +168,7 @@ class SystemController extends Controller
             try {
                 SmsService::notifyOrgAdmins(
                     $organization,
-                    SmsService::withSupport("SmartAttend: Your subscription for {$organization->name} has been renewed and access is restored. Thank you.")
+                    SmsService::withSupport("Your subscription for {$organization->name} has been renewed and access is restored. Thank you.")
                 );
             } catch (\Throwable $e) {
                 Log::warning('Failed to SMS renewal: '.$e->getMessage());
@@ -228,7 +228,7 @@ class SystemController extends Controller
             SmsService::notifyOrgAdmins(
                 $organization,
                 SmsService::withSupport(
-                    "SmartAttend: {$organization->name} has been approved. You can sign in and start managing your organization and adding employees details. Thank you."
+                    "{$organization->name} has been approved. You can sign in and start managing your organization and adding employees details. Thank you."
                     .($alertPhone ? " Your SMS alerts go to {$alertPhone}; change it in your profile anytime." : '')
                 )
             );
@@ -263,8 +263,8 @@ class SystemController extends Controller
 
             $reason = $request->input('reason');
             $smsText = $reason
-                ? "SmartAttend: Your organization registration for {$organization->name} was not approved. Reason: {$reason}. Please contact support for more details."
-                : "SmartAttend: Your organization registration for {$organization->name} was not approved. Please contact support for more details.";
+                ? "Your organization registration for {$organization->name} was not approved. Reason: {$reason}. Please contact support for more details."
+                : "Your organization registration for {$organization->name} was not approved. Please contact support for more details.";
 
             SmsService::notifyOrgAdmins(
                 $organization,
@@ -315,11 +315,11 @@ class SystemController extends Controller
 
             $smsMessage = $status === 'active'
                 ? ($wasPending
-                    ? "SmartAttend: {$organization->name} has been approved and activated. You can sign in now."
-                    : "SmartAttend: {$organization->name} has been reactivated. You can sign in again.")
+                    ? "{$organization->name} has been approved and activated. You can sign in now."
+                    : "{$organization->name} has been reactivated. You can sign in again.")
                 : ($wasPending
-                    ? "SmartAttend: Your organization registration for {$organization->name} was not approved. Please contact support for more details."
-                    : "SmartAttend: {$organization->name} has been suspended. Please contact support to restore access.");
+                    ? "Your organization registration for {$organization->name} was not approved. Please contact support for more details."
+                    : "{$organization->name} has been suspended. Please contact support to restore access.");
 
             SmsService::notifyOrgAdmins(
                 $organization,

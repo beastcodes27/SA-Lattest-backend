@@ -52,7 +52,7 @@ class ApproveOrganization extends Command
                 SmsService::notifyOrgAdmins(
                     $org,
                     SmsService::withSupport(
-                        "SmartAttend: {$org->name} has been approved. You can sign in and start managing your organization and adding employees details. Thank you."
+                        "{$org->name} has been approved. You can sign in and start managing your organization and adding employees details. Thank you."
                         .($alertPhone ? " Your SMS alerts go to {$alertPhone}; change it in your profile anytime." : '')
                     ),
                     false

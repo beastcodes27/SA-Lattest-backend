@@ -50,7 +50,7 @@ class RemindRenewals extends Command
             }
 
             $daysLeft = max(0, (int) ceil($now->diffInMinutes($end, false) / 1440));
-            $message = SmsService::withSupport("SmartAttend: Your package for {$org->name} ends in {$daysLeft} day(s) on {$end->toDateString()}. Renew now to keep employee check-ins running.");
+            $message = SmsService::withSupport("Your package for {$org->name} ends in {$daysLeft} day(s) on {$end->toDateString()}. Renew now to keep employee check-ins running.");
 
             $sent += SmsService::notifyOrgAdmins($org, $message, false);
 
