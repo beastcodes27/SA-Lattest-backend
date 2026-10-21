@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Mail\NewOrganizationRegistration;
+use App\Mail\OrganizationRegistrationReceived;
 use App\Models\Attendance;
 use App\Models\Branch;
 use App\Models\Organization;
@@ -317,6 +318,8 @@ class AuthController extends Controller
         $admin->save();
 
         EmailVerificationService::consume($adminEmail);
+
+        EmailService::send($adminEmail, new OrganizationRegistrationReceived($organization, $admin));
 
         if ($promo) {
             PromoRedemption::create(['promo_id' => $promo->id, 'org_id' => $organization->id]);
