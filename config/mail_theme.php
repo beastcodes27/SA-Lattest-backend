@@ -12,11 +12,11 @@ return [
     |
     */
 
-    'brand_name' => env('MAIL_BRAND_NAME', env('APP_NAME', 'SmartAttend')),
+    'brand_name' => env('MAIL_BRAND_NAME', ''),
 
-    'tagline' => env('MAIL_TAGLINE', 'Attendance & workforce management'),
+    'tagline' => env('MAIL_TAGLINE', ''),
 
-    'support_email' => env('MAIL_SUPPORT_EMAIL', env('MAIL_FROM_ADDRESS')),
+    'support_email' => env('MAIL_SUPPORT_EMAIL', 'help@smartattend.com'),
 
     'footer_note' => env('MAIL_FOOTER_NOTE', 'This is an automated message. Please do not reply to this email.'),
 
