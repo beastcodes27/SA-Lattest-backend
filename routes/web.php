@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Route;
 
 Route::prefix('portal')->group(function () {
     Route::get('/', [PortalController::class, 'showLogin'])->name('portal.login');
-    Route::post('/login', [PortalController::class, 'login'])->name('portal.login.post');
+    Route::post('/login', [PortalController::class, 'login'])->middleware('throttle:auth')->name('portal.login.post');
     Route::post('/logout', [PortalController::class, 'logout'])->name('portal.logout');
 
     Route::middleware('portal.system')->group(function () {
