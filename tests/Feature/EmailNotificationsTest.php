@@ -7,6 +7,7 @@ use App\Mail\NewOrganizationRegistration;
 use App\Mail\NotificationMessage;
 use App\Mail\OneTimePasscode;
 use App\Mail\OrganizationApproved;
+use App\Mail\OrganizationRegistrationReceived;
 use App\Mail\OrganizationRejected;
 use App\Mail\PasswordResetCode;
 use App\Mail\PaymentReceipt;
@@ -169,6 +170,11 @@ class EmailNotificationsTest extends TestCase
 
         Mail::assertSent(NewOrganizationRegistration::class, function (NewOrganizationRegistration $mail) {
             return $mail->hasTo('system@smartattend.co.tz')
+                && $mail->organization->name === 'New Medical Centre';
+        });
+
+        Mail::assertSent(OrganizationRegistrationReceived::class, function (OrganizationRegistrationReceived $mail) {
+            return $mail->hasTo('newadmin@example.com')
                 && $mail->organization->name === 'New Medical Centre';
         });
     }
