@@ -77,9 +77,9 @@ class EmailNotificationsTest extends TestCase
         ]);
     }
 
-    public function test_registration_emails_system_admins(): void
+    private function registrationPayload(string $email, ?string $code = null): array
     {
-        $this->postJson('/api/auth/register-organization', [
+        return [
             'organization' => [
                 'name' => 'New Medical Centre',
                 'address' => 'Mikocheni, Dar es Salaam',
@@ -90,7 +90,7 @@ class EmailNotificationsTest extends TestCase
             ],
             'admin' => [
                 'name' => 'New Admin',
-                'email' => 'newadmin@example.com',
+                'email' => $email,
                 'employee_id' => 'NMC-0001',
                 'password' => 'Password@123',
                 'phone' => '+255 713 111 222',
@@ -98,12 +98,90 @@ class EmailNotificationsTest extends TestCase
             'branches' => [
                 ['name' => 'Main Office', 'lat' => -6.7924, 'lng' => 39.2083, 'radius_meters' => 150],
             ],
-        ])->assertCreated();
+            'email_verification_code' => $code,
+        ];
+    }
+
+    private function requestRegistrationCode(string $email): string
+    {
+        $code = null;
+
+        $this->postJson('/api/auth/register-organization/send-code', [
+            'email' => $email,
+            'name' => 'New Admin',
+        ])->assertOk();
+
+        Mail::assertSent(OneTimePasscode::class, function (OneTimePasscode $mail) use ($email, &$code) {
+            if ($mail->hasTo($email)) {
+                $code = $mail->code;
+
+                return true;
+            }
+
+            return false;
+        });
+
+        return (string) $code;
+    }
+
+    public function test_registration_requires_a_valid_email_verification_code(): void
+    {
+        $email = 'newadmin@example.com';
+        $code = $this->requestRegistrationCode($email);
+
+        $this->postJson('/api/auth/register-organization', $this->registrationPayload($email))
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('email_verification_code');
+
+        $this->postJson('/api/auth/register-organization', $this->registrationPayload($email, '000000'))
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('email_verification_code');
+
+        $this->assertDatabaseMissing('users', ['email' => $email]);
+
+        $this->postJson('/api/auth/register-organization', $this->registrationPayload($email, $code))
+            ->assertCreated();
+
+        $this->assertDatabaseMissing('email_verification_codes', ['email' => $email]);
+    }
+
+    public function test_registration_email_code_can_be_verified_before_submitting(): void
+    {
+        $email = 'newadmin@example.com';
+        $code = $this->requestRegistrationCode($email);
+
+        $this->postJson('/api/auth/register-organization/verify-code', [
+            'email' => $email,
+            'code' => $code,
+        ])->assertOk()->assertJson(['verified' => true]);
+
+        $this->postJson('/api/auth/register-organization', $this->registrationPayload($email, $code))
+            ->assertCreated();
+    }
+
+    public function test_registration_emails_system_admins(): void
+    {
+        $email = 'newadmin@example.com';
+        $code = $this->requestRegistrationCode($email);
+
+        $this->postJson('/api/auth/register-organization', $this->registrationPayload($email, $code))
+            ->assertCreated();
 
         Mail::assertSent(NewOrganizationRegistration::class, function (NewOrganizationRegistration $mail) {
             return $mail->hasTo('system@smartattend.co.tz')
                 && $mail->organization->name === 'New Medical Centre';
         });
+    }
+
+    public function test_registration_verification_emails_are_limited_to_two_per_day(): void
+    {
+        $payload = ['email' => 'newadmin@example.com', 'name' => 'New Admin'];
+
+        $this->postJson('/api/auth/register-organization/send-code', $payload)->assertOk();
+        $this->postJson('/api/auth/register-organization/send-code', $payload)->assertOk();
+        $this->postJson('/api/auth/register-organization/send-code', $payload)->assertStatus(429);
+
+        Mail::assertSent(OneTimePasscode::class, 2);
     }
 
     public function test_approval_emails_organization_admins(): void
