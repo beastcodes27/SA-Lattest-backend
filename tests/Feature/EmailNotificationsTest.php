@@ -298,6 +298,7 @@ class EmailNotificationsTest extends TestCase
         $this->assertStringContainsString('System maintenance', (new Announcement('System maintenance', 'We will be offline tonight for upgrades.'))->render());
         $this->assertStringContainsString('Payment received', (new NotificationMessage('Payment received', 'Your payment was received.', $this->orgAdmin->name, 'Billing'))->render());
         $this->assertStringContainsString('SAVE20', (new PromotionMessage('20% off upgrades', 'Upgrade today and save.', 'SAVE20', '20% off on your package', '31 Dec 2026'))->render());
+        $this->assertStringContainsString('Registration request received', (new OrganizationRegistrationReceived($this->organization, $this->orgAdmin))->render());
     }
 
     public function test_system_broadcast_can_also_email_an_announcement(): void
