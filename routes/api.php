@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\AdminController;
 use App\Http\Controllers\Api\AppVersionController;
 use App\Http\Controllers\Api\AttendanceController;
+use App\Http\Controllers\Api\ErrorLogController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\PackagesController;
@@ -19,6 +20,10 @@ use Illuminate\Support\Facades\Route;
 
 Route::middleware('throttle:api')->group(function () {
     Route::get('app/version', [AppVersionController::class, 'check']);
+
+    // Client Application Crash & Error Ingestion
+    Route::post('errors/report', [ErrorLogController::class, 'report'])
+        ->middleware('throttle:errors');
 
     // Public & Payment Gateway Webhooks
     Route::post('webhooks/sonicpesa', [SonicPesaWebhookController::class, 'handle'])
@@ -153,5 +158,11 @@ Route::middleware('throttle:api')->group(function () {
         Route::post('notifications/broadcast', [NotificationController::class, 'systemBroadcast'])
             ->middleware('throttle:broadcast');
 
+        // Error Tracking & Crash Logs
+        Route::get('errors', [ErrorLogController::class, 'index']);
+        Route::get('errors/stats', [ErrorLogController::class, 'stats']);
+        Route::post('errors/{errorLog}/resolve', [ErrorLogController::class, 'resolve']);
+        Route::delete('errors/{errorLog}', [ErrorLogController::class, 'destroy']);
+        Route::post('errors/clear', [ErrorLogController::class, 'clearAll']);
     });
 });
