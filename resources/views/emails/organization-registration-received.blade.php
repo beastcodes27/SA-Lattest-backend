@@ -10,7 +10,7 @@
     <p style="margin:0 0 4px;">Hello {{ $admin->name }},</p>
 
     <p style="margin:0 0 4px;">
-        Thank you for registering {{ $organization->name }} with {{ config('mail_theme.brand_name') }}. Your request has been received and is now pending review.
+        Thank you for registering {{ $organization->name }}. Your request has been received and is now pending review.
     </p>
 
     @include('emails.partials.details', ['rows' => array_filter([

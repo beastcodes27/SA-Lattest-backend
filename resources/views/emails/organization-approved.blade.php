@@ -1,7 +1,7 @@
 @extends('emails.layout')
 
 @section('title', $organization->name.' has been approved')
-@section('preheader', 'Your organization is active on '.config('mail_theme.brand_name'))
+@section('preheader', 'Your organization account is active and ready')
 @section('badge', 'Account approved')
 
 @section('content')
@@ -10,7 +10,7 @@
     <p style="margin:0 0 4px;">Hello {{ $organization->name }} team,</p>
 
     <p style="margin:0 0 4px;">
-        Your {{ config('mail_theme.brand_name') }} registration has been approved. You can now sign in with the employee ID and password you registered with, then start adding branches and employees.
+        Your organization registration has been approved. You can now sign in with the employee ID and password you registered with, then start adding branches and employees.
     </p>
 
     @include('emails.partials.details', ['rows' => array_filter([
@@ -25,5 +25,5 @@
         'body' => 'Add your branches, invite employees, and set your attendance rules. Your team can start checking in right away.',
     ])
 
-    <p style="margin:0;font-size:13px;color:#6B7280;">Sign in to the {{ config('mail_theme.brand_name') }} app to get started.</p>
+    <p style="margin:0;font-size:13px;color:#6B7280;">Sign in to the app to get started.</p>
 @endsection
