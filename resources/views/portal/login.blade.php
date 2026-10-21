@@ -189,11 +189,201 @@
                 <label for="password">Password</label>
                 <input id="password" name="password" type="password" placeholder="Your password" autocomplete="current-password" required>
 
+                <div style="display:flex;justify-content:flex-end;margin-top:8px;">
+                    <a href="javascript:void(0)" onclick="openResetModal()" style="font-size:12.5px;font-weight:600;color:var(--accent);text-decoration:none;">Forgot password?</a>
+                </div>
+
                 <button type="submit">Sign In</button>
             </form>
 
             <div class="footnote">Protected access &middot; System administrators only</div>
         </div>
     </div>
+
+    <!-- Password Reset Modal -->
+    <div id="resetBackdrop" style="display:none;position:fixed;inset:0;background:rgba(20,9,38,0.65);backdrop-filter:blur(4px);z-index:99;align-items:center;justify-content:center;padding:20px;">
+        <div style="background:#FFFFFF;border-radius:22px;width:100%;max-width:440px;padding:32px;box-shadow:0 24px 60px rgba(0,0,0,0.3);position:relative;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+                <h3 id="resetModalHeading" style="margin:0;font-size:20px;font-weight:800;color:var(--ink);">Reset Password</h3>
+                <button type="button" onclick="closeResetModal()" style="margin:0;width:34px;height:34px;border-radius:17px;background:rgba(32,15,53,0.06);color:var(--ink);border:0;padding:0;display:flex;align-items:center;justify-content:center;font-size:18px;line-height:1;box-shadow:none;cursor:pointer;">&times;</button>
+            </div>
+
+            <div id="resetFeedback" style="display:none;padding:10px 14px;border-radius:10px;font-size:13px;font-weight:600;margin-bottom:14px;"></div>
+
+            <!-- Step 1: Request Code -->
+            <div id="resetStep1">
+                <p style="margin:0 0 16px;font-size:13.5px;line-height:1.6;color:var(--muted);">
+                    Enter your registered email address. We will verify your account and email a 6-digit reset code.
+                </p>
+                <label for="resetEmail" style="margin-top:0;">REGISTERED EMAIL</label>
+                <input type="email" id="resetEmail" placeholder="e.g. name@company.com" style="margin-bottom:14px;">
+                <button type="button" id="btnSendCode" onclick="handleSendResetCode()" style="margin-top:8px;">Send Reset Code</button>
+            </div>
+
+            <!-- Step 2: Verify Code & Set Password -->
+            <div id="resetStep2" style="display:none;">
+                <p id="resetStep2Notice" style="margin:0 0 16px;font-size:13.5px;line-height:1.6;color:var(--muted);"></p>
+                
+                <label for="resetCode" style="margin-top:0;">6-DIGIT CODE</label>
+                <input type="text" id="resetCode" maxlength="6" placeholder="000000" style="letter-spacing:4px;font-size:16px;font-weight:700;margin-bottom:12px;">
+
+                <label for="resetNewPass">NEW PASSWORD</label>
+                <input type="password" id="resetNewPass" placeholder="Minimum 6 characters" style="margin-bottom:12px;">
+
+                <label for="resetConfirmPass">CONFIRM PASSWORD</label>
+                <input type="password" id="resetConfirmPass" placeholder="Repeat new password" style="margin-bottom:14px;">
+
+                <button type="button" id="btnSubmitReset" onclick="handleSubmitReset()" style="margin-top:8px;">Confirm & Reset Password</button>
+                <div style="text-align:center;margin-top:14px;">
+                    <a href="javascript:void(0)" onclick="goToResetStep1()" style="font-size:12.5px;font-weight:600;color:var(--muted);text-decoration:none;">Change Email</a>
+                </div>
+            </div>
+
+            <!-- Step 3: Success -->
+            <div id="resetStep3" style="display:none;text-align:center;padding:12px 0;">
+                <div style="width:60px;height:60px;border-radius:30px;background:#10B981;color:#FFFFFF;display:inline-flex;align-items:center;justify-content:center;font-size:28px;margin-bottom:14px;">&#10003;</div>
+                <h4 style="margin:0 0 8px;font-size:18px;font-weight:800;color:var(--ink);">Password Reset Complete!</h4>
+                <p style="margin:0 0 20px;font-size:13.5px;line-height:1.5;color:var(--muted);">You can now sign in with your new password.</p>
+                <button type="button" onclick="closeResetModal()" style="margin-top:0;">Proceed to Sign In</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const resetBackdrop = document.getElementById('resetBackdrop');
+        const resetFeedback = document.getElementById('resetFeedback');
+        const resetStep1 = document.getElementById('resetStep1');
+        const resetStep2 = document.getElementById('resetStep2');
+        const resetStep3 = document.getElementById('resetStep3');
+        const btnSendCode = document.getElementById('btnSendCode');
+        const btnSubmitReset = document.getElementById('btnSubmitReset');
+
+        function openResetModal() {
+            resetBackdrop.style.display = 'flex';
+            goToResetStep1();
+            document.getElementById('resetEmail').focus();
+        }
+
+        function closeResetModal() {
+            resetBackdrop.style.display = 'none';
+            hideFeedback();
+        }
+
+        function goToResetStep1() {
+            resetStep1.style.display = 'block';
+            resetStep2.style.display = 'none';
+            resetStep3.style.display = 'none';
+            hideFeedback();
+        }
+
+        function showFeedback(msg, isSuccess) {
+            resetFeedback.textContent = msg;
+            resetFeedback.style.display = 'block';
+            if (isSuccess) {
+                resetFeedback.style.background = 'rgba(16, 185, 129, 0.1)';
+                resetFeedback.style.border = '1px solid rgba(16, 185, 129, 0.3)';
+                resetFeedback.style.color = '#0F7B4A';
+            } else {
+                resetFeedback.style.background = 'rgba(239, 68, 68, 0.1)';
+                resetFeedback.style.border = '1px solid rgba(239, 68, 68, 0.3)';
+                resetFeedback.style.color = '#DC2626';
+            }
+        }
+
+        function hideFeedback() {
+            resetFeedback.style.display = 'none';
+        }
+
+        async function handleSendResetCode() {
+            const email = (document.getElementById('resetEmail').value || '').trim();
+            if (!email || !email.includes('@')) {
+                showFeedback('Please enter a valid registered email address.', false);
+                return;
+            }
+
+            btnSendCode.disabled = true;
+            btnSendCode.textContent = 'Checking email...';
+            hideFeedback();
+
+            try {
+                const res = await fetch('/api/auth/forgot-password', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                    body: JSON.stringify({ email: email })
+                });
+                const data = await res.json();
+
+                if (!res.ok) {
+                    showFeedback(data.message || 'Email is not registered.', false);
+                    btnSendCode.disabled = false;
+                    btnSendCode.textContent = 'Send Reset Code';
+                    return;
+                }
+
+                resetStep1.style.display = 'none';
+                resetStep2.style.display = 'block';
+                document.getElementById('resetStep2Notice').textContent = 'We sent a 6-digit code to ' + email + '. Enter the code below to set your new password.';
+                showFeedback(data.message || 'Verification code sent.', true);
+            } catch (err) {
+                showFeedback('Network error. Please try again.', false);
+            } finally {
+                btnSendCode.disabled = false;
+                btnSendCode.textContent = 'Send Reset Code';
+            }
+        }
+
+        async function handleSubmitReset() {
+            const email = (document.getElementById('resetEmail').value || '').trim();
+            const code = (document.getElementById('resetCode').value || '').trim();
+            const password = document.getElementById('resetNewPass').value;
+            const confirm = document.getElementById('resetConfirmPass').value;
+
+            if (code.length !== 6) {
+                showFeedback('Please enter the complete 6-digit code.', false);
+                return;
+            }
+            if (password.length < 6) {
+                showFeedback('New password must be at least 6 characters.', false);
+                return;
+            }
+            if (password !== confirm) {
+                showFeedback('Passwords do not match.', false);
+                return;
+            }
+
+            btnSubmitReset.disabled = true;
+            btnSubmitReset.textContent = 'Resetting password...';
+            hideFeedback();
+
+            try {
+                const res = await fetch('/api/auth/reset-password', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                    body: JSON.stringify({
+                        email: email,
+                        code: code,
+                        password: password,
+                        password_confirmation: confirm
+                    })
+                });
+                const data = await res.json();
+
+                if (!res.ok) {
+                    showFeedback(data.message || 'Failed to reset password.', false);
+                    btnSubmitReset.disabled = false;
+                    btnSubmitReset.textContent = 'Confirm & Reset Password';
+                    return;
+                }
+
+                resetStep2.style.display = 'none';
+                resetStep3.style.display = 'block';
+                hideFeedback();
+            } catch (err) {
+                showFeedback('Network error. Please try again.', false);
+                btnSubmitReset.disabled = false;
+                btnSubmitReset.textContent = 'Confirm & Reset Password';
+            }
+        }
+    </script>
 </body>
 </html>
