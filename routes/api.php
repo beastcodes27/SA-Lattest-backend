@@ -17,130 +17,141 @@ use App\Http\Controllers\Api\SubscriptionController;
 use App\Http\Controllers\Api\SystemController;
 use Illuminate\Support\Facades\Route;
 
-Route::get('app/version', [AppVersionController::class, 'check']);
+Route::middleware('throttle:api')->group(function () {
+    Route::get('app/version', [AppVersionController::class, 'check']);
 
-// Public & Payment Gateway Webhooks
-Route::post('webhooks/sonicpesa', [SonicPesaWebhookController::class, 'handle'])
-    ->middleware('throttle:120,1')
-    ->name('webhooks.sonicpesa');
+    // Public & Payment Gateway Webhooks
+    Route::post('webhooks/sonicpesa', [SonicPesaWebhookController::class, 'handle'])
+        ->middleware('throttle:120,1')
+        ->name('webhooks.sonicpesa');
 
-Route::prefix('auth')->group(function () {
-    Route::post('register-organization', [AuthController::class, 'registerOrganization'])
-        ->middleware('throttle:5,1');
-    Route::post('register-organization/send-code', [AuthController::class, 'sendRegistrationEmailCode'])
-        ->middleware('throttle:5,1');
-    Route::post('register-organization/verify-code', [AuthController::class, 'verifyRegistrationEmailCode'])
-        ->middleware('throttle:10,1');
-    Route::post('login', [AuthController::class, 'login'])
-        ->middleware('throttle:10,1');
-    Route::post('forgot-password', [PasswordResetController::class, 'sendCode'])
-        ->middleware('throttle:5,1');
-    Route::post('reset-password', [PasswordResetController::class, 'reset'])
-        ->middleware('throttle:10,1');
-});
+    Route::prefix('auth')->group(function () {
+        Route::post('register-organization', [AuthController::class, 'registerOrganization'])
+            ->middleware('throttle:5,1');
+        Route::post('register-organization/send-code', [AuthController::class, 'sendRegistrationEmailCode'])
+            ->middleware('throttle:otp');
+        Route::post('register-organization/verify-code', [AuthController::class, 'verifyRegistrationEmailCode'])
+            ->middleware('throttle:otp-verify');
+        Route::post('login', [AuthController::class, 'login'])
+            ->middleware('throttle:auth');
+        Route::post('forgot-password', [PasswordResetController::class, 'sendCode'])
+            ->middleware('throttle:otp');
+        Route::post('reset-password', [PasswordResetController::class, 'reset'])
+            ->middleware('throttle:otp-verify');
+    });
 
-Route::get('packages', [PackagesController::class, 'publicList']);
+    Route::get('packages', [PackagesController::class, 'publicList']);
 
-Route::middleware('auth:sanctum')->group(function () {
-    Route::post('auth/logout', [AuthController::class, 'logout']);
+    Route::middleware('auth:sanctum')->group(function () {
+        Route::post('auth/logout', [AuthController::class, 'logout']);
 
-    Route::get('me', [ProfileController::class, 'me']);
-    Route::put('me', [ProfileController::class, 'update']);
-    Route::post('me/avatar', [ProfileController::class, 'uploadAvatar']);
-    Route::put('me/password', [ProfileController::class, 'changePassword'])->middleware('throttle:10,1');
-    Route::put('me/password/force', [ProfileController::class, 'forceChangePassword'])->middleware('throttle:10,1');
-    // Mobile User Profile & Device Push Registration
-    Route::post('me/push-token', [NotificationController::class, 'updatePushToken']);
-    Route::post('profile/push-token', [NotificationController::class, 'updatePushToken']);
+        Route::get('me', [ProfileController::class, 'me']);
+        Route::put('me', [ProfileController::class, 'update']);
+        Route::post('me/avatar', [ProfileController::class, 'uploadAvatar']);
+        Route::put('me/password', [ProfileController::class, 'changePassword'])->middleware('throttle:10,1');
+        Route::put('me/password/force', [ProfileController::class, 'forceChangePassword'])->middleware('throttle:10,1');
+        // Mobile User Profile & Device Push Registration
+        Route::post('me/push-token', [NotificationController::class, 'updatePushToken']);
+        Route::post('profile/push-token', [NotificationController::class, 'updatePushToken']);
 
-    // In-App Notification Feed & Actions
-    Route::get('notifications', [NotificationController::class, 'index']);
-    Route::patch('notifications/{id}/read', [NotificationController::class, 'markAsRead']);
-    Route::post('notifications/read-all', [NotificationController::class, 'markAllAsRead']);
-    Route::delete('notifications/{id}', [NotificationController::class, 'destroy']);
+        // In-App Notification Feed & Actions
+        Route::get('notifications', [NotificationController::class, 'index']);
+        Route::patch('notifications/{id}/read', [NotificationController::class, 'markAsRead']);
+        Route::post('notifications/read-all', [NotificationController::class, 'markAllAsRead']);
+        Route::delete('notifications/{id}', [NotificationController::class, 'destroy']);
 
-    Route::post('attendance/toggle', [AttendanceController::class, 'toggle']);
-    Route::post('attendance/sync', [AttendanceController::class, 'sync']);
-    Route::get('attendance', [AttendanceController::class, 'index']);
-    Route::get('attendance/today', [AttendanceController::class, 'today']);
+        Route::post('attendance/toggle', [AttendanceController::class, 'toggle'])
+            ->middleware('throttle:attendance');
+        Route::post('attendance/sync', [AttendanceController::class, 'sync'])
+            ->middleware('throttle:attendance');
+        Route::get('attendance', [AttendanceController::class, 'index']);
+        Route::get('attendance/today', [AttendanceController::class, 'today']);
 
-    Route::get('permissions', [PermissionController::class, 'index']);
-    Route::post('permissions', [PermissionController::class, 'store']);
-    Route::post('permissions/{id}/cancel', [PermissionController::class, 'cancel']);
-});
+        Route::get('permissions', [PermissionController::class, 'index']);
+        Route::post('permissions', [PermissionController::class, 'store']);
+        Route::post('permissions/{id}/cancel', [PermissionController::class, 'cancel']);
+    });
 
-Route::middleware(['auth:sanctum', 'org-admin'])->prefix('admin')->group(function () {
-    Route::get('stats', [AdminController::class, 'stats']);
-    Route::get('employees', [AdminController::class, 'employees']);
-    Route::post('employees', [AdminController::class, 'storeEmployee']);
-    Route::get('employees/next', [AdminController::class, 'nextEmployeeId']);
-    Route::patch('employees/{employee}', [AdminController::class, 'toggleEmployee']);
-    Route::patch('employees/{employee}/transfer-branch', [AdminController::class, 'transferBranch']);
-    Route::post('employees/{employee}/reset-password', [AdminController::class, 'resetEmployeePassword']);
-    Route::delete('employees/{employee}', [AdminController::class, 'destroyEmployee']);
-    Route::get('admins', [AdminController::class, 'admins']);
-    Route::post('admins', [AdminController::class, 'storeAdmin']);
-    Route::delete('admins/{admin}', [AdminController::class, 'destroyAdmin']);
-    Route::get('reports', [AdminController::class, 'reports']);
-    Route::get('reports/cumulative', [AdminController::class, 'cumulativeReports']);
-    Route::get('branches', [AdminController::class, 'branches']);
-    Route::post('branches', [AdminController::class, 'storeBranch']);
-    Route::patch('branches/{branch}', [AdminController::class, 'updateBranch']);
-    Route::patch('organization', [AdminController::class, 'updateOrganization']);
-    Route::get('permissions', [PermissionController::class, 'adminIndex']);
-    Route::post('permissions/{id}/approve', [PermissionController::class, 'adminApprove']);
-    Route::post('permissions/{id}/reject', [PermissionController::class, 'adminReject']);
-    Route::post('promo/redeem', [PromoController::class, 'redeem']);
-    Route::get('promos/available', [PromoController::class, 'available']);
-    Route::post('notifications/broadcast', [NotificationController::class, 'orgBroadcast']);
-});
+    Route::middleware(['auth:sanctum', 'org-admin'])->prefix('admin')->group(function () {
+        Route::get('stats', [AdminController::class, 'stats']);
+        Route::get('employees', [AdminController::class, 'employees']);
+        Route::post('employees', [AdminController::class, 'storeEmployee']);
+        Route::get('employees/next', [AdminController::class, 'nextEmployeeId']);
+        Route::patch('employees/{employee}', [AdminController::class, 'toggleEmployee']);
+        Route::patch('employees/{employee}/transfer-branch', [AdminController::class, 'transferBranch']);
+        Route::post('employees/{employee}/reset-password', [AdminController::class, 'resetEmployeePassword']);
+        Route::delete('employees/{employee}', [AdminController::class, 'destroyEmployee']);
+        Route::get('admins', [AdminController::class, 'admins']);
+        Route::post('admins', [AdminController::class, 'storeAdmin']);
+        Route::delete('admins/{admin}', [AdminController::class, 'destroyAdmin']);
+        Route::get('reports', [AdminController::class, 'reports'])
+            ->middleware('throttle:reports');
+        Route::get('reports/cumulative', [AdminController::class, 'cumulativeReports'])
+            ->middleware('throttle:reports');
+        Route::get('branches', [AdminController::class, 'branches']);
+        Route::post('branches', [AdminController::class, 'storeBranch']);
+        Route::patch('branches/{branch}', [AdminController::class, 'updateBranch']);
+        Route::patch('organization', [AdminController::class, 'updateOrganization']);
+        Route::get('permissions', [PermissionController::class, 'adminIndex']);
+        Route::post('permissions/{id}/approve', [PermissionController::class, 'adminApprove']);
+        Route::post('permissions/{id}/reject', [PermissionController::class, 'adminReject']);
+        Route::post('promo/redeem', [PromoController::class, 'redeem'])
+            ->middleware('throttle:promo');
+        Route::get('promos/available', [PromoController::class, 'available']);
+        Route::post('notifications/broadcast', [NotificationController::class, 'orgBroadcast'])
+            ->middleware('throttle:broadcast');
+    });
 
-/**
- * Organization Admin Subscription & Mobile Money Billing Routes
- * Supports free trial cancellation, instant checkout, M-Pesa / Tigo Pesa / Airtel Money / HaloPesa
- * USSD push initiation, transaction status verification, and payment history receipts.
- */
-Route::middleware(['auth:sanctum', 'org-admin'])->prefix('admin')->group(function () {
-    Route::get('subscription', [SubscriptionController::class, 'details']);
-    Route::post('subscription/upgrade', [SubscriptionController::class, 'upgrade']);
-    Route::post('subscription/cancel', [SubscriptionController::class, 'cancel']);
-    Route::post('subscription/cancel-trial', [SubscriptionController::class, 'cancelTrial']);
+    /**
+     * Organization Admin Subscription & Mobile Money Billing Routes
+     * Supports free trial cancellation, instant checkout, M-Pesa / Tigo Pesa / Airtel Money / HaloPesa
+     * USSD push initiation, transaction status verification, and payment history receipts.
+     */
+    Route::middleware(['auth:sanctum', 'org-admin'])->prefix('admin')->group(function () {
+        Route::get('subscription', [SubscriptionController::class, 'details']);
+        Route::post('subscription/upgrade', [SubscriptionController::class, 'upgrade']);
+        Route::post('subscription/cancel', [SubscriptionController::class, 'cancel']);
+        Route::post('subscription/cancel-trial', [SubscriptionController::class, 'cancelTrial']);
 
-    // Mobile Money Payments (M-Pesa, Tigo Pesa, Airtel Money, HaloPesa)
-    Route::post('subscription/payments/initiate', [PaymentController::class, 'initiate']);
-    Route::get('subscription/payments', [PaymentController::class, 'index']);
-    Route::get('subscription/payments/{payment}', [PaymentController::class, 'show']);
-    Route::post('subscription/payments/{payment}/verify', [PaymentController::class, 'verify']);
-    Route::post('subscription/payments/{payment}/simulate', [PaymentController::class, 'simulate']);
-});
+        // Mobile Money Payments (M-Pesa, Tigo Pesa, Airtel Money, HaloPesa)
+        Route::post('subscription/payments/initiate', [PaymentController::class, 'initiate'])
+            ->middleware('throttle:payment');
+        Route::get('subscription/payments', [PaymentController::class, 'index']);
+        Route::get('subscription/payments/{payment}', [PaymentController::class, 'show']);
+        Route::post('subscription/payments/{payment}/verify', [PaymentController::class, 'verify']);
+        Route::post('subscription/payments/{payment}/simulate', [PaymentController::class, 'simulate']);
+    });
 
-Route::middleware(['auth:sanctum', 'system-admin'])->prefix('system')->group(function () {
-    Route::get('stats', [SystemController::class, 'stats']);
-    Route::get('organizations', [SystemController::class, 'organizations']);
-    Route::get('organizations/{organization}', [SystemController::class, 'organization']);
-    Route::post('organizations/{organization}/approve', [SystemController::class, 'approve']);
-    Route::post('organizations/{organization}/reject', [SystemController::class, 'reject']);
-    Route::post('organizations/{organization}/status', [SystemController::class, 'setStatus']);
-    Route::post('organizations/{organization}/subscription', [SystemController::class, 'updateSubscription']);
+    Route::middleware(['auth:sanctum', 'system-admin'])->prefix('system')->group(function () {
+        Route::get('stats', [SystemController::class, 'stats']);
+        Route::get('organizations', [SystemController::class, 'organizations']);
+        Route::get('organizations/{organization}', [SystemController::class, 'organization']);
+        Route::post('organizations/{organization}/approve', [SystemController::class, 'approve']);
+        Route::post('organizations/{organization}/reject', [SystemController::class, 'reject']);
+        Route::post('organizations/{organization}/status', [SystemController::class, 'setStatus']);
+        Route::post('organizations/{organization}/subscription', [SystemController::class, 'updateSubscription']);
 
-    Route::get('packages', [PackagesController::class, 'systemIndex']);
-    Route::post('packages', [PackagesController::class, 'store']);
-    Route::put('packages/{package}', [PackagesController::class, 'update']);
-    Route::patch('packages/{package}', [PackagesController::class, 'update']);
+        Route::get('packages', [PackagesController::class, 'systemIndex']);
+        Route::post('packages', [PackagesController::class, 'store']);
+        Route::put('packages/{package}', [PackagesController::class, 'update']);
+        Route::patch('packages/{package}', [PackagesController::class, 'update']);
 
-    Route::get('promos', [PromoManagerController::class, 'index']);
-    Route::post('promos', [PromoManagerController::class, 'store']);
-    Route::put('promos/{promo}', [PromoManagerController::class, 'update']);
-    Route::patch('promos/{promo}', [PromoManagerController::class, 'update']);
+        Route::get('promos', [PromoManagerController::class, 'index']);
+        Route::post('promos', [PromoManagerController::class, 'store']);
+        Route::put('promos/{promo}', [PromoManagerController::class, 'update']);
+        Route::patch('promos/{promo}', [PromoManagerController::class, 'update']);
 
-    Route::get('minor-admins', [SystemController::class, 'minorAdmins']);
-    Route::post('minor-admins', [SystemController::class, 'storeMinorAdmin']);
-    Route::patch('minor-admins/{user}', [SystemController::class, 'toggleMinorAdmin']);
-    Route::post('minor-admins/{user}/reset-password', [SystemController::class, 'resetMinorAdminPassword']);
-    Route::delete('minor-admins/{user}', [SystemController::class, 'deleteMinorAdmin']);
+        Route::get('minor-admins', [SystemController::class, 'minorAdmins']);
+        Route::post('minor-admins', [SystemController::class, 'storeMinorAdmin']);
+        Route::patch('minor-admins/{user}', [SystemController::class, 'toggleMinorAdmin']);
+        Route::post('minor-admins/{user}/reset-password', [SystemController::class, 'resetMinorAdminPassword']);
+        Route::delete('minor-admins/{user}', [SystemController::class, 'deleteMinorAdmin']);
 
-    Route::get('app-version', [AppVersionController::class, 'adminShow']);
-    Route::post('app-version', [AppVersionController::class, 'adminUpdate']);
-    Route::get('notifications/history', [NotificationController::class, 'systemHistory']);
-    Route::post('notifications/broadcast', [NotificationController::class, 'systemBroadcast']);
+        Route::get('app-version', [AppVersionController::class, 'adminShow']);
+        Route::post('app-version', [AppVersionController::class, 'adminUpdate']);
+        Route::get('notifications/history', [NotificationController::class, 'systemHistory']);
+        Route::post('notifications/broadcast', [NotificationController::class, 'systemBroadcast'])
+            ->middleware('throttle:broadcast');
+
+    });
 });
