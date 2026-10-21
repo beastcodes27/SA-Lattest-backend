@@ -320,6 +320,9 @@ class EmailNotificationsTest extends TestCase
 
             $this->assertStringNotContainsString(config('app.url'), $html, $mailable::class.' exposed the backend URL.');
             $this->assertStringNotContainsString('/portal', $html, $mailable::class.' exposed the portal path.');
+            $this->assertStringNotContainsString('smartattend.org', $html);
+            $this->assertStringNotContainsString('smartattend.og', $html);
+            $this->assertStringContainsString('mailto:help@smartattend.com', $html);
         }
     }
 
