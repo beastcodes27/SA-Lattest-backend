@@ -301,6 +301,28 @@ class EmailNotificationsTest extends TestCase
         $this->assertStringContainsString('Registration request received', (new OrganizationRegistrationReceived($this->organization, $this->orgAdmin))->render());
     }
 
+    public function test_emails_do_not_expose_portal_or_backend_urls(): void
+    {
+        $mailables = [
+            new NewOrganizationRegistration($this->organization, $this->orgAdmin),
+            new OrganizationRegistrationReceived($this->organization, $this->orgAdmin),
+            new OrganizationApproved($this->organization),
+            new OrganizationRejected($this->organization, 'Missing document'),
+            new PasswordResetCode($this->orgAdmin, '123456'),
+            new OneTimePasscode('654321', $this->orgAdmin->name, 'sign-in verification'),
+            new Announcement('Maintenance', 'We will be offline tonight.'),
+            new NotificationMessage('Payment received', 'Thank you.'),
+            new PromotionMessage('20% off', 'Save today.', 'SAVE20', '20% off on your package'),
+        ];
+
+        foreach ($mailables as $mailable) {
+            $html = $mailable->render();
+
+            $this->assertStringNotContainsString(config('app.url'), $html, $mailable::class.' exposed the backend URL.');
+            $this->assertStringNotContainsString('/portal', $html, $mailable::class.' exposed the portal path.');
+        }
+    }
+
     public function test_system_broadcast_can_also_email_an_announcement(): void
     {
         Sanctum::actingAs($this->systemAdmin);
@@ -315,6 +337,7 @@ class EmailNotificationsTest extends TestCase
 
         Mail::assertSent(Announcement::class, function (Announcement $mail) {
             return $mail->title === 'Scheduled maintenance'
+                && $mail->actionUrl === null
                 && collect($mail->bcc)->contains(fn ($address) => ($address['address'] ?? null) === 'admin@apex.tz');
         });
     }
@@ -342,7 +365,8 @@ class EmailNotificationsTest extends TestCase
 
         Mail::assertSent(PromotionMessage::class, function (PromotionMessage $mail) {
             return $mail->code === 'SAVE20'
-                && $mail->offerLabel === '20% off on your package';
+                && $mail->offerLabel === '20% off on your package'
+                && $mail->actionUrl === null;
         });
     }
 
