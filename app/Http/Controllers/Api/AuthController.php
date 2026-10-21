@@ -10,12 +10,14 @@ use App\Models\Promo;
 use App\Models\PromoRedemption;
 use App\Models\User;
 use App\Services\EmailService;
+use App\Services\EmailVerificationService;
 use App\Services\SmsService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
@@ -23,6 +25,95 @@ use Illuminate\Validation\Rule;
 
 class AuthController extends Controller
 {
+    public function sendRegistrationEmailCode(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'email' => ['required', 'email', 'max:255'],
+            'name' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'message' => 'Enter a valid email address.',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        $email = EmailVerificationService::normalize((string) $request->input('email'));
+
+        if (User::where('email', $email)->exists()) {
+            return response()->json([
+                'message' => 'This email address is already registered. Please sign in instead.',
+                'errors' => ['email' => ['This email address is already registered.']],
+            ], 422);
+        }
+
+        $dailyLimit = max(1, (int) config('services.email.registration_code_daily_limit', 2));
+        $rateLimitKey = 'registration-email-code:'.sha1($email);
+
+        if (RateLimiter::tooManyAttempts($rateLimitKey, $dailyLimit)) {
+            $retryAfter = RateLimiter::availableIn($rateLimitKey);
+            $hours = max(1, (int) ceil($retryAfter / 3600));
+
+            return response()
+                ->json([
+                    'message' => "You have reached the limit of {$dailyLimit} verification emails per day. Please try again in about {$hours} hour(s).",
+                    'retry_after' => $retryAfter,
+                ], 429)
+                ->header('Retry-After', (string) $retryAfter);
+        }
+
+        $sent = EmailVerificationService::send($email, $request->input('name'));
+
+        if (! $sent) {
+            return response()->json([
+                'message' => 'Could not send the verification email. Please try again in a moment.',
+            ], 502);
+        }
+
+        RateLimiter::hit($rateLimitKey, 86400);
+
+        return response()->json([
+            'message' => "Verification code sent to {$email}.",
+            'expires_in_minutes' => EmailVerificationService::CODE_TTL_MINUTES,
+        ]);
+    }
+
+    public function verifyRegistrationEmailCode(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'email' => ['required', 'email', 'max:255'],
+            'code' => ['required', 'digits:6'],
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'message' => 'Enter the six-digit code from your email.',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        $email = EmailVerificationService::normalize((string) $request->input('email'));
+
+        if (User::where('email', $email)->exists()) {
+            return response()->json([
+                'message' => 'This email address is already registered. Please sign in instead.',
+            ], 422);
+        }
+
+        if (! EmailVerificationService::check($email, (string) $request->input('code'))) {
+            return response()->json([
+                'message' => 'The verification code is invalid or has expired. Please request a new one.',
+                'errors' => ['code' => ['The verification code is invalid or has expired.']],
+            ], 422);
+        }
+
+        return response()->json([
+            'message' => 'Email verified successfully.',
+            'verified' => true,
+        ]);
+    }
+
     public function registerOrganization(Request $request): JsonResponse
     {
         $customAttributes = [
@@ -38,6 +129,7 @@ class AuthController extends Controller
             'admin.email' => 'admin email address',
             'admin.employee_id' => 'admin employee ID',
             'admin.password' => 'admin password',
+            'email_verification_code' => 'email verification code',
             'branches' => 'branches',
             'branches.*.name' => 'branch name',
             'branches.*.lat' => 'branch latitude',
@@ -77,6 +169,7 @@ class AuthController extends Controller
             'admin.employee_id' => ['required', 'string', 'max:60', 'unique:users,employee_id'],
             'admin.password' => ['required', 'string', 'min:6'],
             'admin.phone' => ['nullable', 'string', 'max:40'],
+            'email_verification_code' => ['required', 'digits:6'],
             'branches' => ['required', 'array', 'min:1'],
             'branches.*.name' => ['required', 'string', 'max:255'],
             'branches.*.lat' => ['required', 'numeric', 'between:-90,90'],
@@ -92,6 +185,17 @@ class AuthController extends Controller
         }
 
         $data = $validator->validated();
+
+        $adminEmail = EmailVerificationService::normalize($data['admin']['email']);
+
+        if (! EmailVerificationService::check($adminEmail, $data['email_verification_code'])) {
+            return response()->json([
+                'message' => 'The email verification code is invalid or has expired. Please request a new one.',
+                'errors' => [
+                    'email_verification_code' => ['The email verification code is invalid or has expired. Please request a new one.'],
+                ],
+            ], 422);
+        }
 
         // Process optional TIN document upload (file or base64)
         $tinDocPath = null;
@@ -200,7 +304,7 @@ class AuthController extends Controller
 
         $admin = new User([
             'name' => $data['admin']['name'],
-            'email' => $data['admin']['email'],
+            'email' => $adminEmail,
             'employee_id' => $data['admin']['employee_id'],
             'phone' => $data['admin']['phone'] ?? ($data['organization']['phone'] ?? null),
             'role' => 'admin',
@@ -211,6 +315,8 @@ class AuthController extends Controller
             'password' => $data['admin']['password'],
         ]);
         $admin->save();
+
+        EmailVerificationService::consume($adminEmail);
 
         if ($promo) {
             PromoRedemption::create(['promo_id' => $promo->id, 'org_id' => $organization->id]);

@@ -27,6 +27,10 @@ Route::post('webhooks/sonicpesa', [SonicPesaWebhookController::class, 'handle'])
 Route::prefix('auth')->group(function () {
     Route::post('register-organization', [AuthController::class, 'registerOrganization'])
         ->middleware('throttle:5,1');
+    Route::post('register-organization/send-code', [AuthController::class, 'sendRegistrationEmailCode'])
+        ->middleware('throttle:5,1');
+    Route::post('register-organization/verify-code', [AuthController::class, 'verifyRegistrationEmailCode'])
+        ->middleware('throttle:10,1');
     Route::post('login', [AuthController::class, 'login'])
         ->middleware('throttle:10,1');
     Route::post('forgot-password', [PasswordResetController::class, 'sendCode'])
