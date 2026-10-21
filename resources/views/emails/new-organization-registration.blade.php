@@ -17,7 +17,5 @@
         'Admin phone' => $admin->phone ?: '—',
     ]])
 
-    <p style="margin:0;">Review the request and approve or reject it from the system admin portal.</p>
-
-    @include('emails.partials.button', ['url' => route('portal.login'), 'label' => 'Open admin portal'])
+    <p style="margin:0;">Sign in to the system admin console to review the request and approve or reject it.</p>
 @endsection

@@ -25,5 +25,5 @@
         'body' => 'Add your branches, invite employees, and set your attendance rules. Your team can start checking in right away.',
     ])
 
-    @include('emails.partials.button', ['url' => config('app.url'), 'label' => 'Open '.config('mail_theme.brand_name')])
+    <p style="margin:0;font-size:13px;color:#6B7280;">Sign in to the {{ config('mail_theme.brand_name') }} app to get started.</p>
 @endsection
