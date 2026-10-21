@@ -1710,7 +1710,6 @@
                 employee_limit: empRaw ? parseInt(empRaw, 10) : null,
                 branch_limit: brRaw ? parseInt(brRaw, 10) : null,
                 active: document.getElementById('pk_active_' + id).checked,
-                position: 0,
             };
             try {
                 const json = await api('/portal/api/packages/' + id, { method: 'PUT', body: JSON.stringify(body) });
