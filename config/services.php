@@ -39,6 +39,7 @@ return [
         'enabled' => env('EMAIL_ENABLED', true),
         'admin_address' => env('EMAIL_ADMIN_ADDRESS'),
         'password_reset_daily_limit' => (int) env('EMAIL_PASSWORD_RESET_DAILY_LIMIT', 2),
+        'registration_code_daily_limit' => (int) env('EMAIL_REGISTRATION_CODE_DAILY_LIMIT', 2),
     ],
 
     'sonicpesa' => [
