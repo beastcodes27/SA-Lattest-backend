@@ -1598,7 +1598,37 @@
         async function loadPackages() {
             const { packages } = await api('/portal/api/packages');
             const box = document.getElementById('packagesArea');
-            box.innerHTML = packages.map(p => `
+            const newCard = `<div class="org">
+                <h3>Create package</h3>
+                <p style="color:var(--muted);font-size:13px;margin:4px 0 8px">Add a new plan that will be offered during registration and upgrades.</p>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+                    <div><label class="plabel">Code (unique, e.g. premium)</label><input class="pfield" id="npk_code" placeholder="premium"></div>
+                    <div><label class="plabel">Package name</label><input class="pfield" id="npk_name" placeholder="Premium"></div>
+                </div>
+                <label class="plabel">Tagline</label>
+                <input class="pfield" id="npk_tagline" placeholder="For large teams that need more">
+                <label class="plabel">Price label (shown in the app)</label>
+                <input class="pfield" id="npk_price_label" placeholder="e.g. TZS 200,000 / mo">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+                    <div><label class="plabel">Monthly price (numbers only)</label><input class="pfield" id="npk_month" type="number" min="0" value="0"></div>
+                    <div><label class="plabel">Annual price (numbers only)</label><input class="pfield" id="npk_year" type="number" min="0" value="0"></div>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+                    <div><label class="plabel">Currency</label><input class="pfield" id="npk_currency" value="TZS"></div>
+                    <div><label class="plabel">Position (blank = last)</label><input class="pfield" id="npk_position" type="number" min="0" placeholder="Auto"></div>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+                    <div><label class="plabel">Employee limit (blank = unlimited)</label><input class="pfield" id="npk_emp" type="number" min="1"></div>
+                    <div><label class="plabel">Branch limit (blank = unlimited)</label><input class="pfield" id="npk_br" type="number" min="1"></div>
+                </div>
+                <label class="plabel">Features (one per line)</label>
+                <textarea class="pfield" id="npk_features" rows="4" placeholder="Unlimited branches&#10;Priority support"></textarea>
+                <label class="switch"><input type="checkbox" id="npk_active" checked> Active (offered in registration &amp; upgrades)</label>
+                <div class="actions" style="margin-top:12px">
+                    <button class="btn primary" onclick="createPackage()">Create Package</button>
+                </div>
+            </div>`;
+            box.innerHTML = newCard + packages.map(p => `
                 <div class="org">
                     <h3>${esc(p.name)} <span style="color:var(--muted);font-weight:600;font-size:12px">${esc(p.code)}</span></h3>
                     <label class="plabel">Package name</label>
@@ -1624,6 +1654,45 @@
                         <button class="btn primary" onclick="savePackage(${p.id})">Save Package</button>
                     </div>
                 </div>`).join('');
+        }
+
+        async function createPackage() {
+            const val = (x) => document.getElementById(x)?.value.trim();
+            const code = val('npk_code');
+            const name = val('npk_name');
+
+            if (!code || !name) {
+                toast.warning('Enter a package code and name.');
+                return;
+            }
+
+            const featRaw = val('npk_features');
+            const empRaw = val('npk_emp');
+            const brRaw = val('npk_br');
+            const posRaw = val('npk_position');
+
+            const body = {
+                code,
+                name,
+                tagline: val('npk_tagline') || null,
+                price_label: val('npk_price_label') || null,
+                monthly_price: val('npk_month') ? parseInt(val('npk_month'), 10) : 0,
+                annual_price: val('npk_year') ? parseInt(val('npk_year'), 10) : 0,
+                currency: val('npk_currency') || 'TZS',
+                features: featRaw ? featRaw.split('\n').map(s => s.trim()).filter(Boolean) : [],
+                employee_limit: empRaw ? parseInt(empRaw, 10) : null,
+                branch_limit: brRaw ? parseInt(brRaw, 10) : null,
+                active: document.getElementById('npk_active').checked,
+                position: posRaw ? parseInt(posRaw, 10) : undefined,
+            };
+
+            try {
+                const json = await api('/portal/api/packages', { method: 'POST', body: JSON.stringify(body) });
+                toast(json.message || 'Package created successfully.', true);
+                await loadPackages();
+            } catch (e) {
+                toast(e.message || 'Could not create the package.', false);
+            }
         }
 
         async function savePackage(id) {
