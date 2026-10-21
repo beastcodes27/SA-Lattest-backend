@@ -22,8 +22,6 @@
 
     @if (! empty($actionUrl) && ! empty($actionLabel))
         @include('emails.partials.button', ['url' => $actionUrl, 'label' => $actionLabel])
-    @else
-        @include('emails.partials.button', ['url' => config('app.url'), 'label' => 'Claim this offer'])
     @endif
 
     <p style="margin:0;font-size:13px;color:#6B7280;">Enter the code when upgrading or renewing your subscription. Terms and expiry dates apply.</p>

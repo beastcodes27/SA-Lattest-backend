@@ -251,16 +251,11 @@ class NotificationController extends Controller
                         $validated['body'],
                         $promo->code,
                         $promo->label(),
-                        $promo->ends_at?->format('d M Y'),
-                        config('app.url'),
-                        'Claim this offer'
+                        $promo->ends_at?->format('d M Y')
                     )
                     : new Announcement(
                         $validated['title'],
-                        $validated['body'],
-                        null,
-                        config('app.url'),
-                        'Open '.config('mail_theme.brand_name')
+                        $validated['body']
                     );
 
                 try {
