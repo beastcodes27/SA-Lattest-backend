@@ -32,8 +32,20 @@ class PasswordResetController extends Controller
         }
 
         $email = strtolower(trim((string) $request->input('email')));
+
+        $user = User::where('email', $email)->first();
+
+        if (! $user) {
+            return response()->json([
+                'message' => 'This email address is not registered in our system. Please check your spelling or contact your organization administrator.',
+                'errors' => [
+                    'email' => ['No account found with this email address.'],
+                ],
+            ], 404);
+        }
+
         $rateLimitKey = 'password-reset-email:'.sha1($email);
-        $dailyLimit = max(1, (int) config('services.email.password_reset_daily_limit', 2));
+        $dailyLimit = max(1, (int) config('services.email.password_reset_daily_limit', 5));
 
         if (RateLimiter::tooManyAttempts($rateLimitKey, $dailyLimit)) {
             $retryAfter = RateLimiter::availableIn($rateLimitKey);
@@ -49,25 +61,23 @@ class PasswordResetController extends Controller
 
         RateLimiter::hit($rateLimitKey, 86400);
 
-        $user = User::where('email', $email)->first();
+        $code = (string) random_int(100000, 999999);
 
-        if ($user) {
-            $code = (string) random_int(100000, 999999);
+        DB::table('password_reset_tokens')->updateOrInsert(
+            ['email' => $email],
+            ['token' => Hash::make($code), 'created_at' => now()]
+        );
 
-            DB::table('password_reset_tokens')->updateOrInsert(
-                ['email' => $email],
-                ['token' => Hash::make($code), 'created_at' => now()]
-            );
-
-            try {
-                EmailService::send($email, new PasswordResetCode($user, $code));
-            } catch (\Throwable $e) {
-                Log::error('Failed to email password reset code: '.$e->getMessage(), ['email' => $email]);
-            }
+        try {
+            EmailService::send($email, new PasswordResetCode($user, $code));
+        } catch (\Throwable $e) {
+            Log::error('Failed to email password reset code: '.$e->getMessage(), ['email' => $email]);
         }
 
         return response()->json([
-            'message' => 'If an account exists for that email, a reset code has been sent.',
+            'message' => "A 6-digit verification code has been sent to {$email}.",
+            'email' => $email,
+            'expires_in_minutes' => self::CODE_TTL_MINUTES,
         ]);
     }
 
@@ -76,7 +86,7 @@ class PasswordResetController extends Controller
         $validator = Validator::make($request->all(), [
             'email' => ['required', 'email', 'max:255'],
             'code' => ['required', 'digits:6'],
-            'password' => ['required', 'string', 'min:8', 'confirmed'],
+            'password' => ['required', 'string', 'min:6', 'confirmed'],
         ]);
 
         if ($validator->fails()) {
