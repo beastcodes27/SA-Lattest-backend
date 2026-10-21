@@ -21,7 +21,7 @@ class PasswordResetCode extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'Your '.config('mail_theme.brand_name').' password reset code',
+            subject: 'Your password reset code',
         );
     }
 
