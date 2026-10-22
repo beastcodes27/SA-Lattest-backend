@@ -10,7 +10,7 @@ class PortalController extends Controller
     public function showLogin(Request $request)
     {
         $user = $request->user();
-        if ($user && $user->role === 'superadmin') {
+        if ($user && in_array($user->role, ['superadmin', 'minor_admin', 'sysadmin'], true) && $user->active) {
             return redirect()->route('portal.dashboard');
         }
 
@@ -27,7 +27,7 @@ class PortalController extends Controller
         if (Auth::attempt(['employee_id' => $credentials['employee_id'], 'password' => $credentials['password']], $request->boolean('remember'))) {
             $user = Auth::user();
 
-            if ($user->role !== 'superadmin' || ! $user->active) {
+            if (! in_array($user->role, ['superadmin', 'minor_admin', 'sysadmin'], true) || ! $user->active) {
                 Auth::logout();
                 $request->session()->invalidate();
 
