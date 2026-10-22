@@ -94,6 +94,8 @@ Route::middleware('throttle:api')->group(function () {
             ->middleware('throttle:reports');
         Route::get('reports/cumulative', [AdminController::class, 'cumulativeReports'])
             ->middleware('throttle:reports');
+        Route::post('reports/email', [AdminController::class, 'emailReport'])
+            ->middleware('throttle:reports');
         Route::get('branches', [AdminController::class, 'branches']);
         Route::post('branches', [AdminController::class, 'storeBranch']);
         Route::patch('branches/{branch}', [AdminController::class, 'updateBranch']);

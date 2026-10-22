@@ -2,17 +2,20 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Mail\AttendanceReportEmail;
 use App\Models\Attendance;
 use App\Models\Branch;
 use App\Models\Organization;
 use App\Models\PermissionRequest;
 use App\Models\User;
+use App\Services\EmailService;
 use App\Services\ExpoPushService;
 use App\Support\PlanLimits;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
@@ -674,6 +677,75 @@ class AdminController extends Controller
                 'total_leave_instances' => (int) $employeeStats->sum('leave_days'),
             ],
             'rows' => $employeeStats,
+        ]);
+    }
+
+    public function emailReport(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        $org = $user->organization;
+
+        $validator = Validator::make($request->all(), [
+            'email' => ['nullable', 'email', 'max:255'],
+            'report_type' => ['required', Rule::in(['daily', 'cumulative'])],
+            'report_title' => ['required', 'string', 'max:150'],
+            'report_period' => ['required', 'string', 'max:150'],
+            'report' => ['required', 'file', 'mimes:pdf', 'max:10240'],
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'message' => $validator->errors()->first(),
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        $recipient = strtolower(trim((string) ($request->input('email') ?: $user->email)));
+
+        if ($recipient === '') {
+            return response()->json(['message' => 'Add an email address to receive the report.'], 422);
+        }
+
+        $rateLimitKey = 'report-email:'.$user->id;
+
+        if (RateLimiter::tooManyAttempts($rateLimitKey, 5)) {
+            $retryAfter = RateLimiter::availableIn($rateLimitKey);
+
+            return response()
+                ->json([
+                    'message' => 'You have emailed too many reports. Please wait before trying again.',
+                    'retry_after' => $retryAfter,
+                ], 429)
+                ->header('Retry-After', (string) $retryAfter);
+        }
+
+        $file = $request->file('report');
+        $pdfContents = file_get_contents($file->getRealPath());
+
+        if ($pdfContents === false) {
+            return response()->json(['message' => 'Could not read the generated report. Please try again.'], 422);
+        }
+
+        $filename = preg_replace('/[^A-Za-z0-9._-]/', '_', $file->getClientOriginalName() ?: 'attendance-report.pdf');
+
+        $sent = EmailService::send($recipient, new AttendanceReportEmail(
+            (string) $request->input('report_title'),
+            (string) $request->input('report_period'),
+            $org?->name ?? 'Organization',
+            $user->name,
+            $pdfContents,
+            $filename,
+        ));
+
+        if (! $sent) {
+            return response()->json(['message' => 'Could not send the report email. Please try again.'], 502);
+        }
+
+        RateLimiter::hit($rateLimitKey, 3600);
+
+        return response()->json([
+            'message' => "Report sent to {$recipient}.",
+            'email' => $recipient,
         ]);
     }
 
