@@ -799,6 +799,14 @@
                     <span class="nav-label">App Updates</span>
                 </button>
 
+                <div class="nav-section-title">Access</div>
+                <button class="nav-item" data-mode="admins">
+                    <span class="nav-icon">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                    </span>
+                    <span class="nav-label">Administrators</span>
+                </button>
+
                 <div class="nav-section-title">Account</div>
                 <button class="nav-item" data-mode="account">
                     <span class="nav-icon">
@@ -866,6 +874,8 @@
                 <div id="smsArea" style="display:none"></div>
                 <div id="updatesArea" style="display:none"></div>
 
+                <div id="adminsArea" style="display:none"></div>
+
                 <div id="accountArea" style="display:none">
                     <div class="org" style="max-width:640px">
                         <h3>My Account</h3>
@@ -922,6 +932,8 @@
 
     <script>
         const csrf = document.querySelector('meta[name="csrf-token"]').content;
+        const currentAdminId = {{ auth()->id() }};
+        const currentAdminRole = @json(auth()->user()->role);
         let current = '';
         const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
         const cap = (s) => s ? s.charAt(0).toUpperCase() + s.slice(1) : '';
@@ -1458,7 +1470,7 @@
         }
 
         function switchTab(targetMode, updateHash = true) {
-            const validModes = ['orgs', 'subs', 'packages', 'promos', 'notifications', 'sms', 'updates', 'account'];
+            const validModes = ['orgs', 'subs', 'packages', 'promos', 'notifications', 'sms', 'updates', 'admins', 'account'];
             if (!validModes.includes(targetMode)) targetMode = 'orgs';
             mode = targetMode;
 
@@ -1477,6 +1489,7 @@
                 notifications: ['Push Broadcasts', 'Console · Live Alerts & Dispatch Center'],
                 sms: ['Send SMS', 'Console · Text Messaging to Organization Admins'],
                 updates: ['App Updates', 'Console · Mobile Version Control & OTA Rollouts'],
+                admins: ['Administrators', 'Console · System Admin Accounts & Access'],
                 account: ['My Account', 'Console · System Admin Profile & Password'],
             };
             const [title, breadcrumb] = titles[mode] || ['Console', 'SmartAttend'];
@@ -1490,6 +1503,7 @@
             const notifArea = document.getElementById('notificationsArea');
             const smsArea = document.getElementById('smsArea');
             const updArea = document.getElementById('updatesArea');
+            const admArea = document.getElementById('adminsArea');
             const accArea = document.getElementById('accountArea');
             
             orgArea.style.display = mode === 'orgs' ? '' : 'none';
@@ -1499,6 +1513,7 @@
             notifArea.style.display = mode === 'notifications' ? '' : 'none';
             smsArea.style.display = mode === 'sms' ? '' : 'none';
             if (updArea) updArea.style.display = mode === 'updates' ? '' : 'none';
+            if (admArea) admArea.style.display = mode === 'admins' ? '' : 'none';
             if (accArea) accArea.style.display = mode === 'account' ? '' : 'none';
 
             if (updateHash && window.location.hash !== '#' + mode) {
@@ -1512,6 +1527,7 @@
             else if (mode === 'notifications') loadNotifications().catch(() => {});
             else if (mode === 'sms') loadSms().catch(() => {});
             else if (mode === 'updates') loadAppVersion().catch(() => {});
+            else if (mode === 'admins') loadAdmins().catch(() => {});
         }
 
         document.getElementById('sidebarNav').addEventListener('click', (e) => {
@@ -1526,6 +1542,11 @@
                 switchTab(hash, false);
             }
         });
+
+        async function loadAdmins() {
+            const box = document.getElementById('adminsArea');
+            if (box) box.innerHTML = '<p style="color:var(--muted)">Loading administrators...</p>';
+        }
 
         async function loadSubs() {
             const { organizations } = await api('/portal/api/organizations');
