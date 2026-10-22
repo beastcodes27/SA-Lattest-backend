@@ -891,6 +891,14 @@
                             <input class="pfield" id="newPassword" type="password" autocomplete="new-password" minlength="8" required>
                             <label class="plabel" for="confirmPassword">Confirm new password</label>
                             <input class="pfield" id="confirmPassword" type="password" autocomplete="new-password" minlength="8" required>
+
+                            <label class="plabel" for="passwordOtp">Email verification code</label>
+                            <div style="display:flex;align-items:center;gap:8px;margin-top:5px">
+                                <input class="pfield" id="passwordOtp" inputmode="numeric" maxlength="6" placeholder="6-digit code" autocomplete="one-time-code" style="margin-top:0" required>
+                                <button class="btn ghost" type="button" id="passwordOtpBtn" onclick="sendPasswordChangeCode()" style="white-space:nowrap">Send code</button>
+                            </div>
+                            <p style="color:var(--muted);font-size:12px;margin:6px 0 0">We will email a 6-digit code to verify your identity before changing the password.</p>
+
                             <div class="actions">
                                 <button class="btn primary" type="submit" id="passwordSubmitBtn">Update password</button>
                             </div>
@@ -1170,12 +1178,27 @@
             return json;
         }
 
+        async function sendPasswordChangeCode() {
+            const btn = document.getElementById('passwordOtpBtn');
+            if (btn) { btn.disabled = true; btn.textContent = 'Sending...'; }
+
+            try {
+                const json = await api('/portal/api/password/send-code', { method: 'POST' });
+                toast.success(json.message || 'Verification code sent. Check your email.');
+            } catch (e) {
+                toast.error(e.message || 'Could not send the verification code.');
+            } finally {
+                if (btn) { btn.disabled = false; btn.textContent = 'Send code'; }
+            }
+        }
+
         async function changeAdminPassword(event) {
             event.preventDefault();
 
             const currentPassword = document.getElementById('currentPassword').value;
             const newPassword = document.getElementById('newPassword').value;
             const confirmPassword = document.getElementById('confirmPassword').value;
+            const otp = document.getElementById('passwordOtp').value.trim();
 
             if (newPassword.length < 8) {
                 toast.warning('New password must be at least 8 characters.');
@@ -1183,6 +1206,10 @@
             }
             if (newPassword !== confirmPassword) {
                 toast.warning('New password and confirmation do not match.');
+                return;
+            }
+            if (!/^[0-9]{6}$/.test(otp)) {
+                toast.warning('Enter the 6-digit verification code sent to your email.');
                 return;
             }
 
@@ -1196,6 +1223,7 @@
                         current_password: currentPassword,
                         new_password: newPassword,
                         new_password_confirmation: confirmPassword,
+                        otp,
                     }),
                 });
                 document.getElementById('passwordForm').reset();
