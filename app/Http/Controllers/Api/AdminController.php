@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Mail\AttendanceReportEmail;
+use App\Mail\EmployeeIdChanged;
 use App\Models\Attendance;
 use App\Models\Branch;
 use App\Models\Organization;
@@ -14,10 +15,12 @@ use App\Support\PlanLimits;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
 class AdminController extends Controller
@@ -42,6 +45,7 @@ class AdminController extends Controller
         $validator = Validator::make($request->all(), [
             'employee_id_prefix' => ['nullable', 'string', 'max:20', 'regex:/^[A-Za-z0-9]+$/'],
             'default_employee_password' => ['nullable', 'string', 'min:6', 'max:60'],
+            'replace_employee_ids' => ['nullable', 'boolean'],
         ]);
 
         if ($validator->fails()) {
@@ -61,8 +65,24 @@ class AdminController extends Controller
 
         $org->save();
 
+        $idUpdate = null;
+        if (! empty($data['replace_employee_ids'])) {
+            $prefixForIds = strtoupper(trim((string) ($org->employee_id_prefix ?: AuthController::normalizePrefix($org->name))));
+            $idUpdate = $this->renumberEmployeeIds($org, $prefixForIds);
+        }
+
+        $message = 'Organization settings updated successfully.';
+        if ($idUpdate) {
+            $message = "Prefix updated. {$idUpdate['count']} employee ID(s) replaced";
+            $message .= $idUpdate['notified'] > 0
+                ? " and {$idUpdate['notified']} employee(s) notified by email."
+                : '. No employee email notifications were sent.';
+        }
+
         return response()->json([
-            'message' => 'Organization settings updated successfully.',
+            'message' => $message,
+            'employee_ids_replaced' => $idUpdate['count'] ?? 0,
+            'employees_notified' => $idUpdate['notified'] ?? 0,
             'org' => [
                 'id' => $org->id,
                 'name' => $org->name,
@@ -873,6 +893,91 @@ class AdminController extends Controller
     {
         return (int) $attendance->occurred_at->copy()->setTimezone(self::TIMEZONE)->format('H') * 60
             + (int) $attendance->occurred_at->copy()->setTimezone(self::TIMEZONE)->format('i');
+    }
+
+    /**
+     * Renumber existing employees to the new prefix and email each affected
+     * employee at their existing address.
+     *
+     * @return array{count: int, notified: int}
+     */
+    private function renumberEmployeeIds(Organization $org, string $prefix): array
+    {
+        $employees = $org->users()
+            ->where('role', 'employee')
+            ->orderBy('id')
+            ->get();
+
+        if ($employees->isEmpty()) {
+            return ['count' => 0, 'notified' => 0];
+        }
+
+        $oldIds = $employees->pluck('employee_id', 'id')->all();
+        $updates = [];
+
+        DB::transaction(function () use ($employees, $prefix, $oldIds, &$updates) {
+            // Move everyone to a temporary unique ID first so IDs can be
+            // reassigned without unique-constraint collisions.
+            foreach ($employees as $employee) {
+                $employee->forceFill([
+                    'employee_id' => 'TMP-'.$employee->id.'-'.Str::lower(Str::random(8)),
+                ])->save();
+            }
+
+            $usedNumbers = [];
+            User::withTrashed()
+                ->where('employee_id', 'like', $prefix.'-%')
+                ->pluck('employee_id')
+                ->each(function (string $id) use ($prefix, &$usedNumbers) {
+                    if (preg_match('/^'.preg_quote($prefix, '/').'-(\d+)$/', $id, $matches)) {
+                        $usedNumbers[(int) $matches[1]] = true;
+                    }
+                });
+
+            $next = 1;
+            foreach ($employees as $employee) {
+                while (isset($usedNumbers[$next])) {
+                    $next++;
+                }
+
+                $newId = $this->formatEmployeeId($prefix, $next);
+                $usedNumbers[$next] = true;
+
+                $employee->forceFill(['employee_id' => $newId])->save();
+
+                $updates[] = [
+                    'user_id' => $employee->id,
+                    'old' => $oldIds[$employee->id] ?? '',
+                    'new' => $newId,
+                ];
+
+                $next++;
+            }
+        });
+
+        $notified = 0;
+        foreach ($updates as $update) {
+            if ($update['old'] === $update['new']) {
+                continue;
+            }
+
+            $employee = $org->users()->where('role', 'employee')->find($update['user_id']);
+
+            if (! $employee || ! $employee->email) {
+                continue;
+            }
+
+            if (EmailService::send($employee->email, new EmployeeIdChanged(
+                $employee,
+                (string) $update['old'],
+                $update['new'],
+                $org->name,
+            ))) {
+                $notified++;
+            }
+        }
+
+        return ['count' => count($updates), 'notified' => $notified];
     }
 
     private function nextEmployeeIdFor(Organization $org): string
