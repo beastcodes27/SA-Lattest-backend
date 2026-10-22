@@ -799,13 +799,15 @@
                     <span class="nav-label">App Updates</span>
                 </button>
 
-                <div class="nav-section-title">Access</div>
-                <button class="nav-item" data-mode="admins">
-                    <span class="nav-icon">
-                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-                    </span>
-                    <span class="nav-label">Administrators</span>
-                </button>
+                @if (auth()->user()->role === 'superadmin')
+                    <div class="nav-section-title">Access</div>
+                    <button class="nav-item" data-mode="admins">
+                        <span class="nav-icon">
+                            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                        </span>
+                        <span class="nav-label">Administrators</span>
+                    </button>
+                @endif
 
                 <div class="nav-section-title">Account</div>
                 <button class="nav-item" data-mode="account">
@@ -1499,7 +1501,7 @@
         }
 
         function switchTab(targetMode, updateHash = true) {
-            const validModes = ['orgs', 'subs', 'packages', 'promos', 'notifications', 'sms', 'updates', 'admins', 'account'];
+            const validModes = ['orgs', 'subs', 'packages', 'promos', 'notifications', 'sms', 'updates', ...(currentAdminRole === 'superadmin' ? ['admins'] : []), 'account'];
             if (!validModes.includes(targetMode)) targetMode = 'orgs';
             mode = targetMode;
 
@@ -1594,7 +1596,7 @@
                 ${canCreateSuper ? '<option value="superadmin">Super admin</option>' : ''}
             `;
 
-            const createCard = `
+            const createCard = currentAdminRole === 'superadmin' ? `
                 <div class="org" style="margin-bottom:20px">
                     <h3>Add system administrator</h3>
                     <p style="color:var(--muted);font-size:13px;margin:4px 0 14px">Create an account that can sign in to this console and help monitor the platform.</p>
@@ -1635,7 +1637,7 @@
                     <div class="actions" style="margin-top:14px">
                         <button class="btn primary" id="adm_create_btn" onclick="createSystemAdmin()">Create Administrator</button>
                     </div>
-                </div>`;
+                </div>` : '';
 
             const rows = list.length === 0
                 ? '<p style="color:var(--muted);margin-top:10px">No system administrators found.</p>'

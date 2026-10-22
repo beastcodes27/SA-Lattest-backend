@@ -149,7 +149,7 @@ class SystemAdminSecurityTest extends TestCase
         ]);
     }
 
-    public function test_minor_admin_can_manage_another_minor_admin(): void
+    public function test_minor_admin_cannot_manage_another_minor_admin(): void
     {
         $peer = User::create([
             'name' => 'Peer Minor',
@@ -163,7 +163,7 @@ class SystemAdminSecurityTest extends TestCase
 
         Sanctum::actingAs($this->minorAdmin);
 
-        $this->patchJson("/api/system/minor-admins/{$peer->id}")->assertOk();
-        $this->assertFalse($peer->fresh()->active);
+        $this->patchJson("/api/system/minor-admins/{$peer->id}")->assertStatus(403);
+        $this->assertTrue($peer->fresh()->active);
     }
 }

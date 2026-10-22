@@ -119,4 +119,39 @@ class PortalAdminManagementTest extends TestCase
             'role' => 'superadmin',
         ])->assertStatus(403);
     }
+
+    public function test_minor_admin_cannot_create_another_admin(): void
+    {
+        $minor = $this->systemAdmin('minor_admin', [
+            'email' => 'minor@example.com',
+            'employee_id' => 'SYS-MINOR1',
+        ]);
+
+        $this->actingAs($minor)->postJson('/portal/api/admins', [
+            'name' => 'Support Admin',
+            'email' => 'support@example.com',
+            'employee_id' => 'SYS-SUP001',
+            'password' => 'password123',
+            'role' => 'minor_admin',
+        ])->assertStatus(403);
+    }
+
+    public function test_minor_admin_cannot_list_or_manage_administrators(): void
+    {
+        $minor = $this->systemAdmin('minor_admin', [
+            'email' => 'minor@example.com',
+            'employee_id' => 'SYS-MINOR1',
+        ]);
+
+        $peer = $this->systemAdmin('minor_admin', [
+            'name' => 'Peer Admin',
+            'email' => 'peer@example.com',
+            'employee_id' => 'SYS-PEER1',
+        ]);
+
+        $this->actingAs($minor)->getJson('/portal/api/admins')->assertStatus(403);
+        $this->actingAs($minor)->patchJson("/portal/api/admins/{$peer->id}")->assertStatus(403);
+        $this->actingAs($minor)->postJson("/portal/api/admins/{$peer->id}/reset-password", ['password' => 'newpassword'])->assertStatus(403);
+        $this->actingAs($minor)->deleteJson("/portal/api/admins/{$peer->id}")->assertStatus(403);
+    }
 }

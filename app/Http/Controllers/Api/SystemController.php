@@ -438,6 +438,10 @@ class SystemController extends Controller
 
     public function minorAdmins(Request $request): JsonResponse
     {
+        if ($request->user()->role !== 'superadmin') {
+            return response()->json(['message' => 'Only a superadmin can manage administrators.'], 403);
+        }
+
         $admins = User::query()
             ->whereIn('role', ['superadmin', 'minor_admin', 'sysadmin'])
             ->orWhere(function ($q) {
@@ -462,6 +466,10 @@ class SystemController extends Controller
 
     public function storeMinorAdmin(Request $request): JsonResponse
     {
+        if ($request->user()->role !== 'superadmin') {
+            return response()->json(['message' => 'Only a superadmin can add administrators.'], 403);
+        }
+
         $validator = Validator::make($request->all(), [
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255', 'unique:users,email'],
@@ -477,10 +485,6 @@ class SystemController extends Controller
 
         $data = $validator->validated();
         $role = $data['role'] ?? 'minor_admin';
-
-        if ($role === 'superadmin' && $request->user()->role !== 'superadmin') {
-            return response()->json(['message' => 'Only a superadmin can create a superadmin account.'], 403);
-        }
 
         $admin = User::create([
             'name' => trim($data['name']),
@@ -589,6 +593,10 @@ class SystemController extends Controller
      */
     private function manageSystemAdminError(Request $request, User $target): ?JsonResponse
     {
+        if ($request->user()->role !== 'superadmin') {
+            return response()->json(['message' => 'Only a superadmin can manage administrators.'], 403);
+        }
+
         if ($target->org_id !== null || ! in_array($target->role, ['superadmin', 'minor_admin', 'sysadmin'], true)) {
             return response()->json(['message' => 'Administrator not found.'], 404);
         }
