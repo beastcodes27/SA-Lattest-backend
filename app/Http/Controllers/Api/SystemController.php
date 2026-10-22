@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Mail\OrganizationApproved;
 use App\Mail\OrganizationRejected;
+use App\Mail\SystemAdminWelcome;
 use App\Models\Attendance;
 use App\Models\Branch;
 use App\Models\Organization;
@@ -446,7 +447,13 @@ class SystemController extends Controller
             'org_id' => null,
             'branch_id' => null,
             'active' => true,
+            'must_change_password' => true,
         ]);
+
+        EmailService::send(
+            $admin->email,
+            new SystemAdminWelcome($admin, $data['password'], $request->user()->name)
+        );
 
         return response()->json([
             'message' => "Admin {$admin->name} added successfully.",
