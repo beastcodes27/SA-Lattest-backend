@@ -1463,6 +1463,7 @@
 
         let mode = 'orgs';
         let pendingPromoCompose = null;
+        let adminDirectory = {};
 
         function emailPromo(id) {
             pendingPromoCompose = String(id);
@@ -1543,9 +1544,214 @@
             }
         });
 
+        function adminRoleLabel(role) {
+            return role === 'superadmin' ? 'Super admin' : role === 'sysadmin' ? 'Sysadmin' : 'Minor admin';
+        }
+
+        function adminRoleStyle(role) {
+            if (role === 'superadmin') return 'color:#6D28D9;background:rgba(109,40,217,.1)';
+            if (role === 'sysadmin') return 'color:#0F766E;background:rgba(15,118,110,.1)';
+            return 'color:#1D4ED8;background:rgba(29,78,216,.1)';
+        }
+
         async function loadAdmins() {
+            const { admins } = await api('/portal/api/admins');
             const box = document.getElementById('adminsArea');
-            if (box) box.innerHTML = '<p style="color:var(--muted)">Loading administrators...</p>';
+            const list = admins || [];
+            adminDirectory = Object.fromEntries(list.map(a => [String(a.id), a.name]));
+            const canCreateSuper = currentAdminRole === 'superadmin';
+            const roleOptions = `
+                <option value="minor_admin">Minor admin</option>
+                <option value="sysadmin">Sysadmin</option>
+                ${canCreateSuper ? '<option value="superadmin">Super admin</option>' : ''}
+            `;
+
+            const createCard = `
+                <div class="org" style="margin-bottom:20px">
+                    <h3>Add system administrator</h3>
+                    <p style="color:var(--muted);font-size:13px;margin:4px 0 14px">Create an account that can sign in to this console and help monitor the platform.</p>
+
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+                        <div>
+                            <label class="plabel">Full name</label>
+                            <input class="pfield" id="adm_name" placeholder="e.g. Support Admin">
+                        </div>
+                        <div>
+                            <label class="plabel">Sign-in ID</label>
+                            <input class="pfield" id="adm_employee_id" placeholder="e.g. SYS-0004">
+                        </div>
+                    </div>
+
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+                        <div>
+                            <label class="plabel">Email address</label>
+                            <input class="pfield" id="adm_email" type="email" placeholder="admin@company.com">
+                        </div>
+                        <div>
+                            <label class="plabel">Phone (optional)</label>
+                            <input class="pfield" id="adm_phone" placeholder="+255 700 000 000">
+                        </div>
+                    </div>
+
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+                        <div>
+                            <label class="plabel">Role</label>
+                            <select class="pfield" id="adm_role">${roleOptions}</select>
+                        </div>
+                        <div>
+                            <label class="plabel">Temporary password</label>
+                            <input class="pfield" id="adm_password" type="password" placeholder="At least 6 characters">
+                        </div>
+                    </div>
+
+                    <div class="actions" style="margin-top:14px">
+                        <button class="btn primary" id="adm_create_btn" onclick="createSystemAdmin()">Create Administrator</button>
+                    </div>
+                </div>`;
+
+            const rows = list.length === 0
+                ? '<p style="color:var(--muted);margin-top:10px">No system administrators found.</p>'
+                : `<table class="emps" style="margin-top:12px;background:#fff;border-radius:12px;overflow:hidden;border:1px solid rgba(32,15,53,.1)">
+                    <thead>
+                        <tr>
+                            <th>Administrator</th>
+                            <th>Sign-in ID</th>
+                            <th>Role</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${list.map(a => {
+                            const isRoot = a.employee_id === 'SYSTEM_SUPERADMIN' || a.employee_id === 'SUPERADMIN';
+                            const isSelf = Number(a.id) === Number(currentAdminId);
+                            const protectedAccount = isRoot || isSelf;
+                            const actions = protectedAccount
+                                ? '<span style="color:var(--muted);font-size:12px;font-weight:600">Protected account</span>'
+                                : `<button class="btn ghost" onclick="toggleSystemAdmin(${a.id}, ${a.active ? 'false' : 'true'})">${a.active ? 'Deactivate' : 'Activate'}</button>
+                                   <button class="btn ghost" onclick="resetSystemAdminPassword(${a.id})">Reset password</button>
+                                   <button class="btn danger" onclick="deleteSystemAdmin(${a.id})">Delete</button>`;
+                            return `<tr>
+                                <td>
+                                    <div style="font-weight:800;color:var(--ink)">${esc(a.name)} ${isSelf ? '<span style="color:var(--muted);font-weight:600;font-size:11px">(you)</span>' : ''}</div>
+                                    <div style="color:var(--muted);font-size:12px;margin-top:2px">${esc(a.email || '—')}</div>
+                                </td>
+                                <td style="color:var(--muted)">${esc(a.employee_id || '—')}</td>
+                                <td><span class="pill" style="${adminRoleStyle(a.role)}">${adminRoleLabel(a.role)}</span></td>
+                                <td><span class="pill" style="color:${a.active ? 'var(--green)' : 'var(--red)'};background:${a.active ? 'var(--green)' : 'var(--red)'}1A">${a.active ? 'Active' : 'Inactive'}</span></td>
+                                <td><div style="display:flex;gap:6px;flex-wrap:wrap">${actions}</div></td>
+                            </tr>`;
+                        }).join('')}
+                    </tbody>
+                </table>`;
+
+            box.innerHTML = createCard + `
+                <div style="margin-top:16px">
+                    <h3 style="font-size:16px;margin-bottom:8px">System administrators</h3>
+                    ${rows}
+                </div>`;
+        }
+
+        async function createSystemAdmin() {
+            const val = (id) => document.getElementById(id)?.value.trim();
+            const body = {
+                name: val('adm_name'),
+                employee_id: val('adm_employee_id'),
+                email: val('adm_email'),
+                phone: val('adm_phone') || null,
+                role: val('adm_role') || 'minor_admin',
+                password: document.getElementById('adm_password')?.value || '',
+            };
+
+            if (!body.name || !body.employee_id || !body.email) {
+                toast.warning('Enter the administrator name, sign-in ID and email.');
+                return;
+            }
+            if (body.password.length < 6) {
+                toast.warning('Temporary password must be at least 6 characters.');
+                return;
+            }
+
+            const ok = await customConfirm(`Create a ${adminRoleLabel(body.role).toLowerCase()} account for ${body.name}?`, {
+                title: 'Create Administrator',
+                tone: 'info',
+                confirmText: 'Create Account',
+            });
+            if (!ok) return;
+
+            const btn = document.getElementById('adm_create_btn');
+            if (btn) { btn.disabled = true; btn.textContent = 'Creating...'; }
+
+            try {
+                const json = await api('/portal/api/admins', { method: 'POST', body: JSON.stringify(body) });
+                toast(json.message || 'Administrator created.', true);
+                await loadAdmins();
+            } catch (e) {
+                toast(e.message || 'Could not create the administrator.', false);
+                if (btn) { btn.disabled = false; btn.textContent = 'Create Administrator'; }
+            }
+        }
+
+        async function toggleSystemAdmin(id, active) {
+            const name = adminDirectory[String(id)] || `Administrator #${id}`;
+            const ok = await customConfirm(`${active ? 'Activate' : 'Deactivate'} ${name}'s console access?`, {
+                title: active ? 'Activate Administrator' : 'Deactivate Administrator',
+                tone: active ? 'info' : 'warning',
+                confirmText: active ? 'Activate' : 'Deactivate',
+            });
+            if (!ok) return;
+
+            try {
+                const json = await api(`/portal/api/admins/${id}`, { method: 'PATCH' });
+                toast(json.message || 'Administrator updated.', true);
+                await loadAdmins();
+            } catch (e) {
+                toast(e.message || 'Could not update the administrator.', false);
+            }
+        }
+
+        async function resetSystemAdminPassword(id) {
+            const name = adminDirectory[String(id)] || `Administrator #${id}`;
+            const password = await customPrompt(`Set a new password for ${name}.`, '', {
+                title: 'Reset Administrator Password',
+                label: 'New password',
+                inputType: 'password',
+                placeholder: 'At least 6 characters',
+                confirmText: 'Reset Password',
+            });
+            if (!password) return;
+            if (password.length < 6) {
+                toast.warning('Password must be at least 6 characters.');
+                return;
+            }
+
+            try {
+                const json = await api(`/portal/api/admins/${id}/reset-password`, {
+                    method: 'POST',
+                    body: JSON.stringify({ password }),
+                });
+                toast(json.message || 'Password reset successfully.', true);
+            } catch (e) {
+                toast(e.message || 'Could not reset the password.', false);
+            }
+        }
+
+        async function deleteSystemAdmin(id) {
+            const name = adminDirectory[String(id)] || `Administrator #${id}`;
+            const ok = await customConfirm(`Delete the administrator account for ${name}? This cannot be undone.`, {
+                title: 'Delete Administrator',
+                tone: 'danger',
+                confirmText: 'Delete Account',
+            });
+            if (!ok) return;
+
+            try {
+                const json = await api(`/portal/api/admins/${id}`, { method: 'DELETE' });
+                toast(json.message || 'Administrator deleted.', true);
+                await loadAdmins();
+            } catch (e) {
+                toast(e.message || 'Could not delete the administrator.', false);
+            }
         }
 
         async function loadSubs() {
