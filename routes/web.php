@@ -26,6 +26,12 @@ Route::prefix('portal')->group(function () {
             Route::post('organizations/{organization}/subscription', [SystemController::class, 'updateSubscription']);
             Route::delete('organizations/{organization}', [SystemController::class, 'destroyOrganization']);
 
+            Route::get('admins', [SystemController::class, 'minorAdmins']);
+            Route::post('admins', [SystemController::class, 'storeMinorAdmin']);
+            Route::patch('admins/{user}', [SystemController::class, 'toggleMinorAdmin']);
+            Route::post('admins/{user}/reset-password', [SystemController::class, 'resetMinorAdminPassword']);
+            Route::delete('admins/{user}', [SystemController::class, 'deleteMinorAdmin']);
+
             Route::get('packages', [PackagesController::class, 'systemIndex']);
             Route::post('packages', [PackagesController::class, 'store']);
             Route::put('packages/{package}', [PackagesController::class, 'update']);
