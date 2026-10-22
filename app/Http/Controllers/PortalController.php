@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Mail\SystemAdminLoginAlert;
+use App\Services\EmailService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -35,6 +37,16 @@ class PortalController extends Controller
             }
 
             $request->session()->regenerate();
+
+            EmailService::send(
+                $user->email,
+                new SystemAdminLoginAlert(
+                    $user,
+                    (string) $request->ip(),
+                    $request->userAgent(),
+                    now()->timezone('Africa/Dar_es_Salaam')->format('d M Y, H:i').' (EAT)',
+                )
+            );
 
             return redirect()->route('portal.dashboard');
         }
