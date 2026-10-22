@@ -12,6 +12,7 @@ use App\Models\PromoRedemption;
 use App\Models\User;
 use App\Services\EmailService;
 use App\Services\ExpoPushService;
+use App\Services\OtpService;
 use App\Services\SmsService;
 use App\Support\PlanLimits;
 use Carbon\Carbon;
@@ -20,6 +21,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 
@@ -359,11 +361,47 @@ class SystemController extends Controller
         ]);
     }
 
+    public function sendPasswordChangeCode(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        if (! OtpService::isAdmin($user)) {
+            return response()->json(['message' => 'Email verification is not required for this account.'], 403);
+        }
+
+        $rateLimitKey = 'password-change-otp:'.$user->id;
+
+        if (RateLimiter::tooManyAttempts($rateLimitKey, OtpService::MAX_EMAILS_PER_HOUR)) {
+            $retryAfter = RateLimiter::availableIn($rateLimitKey);
+
+            return response()
+                ->json([
+                    'message' => 'You have requested too many verification codes. Please wait before trying again.',
+                    'retry_after' => $retryAfter,
+                ], 429)
+                ->header('Retry-After', (string) $retryAfter);
+        }
+
+        $sent = OtpService::send($user, 'password_change', 'password change');
+
+        if (! $sent) {
+            return response()->json(['message' => 'Could not send the verification email. Please try again.'], 502);
+        }
+
+        RateLimiter::hit($rateLimitKey, 3600);
+
+        return response()->json([
+            'message' => "A verification code was sent to {$user->email}.",
+            'expires_in_minutes' => OtpService::TTL_MINUTES,
+        ]);
+    }
+
     public function changePassword(Request $request): JsonResponse
     {
         $validator = Validator::make($request->all(), [
             'current_password' => ['required', 'string'],
             'new_password' => ['required', 'string', 'min:8', 'confirmed'],
+            'otp' => ['required', 'digits:6'],
         ]);
 
         if ($validator->fails()) {
@@ -381,6 +419,13 @@ class SystemController extends Controller
 
         if (Hash::check($request->input('new_password'), $user->password)) {
             return response()->json(['message' => 'Your new password must be different from your current password.'], 422);
+        }
+
+        if (! OtpService::verify($user, 'password_change', (string) $request->input('otp'))) {
+            return response()->json([
+                'message' => 'The verification code is invalid or has expired.',
+                'errors' => ['otp' => ['The verification code is invalid or has expired.']],
+            ], 422);
         }
 
         $user->forceFill([
