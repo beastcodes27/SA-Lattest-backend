@@ -12,6 +12,7 @@ use App\Mail\OrganizationRejected;
 use App\Mail\PasswordResetCode;
 use App\Mail\PaymentReceipt;
 use App\Mail\PromotionMessage;
+use App\Mail\SystemAdminWelcome;
 use App\Models\Organization;
 use App\Models\Package;
 use App\Models\Payment;
@@ -299,6 +300,7 @@ class EmailNotificationsTest extends TestCase
         $this->assertStringContainsString('Payment received', (new NotificationMessage('Payment received', 'Your payment was received.', $this->orgAdmin->name, 'Billing'))->render());
         $this->assertStringContainsString('SAVE20', (new PromotionMessage('20% off upgrades', 'Upgrade today and save.', 'SAVE20', '20% off on your package', '31 Dec 2026'))->render());
         $this->assertStringContainsString('Registration request received', (new OrganizationRegistrationReceived($this->organization, $this->orgAdmin))->render());
+        $this->assertStringContainsString('administrator account is ready', (new SystemAdminWelcome($this->systemAdmin, 'TempPass123', 'Root Admin'))->render());
     }
 
     public function test_emails_do_not_expose_portal_or_backend_urls(): void
@@ -313,6 +315,7 @@ class EmailNotificationsTest extends TestCase
             new Announcement('Maintenance', 'We will be offline tonight.'),
             new NotificationMessage('Payment received', 'Thank you.'),
             new PromotionMessage('20% off', 'Save today.', 'SAVE20', '20% off on your package'),
+            new SystemAdminWelcome($this->systemAdmin, 'TempPass123', 'Root Admin'),
         ];
 
         foreach ($mailables as $mailable) {

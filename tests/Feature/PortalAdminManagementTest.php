@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Mail\SystemAdminLoginAlert;
+use App\Mail\SystemAdminWelcome;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
@@ -76,6 +77,13 @@ class PortalAdminManagementTest extends TestCase
 
         $created = User::where('employee_id', 'SYS-MON001')->firstOrFail();
         $this->assertSame('minor_admin', $created->role);
+        $this->assertTrue((bool) $created->must_change_password);
+
+        Mail::assertSent(SystemAdminWelcome::class, function (SystemAdminWelcome $mail) use ($created) {
+            return $mail->hasTo($created->email)
+                && $mail->admin->is($created)
+                && $mail->temporaryPassword === 'password123';
+        });
 
         $this->actingAs($superadmin)
             ->patchJson("/portal/api/admins/{$created->id}")
