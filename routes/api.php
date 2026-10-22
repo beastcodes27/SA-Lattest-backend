@@ -3,8 +3,8 @@
 use App\Http\Controllers\Api\AdminController;
 use App\Http\Controllers\Api\AppVersionController;
 use App\Http\Controllers\Api\AttendanceController;
-use App\Http\Controllers\Api\ErrorLogController;
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\ErrorLogController;
 use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\PackagesController;
 use App\Http\Controllers\Api\PasswordResetController;
@@ -53,6 +53,7 @@ Route::middleware('throttle:api')->group(function () {
         Route::get('me', [ProfileController::class, 'me']);
         Route::put('me', [ProfileController::class, 'update']);
         Route::post('me/avatar', [ProfileController::class, 'uploadAvatar']);
+        Route::post('me/password/otp', [ProfileController::class, 'sendPasswordChangeCode'])->middleware('throttle:otp');
         Route::put('me/password', [ProfileController::class, 'changePassword'])->middleware('throttle:10,1');
         Route::put('me/password/force', [ProfileController::class, 'forceChangePassword'])->middleware('throttle:10,1');
         // Mobile User Profile & Device Push Registration
