@@ -11,6 +11,8 @@ use Illuminate\Support\Facades\Route;
 Route::prefix('portal')->group(function () {
     Route::get('/', [PortalController::class, 'showLogin'])->name('portal.login');
     Route::post('/login', [PortalController::class, 'login'])->middleware('throttle:auth')->name('portal.login.post');
+    Route::get('/mfa', [PortalController::class, 'showMfa'])->name('portal.mfa');
+    Route::post('/mfa', [PortalController::class, 'verifyMfa'])->middleware('throttle:auth')->name('portal.mfa.post');
     Route::post('/logout', [PortalController::class, 'logout'])->name('portal.logout');
 
     Route::middleware('portal.system')->group(function () {
@@ -48,6 +50,10 @@ Route::prefix('portal')->group(function () {
 
             Route::get('app-version', [AppVersionController::class, 'adminShow']);
             Route::post('app-version', [AppVersionController::class, 'adminUpdate']);
+
+            Route::post('mfa/setup', [PortalController::class, 'setupMfa']);
+            Route::post('mfa/enable', [PortalController::class, 'enableMfa']);
+            Route::post('mfa/disable', [PortalController::class, 'disableMfa']);
 
             Route::post('password/send-code', [SystemController::class, 'sendPasswordChangeCode']);
             Route::post('password', [SystemController::class, 'changePassword']);
