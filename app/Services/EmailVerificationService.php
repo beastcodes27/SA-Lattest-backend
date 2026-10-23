@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\Hash;
 
 class EmailVerificationService
 {
-    public const CODE_TTL_MINUTES = 15;
+    public const CODE_TTL_MINUTES = 10;
 
     public const MAX_ATTEMPTS = 5;
 

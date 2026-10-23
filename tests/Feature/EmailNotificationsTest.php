@@ -88,7 +88,7 @@ class EmailNotificationsTest extends TestCase
                 'phone' => '+255 712 111 222',
                 'tin' => '123-456-789',
                 'plan' => 'starter',
-                'default_password' => 'Default@123',
+                'default_password' => 'Default@12345',
             ],
             'admin' => [
                 'name' => 'New Admin',
@@ -222,10 +222,14 @@ class EmailNotificationsTest extends TestCase
         $this->postJson('/api/auth/forgot-password', ['email' => $this->orgAdmin->email])
             ->assertOk();
 
-        Mail::assertSent(PasswordResetCode::class, function (PasswordResetCode $mail) use (&$code) {
-            $code = $mail->code;
+        Mail::assertSent(OneTimePasscode::class, function (OneTimePasscode $mail) use (&$code) {
+            if ($mail->purpose === 'password reset' && $mail->hasTo('admin@apex.tz')) {
+                $code = $mail->code;
 
-            return $mail->hasTo('admin@apex.tz');
+                return true;
+            }
+
+            return false;
         });
 
         $this->assertNotNull($code);
@@ -238,7 +242,7 @@ class EmailNotificationsTest extends TestCase
         ])->assertOk();
 
         $this->assertTrue(Hash::check('NewPassword@456', $this->orgAdmin->fresh()->password));
-        $this->assertDatabaseMissing('password_reset_tokens', ['email' => $this->orgAdmin->email]);
+        $this->assertDatabaseMissing('otp_codes', ['user_id' => $this->orgAdmin->id, 'purpose' => 'password_reset']);
     }
 
     public function test_password_reset_emails_are_limited_to_two_per_day(): void
@@ -249,15 +253,19 @@ class EmailNotificationsTest extends TestCase
         $this->postJson('/api/auth/forgot-password', $payload)->assertOk();
         $this->postJson('/api/auth/forgot-password', $payload)->assertStatus(429);
 
-        Mail::assertSent(PasswordResetCode::class, 2);
+        Mail::assertSent(OneTimePasscode::class, 2);
     }
 
     public function test_expired_password_reset_code_is_rejected(): void
     {
-        DB::table('password_reset_tokens')->insert([
-            'email' => $this->orgAdmin->email,
-            'token' => Hash::make('123456'),
-            'created_at' => now()->subMinutes(30),
+        DB::table('otp_codes')->insert([
+            'user_id' => $this->orgAdmin->id,
+            'purpose' => 'password_reset',
+            'code' => Hash::make('123456'),
+            'attempts' => 0,
+            'expires_at' => now()->subMinutes(5),
+            'created_at' => now()->subMinutes(15),
+            'updated_at' => now()->subMinutes(15),
         ]);
 
         $this->postJson('/api/auth/reset-password', [
@@ -406,5 +414,14 @@ class EmailNotificationsTest extends TestCase
             ->assertOk();
 
         Mail::assertSent(PaymentReceipt::class, 1);
+    }
+
+    public function test_unknown_reset_email_returns_a_generic_response_without_sending_mail(): void
+    {
+        $this->postJson('/api/auth/forgot-password', ['email' => 'unknown@example.com'])
+            ->assertOk()
+            ->assertJsonPath('message', 'If an account exists for that email, a reset code has been sent.');
+
+        Mail::assertNothingSent();
     }
 }

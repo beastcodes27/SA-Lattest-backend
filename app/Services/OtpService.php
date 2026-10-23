@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Hash;
 
 class OtpService
 {
-    public const TTL_MINUTES = 15;
+    public const TTL_MINUTES = 10;
 
     public const MAX_ATTEMPTS = 5;
 

@@ -2,21 +2,18 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Mail\PasswordResetCode;
 use App\Models\User;
-use App\Services\EmailService;
-use Carbon\Carbon;
+use App\Services\OtpService;
+use App\Support\PasswordPolicy;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Validator;
 
 class PasswordResetController extends Controller
 {
-    private const CODE_TTL_MINUTES = 15;
+    private const GENERIC_MESSAGE = 'If an account exists for that email, a reset code has been sent.';
 
     public function sendCode(Request $request): JsonResponse
     {
@@ -32,20 +29,8 @@ class PasswordResetController extends Controller
         }
 
         $email = strtolower(trim((string) $request->input('email')));
-
-        $user = User::where('email', $email)->first();
-
-        if (! $user) {
-            return response()->json([
-                'message' => 'This email address is not registered in our system. Please check your spelling or contact your organization administrator.',
-                'errors' => [
-                    'email' => ['No account found with this email address.'],
-                ],
-            ], 404);
-        }
-
-        $rateLimitKey = 'password-reset-email:'.sha1($email);
-        $dailyLimit = max(1, (int) config('services.email.password_reset_daily_limit', 5));
+        $rateLimitKey = 'password-reset-email:'.sha1($email.'|'.$request->ip());
+        $dailyLimit = max(1, (int) config('services.email.password_reset_daily_limit', 2));
 
         if (RateLimiter::tooManyAttempts($rateLimitKey, $dailyLimit)) {
             $retryAfter = RateLimiter::availableIn($rateLimitKey);
@@ -59,25 +44,23 @@ class PasswordResetController extends Controller
                 ->header('Retry-After', (string) $retryAfter);
         }
 
+        // Count the request before looking up the account so responses do not
+        // reveal whether an email address exists.
         RateLimiter::hit($rateLimitKey, 86400);
 
-        $code = (string) random_int(100000, 999999);
+        $user = User::where('email', $email)->first();
 
-        DB::table('password_reset_tokens')->updateOrInsert(
-            ['email' => $email],
-            ['token' => Hash::make($code), 'created_at' => now()]
-        );
-
-        try {
-            EmailService::send($email, new PasswordResetCode($user, $code));
-        } catch (\Throwable $e) {
-            Log::error('Failed to email password reset code: '.$e->getMessage(), ['email' => $email]);
+        if ($user) {
+            try {
+                OtpService::send($user, 'password_reset', 'password reset');
+            } catch (\Throwable $e) {
+                Log::error('Failed to email password reset code: '.$e->getMessage(), ['email' => $email]);
+            }
         }
 
         return response()->json([
-            'message' => "A 6-digit verification code has been sent to {$email}.",
-            'email' => $email,
-            'expires_in_minutes' => self::CODE_TTL_MINUTES,
+            'message' => self::GENERIC_MESSAGE,
+            'expires_in_minutes' => OtpService::TTL_MINUTES,
         ]);
     }
 
@@ -86,7 +69,7 @@ class PasswordResetController extends Controller
         $validator = Validator::make($request->all(), [
             'email' => ['required', 'email', 'max:255'],
             'code' => ['required', 'digits:6'],
-            'password' => ['required', 'string', 'min:6', 'confirmed'],
+            'password' => ['required', 'string', 'confirmed', PasswordPolicy::rule()],
         ]);
 
         if ($validator->fails()) {
@@ -97,19 +80,9 @@ class PasswordResetController extends Controller
         }
 
         $email = strtolower(trim((string) $request->input('email')));
-        $reset = DB::table('password_reset_tokens')->where('email', $email)->first();
-
-        if (! $reset || ! $reset->created_at || Carbon::parse($reset->created_at)->lt(now()->subMinutes(self::CODE_TTL_MINUTES))) {
-            return response()->json(['message' => 'This reset code is invalid or has expired. Please request a new one.'], 422);
-        }
-
-        if (! Hash::check((string) $request->input('code'), $reset->token)) {
-            return response()->json(['message' => 'This reset code is invalid or has expired. Please request a new one.'], 422);
-        }
-
         $user = User::where('email', $email)->first();
 
-        if (! $user) {
+        if (! $user || ! OtpService::verify($user, 'password_reset', (string) $request->input('code'))) {
             return response()->json(['message' => 'This reset code is invalid or has expired. Please request a new one.'], 422);
         }
 
@@ -119,7 +92,6 @@ class PasswordResetController extends Controller
         ])->save();
 
         $user->tokens()->delete();
-        DB::table('password_reset_tokens')->where('email', $email)->delete();
 
         return response()->json([
             'message' => 'Your password has been reset. You can now sign in with your new password.',
