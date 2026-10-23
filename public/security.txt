@@ -1,0 +1,6 @@
+Contact: mailto:security@smartattend.org
+Contact: mailto:help@smartattend.com
+Expires: 2027-10-31T23:59:59.000Z
+Preferred-Languages: en, sw
+Canonical: https://smartattend.org/.well-known/security.txt
+Policy: https://smartattend.org/security

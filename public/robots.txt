@@ -1,2 +1,8 @@
 User-agent: *
-Disallow:
+Disallow: /portal
+Disallow: /portal/
+Disallow: /api/
+Disallow: /storage/documents/
+Allow: /$
+
+Sitemap: https://smartattend.org/sitemap.xml
