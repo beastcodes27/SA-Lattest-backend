@@ -249,7 +249,7 @@
         </div>
     </div>
 
-    <script>
+    <script nonce="{{ $cspNonce ?? '' }}">
         const resetBackdrop = document.getElementById('resetBackdrop');
         const resetFeedback = document.getElementById('resetFeedback');
         const resetStep1 = document.getElementById('resetStep1');

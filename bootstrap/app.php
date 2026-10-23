@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Middleware\OrgAdmin;
+use App\Http\Middleware\SecurityHeaders;
 use App\Http\Middleware\SystemAdmin;
 use App\Http\Middleware\WebSystemAdmin;
 use App\Models\ErrorLog;
@@ -19,6 +20,8 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->append(SecurityHeaders::class);
+
         $middleware->alias([
             'org-admin' => OrgAdmin::class,
             'system-admin' => SystemAdmin::class,
