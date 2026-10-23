@@ -885,14 +885,14 @@
                             Signed in as <b>{{ auth()->user()->name }}</b> &middot; ID {{ auth()->user()->employee_id }} &middot; {{ auth()->user()->role }}
                         </div>
                         <h4 style="margin:18px 0 4px">Change Password</h4>
-                        <p style="color:var(--muted);font-size:13px;margin:0">Use a strong password of at least 8 characters.</p>
+                        <p style="color:var(--muted);font-size:13px;margin:0">Use a strong password of at least 12 characters.</p>
                         <form id="passwordForm" onsubmit="changeAdminPassword(event)" autocomplete="off">
                             <label class="plabel" for="currentPassword">Current password</label>
                             <input class="pfield" id="currentPassword" type="password" autocomplete="current-password" required>
                             <label class="plabel" for="newPassword">New password</label>
-                            <input class="pfield" id="newPassword" type="password" autocomplete="new-password" minlength="8" required>
+                            <input class="pfield" id="newPassword" type="password" autocomplete="new-password" minlength="12" required>
                             <label class="plabel" for="confirmPassword">Confirm new password</label>
-                            <input class="pfield" id="confirmPassword" type="password" autocomplete="new-password" minlength="8" required>
+                            <input class="pfield" id="confirmPassword" type="password" autocomplete="new-password" minlength="12" required>
 
                             <label class="plabel" for="passwordOtp">Email verification code</label>
                             <div style="display:flex;align-items:center;gap:8px;margin-top:5px">
@@ -905,6 +905,30 @@
                                 <button class="btn primary" type="submit" id="passwordSubmitBtn">Update password</button>
                             </div>
                         </form>
+
+                        <h4 style="margin:22px 0 4px">Two-factor authentication</h4>
+                        <p style="color:var(--muted);font-size:13px;margin:0">
+                            Add a 6-digit authenticator code to every console sign-in.
+                            Status: <b>{{ auth()->user()->mfa_enabled ? 'Enabled' : 'Not enabled' }}</b>.
+                        </p>
+                        <div class="actions" style="margin-top:10px">
+                            @if (auth()->user()->mfa_enabled)
+                                <button class="btn ghost" type="button" onclick="disableMfa()">Disable 2FA</button>
+                            @else
+                                <button class="btn primary" type="button" onclick="startMfaSetup()">Enable 2FA</button>
+                            @endif
+                        </div>
+
+                        <div id="mfaSetupBox" style="display:none;margin-top:14px;padding:14px;border-radius:12px;background:rgba(32,15,53,.04);border:1px solid rgba(32,15,53,.08)">
+                            <p style="margin:0 0 8px;font-size:13px;color:var(--text)">Add this secret to Google Authenticator, Authy, 1Password or any TOTP app.</p>
+                            <code id="mfaSecret" style="display:block;padding:10px 12px;border-radius:8px;background:#fff;border:1px solid rgba(32,15,53,.1);font-size:13px;letter-spacing:1px;word-break:break-all"></code>
+                            <p id="mfaUri" style="margin:8px 0 0;font-size:11px;color:var(--muted);word-break:break-all"></p>
+                            <label class="plabel" for="mfaCode">Enter the 6-digit code from your app</label>
+                            <input class="pfield" id="mfaCode" inputmode="numeric" maxlength="6" placeholder="000000" autocomplete="one-time-code" style="margin-top:5px;letter-spacing:6px;text-align:center">
+                            <div class="actions" style="margin-top:10px">
+                                <button class="btn primary" type="button" onclick="confirmMfaSetup()">Verify &amp; Enable</button>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </main>
@@ -940,7 +964,7 @@
         </div>
     </div>
 
-    <script>
+    <script nonce="{{ $cspNonce ?? '' }}">
         const csrf = document.querySelector('meta[name="csrf-token"]').content;
         const currentAdminId = {{ auth()->id() }};
         const currentAdminRole = @json(auth()->user()->role);
@@ -1180,6 +1204,50 @@
             return json;
         }
 
+        async function startMfaSetup() {
+            try {
+                const json = await api('/portal/api/mfa/setup', { method: 'POST' });
+                document.getElementById('mfaSecret').textContent = json.secret || '';
+                document.getElementById('mfaUri').textContent = json.otpauth_uri || '';
+                document.getElementById('mfaSetupBox').style.display = '';
+                toast.success('Scan or copy the secret, then enter a code to enable 2FA.');
+            } catch (e) {
+                toast.error(e.message || 'Could not start 2FA setup.');
+            }
+        }
+
+        async function confirmMfaSetup() {
+            const code = (document.getElementById('mfaCode')?.value || '').trim();
+            if (!/^[0-9]{6}$/.test(code)) {
+                toast.warning('Enter the 6-digit code from your authenticator app.');
+                return;
+            }
+            try {
+                const json = await api('/portal/api/mfa/enable', { method: 'POST', body: JSON.stringify({ code }) });
+                toast.success(json.message || 'Two-factor authentication enabled.');
+                setTimeout(() => window.location.reload(), 600);
+            } catch (e) {
+                toast.error(e.message || 'Could not enable 2FA.');
+            }
+        }
+
+        async function disableMfa() {
+            const password = await customPrompt('Enter your current password to disable two-factor authentication.', '', {
+                title: 'Disable Two-Factor Authentication',
+                label: 'Current password',
+                inputType: 'password',
+                confirmText: 'Disable 2FA',
+            });
+            if (!password) return;
+            try {
+                const json = await api('/portal/api/mfa/disable', { method: 'POST', body: JSON.stringify({ password }) });
+                toast.success(json.message || 'Two-factor authentication disabled.');
+                setTimeout(() => window.location.reload(), 600);
+            } catch (e) {
+                toast.error(e.message || 'Could not disable 2FA.');
+            }
+        }
+
         async function sendPasswordChangeCode() {
             const btn = document.getElementById('passwordOtpBtn');
             if (btn) { btn.disabled = true; btn.textContent = 'Sending...'; }
@@ -1202,8 +1270,8 @@
             const confirmPassword = document.getElementById('confirmPassword').value;
             const otp = document.getElementById('passwordOtp').value.trim();
 
-            if (newPassword.length < 8) {
-                toast.warning('New password must be at least 8 characters.');
+            if (newPassword.length < 12) {
+                toast.warning('New password must be at least 12 characters.');
                 return;
             }
             if (newPassword !== confirmPassword) {
