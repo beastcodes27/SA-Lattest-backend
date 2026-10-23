@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Services\OtpService;
+use App\Support\PasswordPolicy;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -134,7 +135,7 @@ class ProfileController extends Controller
 
         $rules = [
             'current_password' => ['required', 'string'],
-            'new_password' => ['required', 'string', 'min:6'],
+            'new_password' => ['required', 'string', PasswordPolicy::rule()],
         ];
 
         if ($requiresOtp) {
@@ -180,7 +181,7 @@ class ProfileController extends Controller
         }
 
         $validator = Validator::make($request->all(), [
-            'new_password' => ['required', 'string', 'min:6'],
+            'new_password' => ['required', 'string', PasswordPolicy::rule()],
             // Contact details are only required when the account does not already
             // have them (e.g. after an admin password reset the profile is intact).
             'email' => [$user->email ? 'nullable' : 'required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user->id)],

@@ -27,7 +27,7 @@ class PortalAdminManagementTest extends TestCase
             'name' => 'System Admin',
             'email' => 'sysadmin@example.com',
             'employee_id' => 'SYS-ADMIN1',
-            'password' => 'password123',
+            'password' => 'password1234',
             'role' => $role,
             'active' => true,
             ...$attributes,
@@ -40,7 +40,7 @@ class PortalAdminManagementTest extends TestCase
 
         $this->post('/portal/login', [
             'employee_id' => $admin->employee_id,
-            'password' => 'password123',
+            'password' => 'password1234',
         ])->assertRedirect('/portal/dashboard');
 
         Mail::assertSent(SystemAdminLoginAlert::class, function (SystemAdminLoginAlert $mail) use ($admin) {
@@ -57,7 +57,7 @@ class PortalAdminManagementTest extends TestCase
 
         $this->post('/portal/login', [
             'employee_id' => $admin->employee_id,
-            'password' => 'password123',
+            'password' => 'password1234',
         ])->assertRedirect('/portal/dashboard');
 
         $this->get('/portal/dashboard')->assertOk();
@@ -71,7 +71,7 @@ class PortalAdminManagementTest extends TestCase
             'name' => 'Monitoring Admin',
             'email' => 'monitor@example.com',
             'employee_id' => 'SYS-MON001',
-            'password' => 'password123',
+            'password' => 'password1234',
             'role' => 'minor_admin',
         ])->assertCreated();
 
@@ -82,7 +82,7 @@ class PortalAdminManagementTest extends TestCase
         Mail::assertSent(SystemAdminWelcome::class, function (SystemAdminWelcome $mail) use ($created) {
             return $mail->hasTo($created->email)
                 && $mail->admin->is($created)
-                && $mail->temporaryPassword === 'password123';
+                && $mail->temporaryPassword === 'password1234';
         });
 
         $this->actingAs($superadmin)
@@ -115,7 +115,7 @@ class PortalAdminManagementTest extends TestCase
             'name' => 'Escalated Admin',
             'email' => 'escalated@example.com',
             'employee_id' => 'SYS-ESC001',
-            'password' => 'password123',
+            'password' => 'password1234',
             'role' => 'superadmin',
         ])->assertStatus(403);
     }
@@ -131,7 +131,7 @@ class PortalAdminManagementTest extends TestCase
             'name' => 'Support Admin',
             'email' => 'support@example.com',
             'employee_id' => 'SYS-SUP001',
-            'password' => 'password123',
+            'password' => 'password1234',
             'role' => 'minor_admin',
         ])->assertStatus(403);
     }

@@ -80,7 +80,7 @@ class SystemAdminSecurityTest extends TestCase
             'name' => 'Escalated',
             'email' => 'escalated@smartattend.co.tz',
             'employee_id' => 'SYS-9999',
-            'password' => 'password123',
+            'password' => 'password1234',
             'role' => 'superadmin',
         ])->assertStatus(403);
     }
@@ -139,7 +139,7 @@ class SystemAdminSecurityTest extends TestCase
             'name' => 'New Support',
             'email' => 'support2@smartattend.co.tz',
             'employee_id' => 'SYS-0004',
-            'password' => 'password123',
+            'password' => 'password1234',
             'role' => 'minor_admin',
         ])->assertCreated();
 

@@ -11,6 +11,7 @@ use App\Models\PermissionRequest;
 use App\Models\User;
 use App\Services\EmailService;
 use App\Services\ExpoPushService;
+use App\Support\PasswordPolicy;
 use App\Support\PlanLimits;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
@@ -44,7 +45,7 @@ class AdminController extends Controller
 
         $validator = Validator::make($request->all(), [
             'employee_id_prefix' => ['nullable', 'string', 'max:20', 'regex:/^[A-Za-z0-9]+$/'],
-            'default_employee_password' => ['nullable', 'string', 'min:6', 'max:60'],
+            'default_employee_password' => ['nullable', 'string', 'max:60', PasswordPolicy::rule()],
             'replace_employee_ids' => ['nullable', 'boolean'],
         ]);
 
@@ -181,7 +182,7 @@ class AdminController extends Controller
         $validator = Validator::make($request->all(), [
             'name' => ['required', 'string', 'max:255'],
             'employee_id' => ['nullable', 'string', 'max:60', 'unique:users,employee_id'],
-            'password' => ['nullable', 'string', 'min:6'],
+            'password' => ['nullable', 'string', PasswordPolicy::rule()],
             'phone' => ['nullable', 'string', 'max:40'],
             'email' => ['nullable', 'email', 'max:255', 'unique:users,email'],
             'branch_id' => [
@@ -266,7 +267,7 @@ class AdminController extends Controller
         $validator = Validator::make($request->all(), [
             'name' => ['required', 'string', 'max:255'],
             'employee_id' => ['nullable', 'string', 'max:60', 'unique:users,employee_id'],
-            'password' => ['nullable', 'string', 'min:6'],
+            'password' => ['nullable', 'string', PasswordPolicy::rule()],
             'phone' => ['nullable', 'string', 'max:40'],
             'email' => ['nullable', 'email', 'max:255', 'unique:users,email'],
             'branch_id' => [

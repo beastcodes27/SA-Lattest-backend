@@ -14,6 +14,7 @@ use App\Services\EmailService;
 use App\Services\ExpoPushService;
 use App\Services\OtpService;
 use App\Services\SmsService;
+use App\Support\PasswordPolicy;
 use App\Support\PlanLimits;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
@@ -400,7 +401,7 @@ class SystemController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'current_password' => ['required', 'string'],
-            'new_password' => ['required', 'string', 'min:8', 'confirmed'],
+            'new_password' => ['required', 'string', 'confirmed', PasswordPolicy::rule()],
             'otp' => ['required', 'digits:6'],
         ]);
 
@@ -474,7 +475,7 @@ class SystemController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255', 'unique:users,email'],
             'employee_id' => ['required', 'string', 'max:60', 'unique:users,employee_id'],
-            'password' => ['required', 'string', 'min:6'],
+            'password' => ['required', 'string', PasswordPolicy::rule()],
             'phone' => ['nullable', 'string', 'max:40'],
             'role' => ['nullable', Rule::in(['minor_admin', 'sysadmin', 'superadmin'])],
         ]);
@@ -553,7 +554,7 @@ class SystemController extends Controller
         }
 
         $validator = Validator::make($request->all(), [
-            'password' => ['required', 'string', 'min:6'],
+            'password' => ['required', 'string', PasswordPolicy::rule()],
         ]);
 
         if ($validator->fails()) {

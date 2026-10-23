@@ -13,6 +13,7 @@ use App\Models\User;
 use App\Services\EmailService;
 use App\Services\EmailVerificationService;
 use App\Services\SmsService;
+use App\Support\PasswordPolicy;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -164,11 +165,11 @@ class AuthController extends Controller
             'organization.employee_id_prefix' => ['nullable', 'string', 'max:20'],
             'organization.plan' => ['required', Rule::exists('packages', 'code')->where('active', true)],
             'organization.promo_code' => ['nullable', 'string', 'max:40'],
-            'organization.default_password' => ['required', 'string', 'min:6', 'max:60'],
+            'organization.default_password' => ['required', 'string', 'max:60', PasswordPolicy::rule()],
             'admin.name' => ['required', 'string', 'max:255'],
             'admin.email' => ['required', 'email', 'max:255', 'unique:users,email'],
             'admin.employee_id' => ['required', 'string', 'max:60', 'unique:users,employee_id'],
-            'admin.password' => ['required', 'string', 'min:6'],
+            'admin.password' => ['required', 'string', PasswordPolicy::rule()],
             'admin.phone' => ['nullable', 'string', 'max:40'],
             'email_verification_code' => ['required', 'digits:6'],
             'branches' => ['required', 'array', 'min:1'],

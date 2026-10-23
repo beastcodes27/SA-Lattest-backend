@@ -114,4 +114,9 @@ return [
 
     'password_timeout' => env('AUTH_PASSWORD_TIMEOUT', 10800),
 
+    'password_policy' => [
+        'min_length' => (int) env('PASSWORD_MIN_LENGTH', 12),
+        'check_breaches' => (bool) env('PASSWORD_CHECK_BREACHES', true),
+    ],
+
 ];
