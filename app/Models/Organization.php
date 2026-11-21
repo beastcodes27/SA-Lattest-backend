@@ -46,6 +46,7 @@ class Organization extends Model
             'paused_remaining_seconds' => 'integer',
             'paused_was_trial' => 'boolean',
             'photos' => 'array',
+            'attendance_calendar' => 'array',
             'renewal_reminder_sent_at' => 'datetime',
             'offer_reminder_sent_at' => 'datetime',
         ];

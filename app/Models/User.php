@@ -34,6 +34,7 @@ use Laravel\Sanctum\HasApiTokens;
     'face_photo_path',
     'expo_push_token',
     'device_type',
+    'attendance_days',
 ])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
@@ -55,6 +56,7 @@ class User extends Authenticatable
             'mfa_enabled' => 'boolean',
             'mfa_confirmed_at' => 'datetime',
             'active' => 'boolean',
+            'attendance_days' => 'array',
             'is_default_admin' => 'boolean',
             'must_change_password' => 'boolean',
             'face_enrolled' => 'boolean',
