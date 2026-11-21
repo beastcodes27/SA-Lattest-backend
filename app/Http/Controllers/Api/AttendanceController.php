@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Models\Attendance;
+use App\Services\AttendanceCalendar;
 use App\Services\GeolocationService;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
@@ -11,7 +12,7 @@ use Illuminate\Support\Facades\Validator;
 
 class AttendanceController extends Controller
 {
-    public function __construct(private readonly GeolocationService $geo) {}
+    public function __construct(private readonly GeolocationService $geo, private readonly AttendanceCalendar $calendar) {}
 
     public function toggle(Request $request): JsonResponse
     {
@@ -43,6 +44,16 @@ class AttendanceController extends Controller
                 'code' => 'SUBSCRIPTION_REQUIRED',
                 'accessible' => false,
             ], 403);
+        }
+
+        $occurredAt = $request->filled('occurred_at') ? Carbon::parse($request->occurred_at) : now();
+        foreach ([now(), $occurredAt] as $at) {
+            $day = $this->calendar->employeeDay($user, $at);
+            if ($day['blocked']) {
+                return response()->json([
+                    'message' => $day['message'], 'code' => 'ATTENDANCE_DAY_CLOSED', 'attendance_day' => $day,
+                ], 403);
+            }
         }
 
         $branch = $user->branch ??
@@ -105,7 +116,6 @@ class AttendanceController extends Controller
                 'code' => 'already_checked_out',
             ], 422);
         }
-        $occurredAt = $request->filled('occurred_at') ? Carbon::parse($request->occurred_at) : now();
 
         $attendance = new Attendance([
             'user_id' => $user->id,
@@ -161,6 +171,21 @@ class AttendanceController extends Controller
             return response()->json(['message' => 'No active branch found.'], 422);
         }
 
+        $rejected = [];
+        foreach ($request->records as $index => $record) {
+            $at = ! empty($record['occurred_at']) ? Carbon::parse($record['occurred_at']) : now();
+            $day = $this->calendar->employeeDay($user, $at);
+            if ($day['blocked']) {
+                $rejected[] = ['index' => $index, 'attendance_day' => $day];
+            }
+        }
+        if ($rejected !== []) {
+            return response()->json([
+                'message' => 'Offline attendance cannot be recorded on organization closures or days not assigned to you.',
+                'code' => 'ATTENDANCE_DAY_CLOSED', 'rejected' => $rejected,
+            ], 422);
+        }
+
         $synced = [];
         foreach ($request->records as $r) {
             $occurredAt = ! empty($r['occurred_at']) ? Carbon::parse($r['occurred_at']) : now();
@@ -187,7 +212,13 @@ class AttendanceController extends Controller
 
     public function today(Request $request): JsonResponse
     {
-        return response()->json(['records' => $this->todayRecordsFor($request->user())]);
+        $organization = $request->user()->organization;
+
+        return response()->json([
+            'records' => $this->todayRecordsFor($request->user()),
+            'attendance_calendar' => $organization ? $this->calendar->settings($organization) : null,
+            'attendance_days' => $request->user()->attendance_days,
+        ]);
     }
 
     public function index(Request $request): JsonResponse

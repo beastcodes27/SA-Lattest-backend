@@ -435,6 +435,7 @@ class AuthController extends Controller
             'role' => $user->role,
             'must_change_password' => $user->must_change_password,
             'face_enrolled' => $user->face_enrolled,
+            'attendance_days' => $user->attendance_days,
             'org' => $org ? [
                 'id' => $org->id,
                 'name' => $org->name,
@@ -451,6 +452,7 @@ class AuthController extends Controller
                 'trial_ends_at' => $org->trial_ends_at?->toIso8601String(),
                 'subscription_status' => $org->subscription_status,
                 'accessible' => $org->isAccessible(),
+                'attendance_calendar' => $org->attendance_calendar ?? ['weekend_days' => [], 'holidays' => []],
             ] : null,
             'branch' => $branch ? [
                 'id' => $branch->id,
