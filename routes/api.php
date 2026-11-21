@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\AdminController;
 use App\Http\Controllers\Api\AppVersionController;
+use App\Http\Controllers\Api\AttendanceCalendarController;
 use App\Http\Controllers\Api\AttendanceController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\ErrorLogController;
@@ -71,6 +72,7 @@ Route::middleware('throttle:api')->group(function () {
         Route::post('attendance/sync', [AttendanceController::class, 'sync'])
             ->middleware('throttle:attendance');
         Route::get('attendance', [AttendanceController::class, 'index']);
+        Route::get('attendance/calendar', [AttendanceCalendarController::class, 'show']);
         Route::get('attendance/today', [AttendanceController::class, 'today']);
 
         Route::get('permissions', [PermissionController::class, 'index']);
@@ -80,10 +82,13 @@ Route::middleware('throttle:api')->group(function () {
 
     Route::middleware(['auth:sanctum', 'org-admin'])->prefix('admin')->group(function () {
         Route::get('stats', [AdminController::class, 'stats']);
+        Route::get('attendance-calendar', [AttendanceCalendarController::class, 'show']);
+        Route::put('attendance-calendar', [AttendanceCalendarController::class, 'update']);
         Route::get('employees', [AdminController::class, 'employees']);
         Route::post('employees', [AdminController::class, 'storeEmployee']);
         Route::get('employees/next', [AdminController::class, 'nextEmployeeId']);
         Route::patch('employees/{employee}', [AdminController::class, 'toggleEmployee']);
+        Route::patch('employees/{employee}/attendance-days', [AdminController::class, 'updateAttendanceDays']);
         Route::patch('employees/{employee}/transfer-branch', [AdminController::class, 'transferBranch']);
         Route::post('employees/{employee}/reset-password', [AdminController::class, 'resetEmployeePassword']);
         Route::delete('employees/{employee}', [AdminController::class, 'destroyEmployee']);

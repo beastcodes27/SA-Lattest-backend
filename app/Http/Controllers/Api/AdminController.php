@@ -266,6 +266,8 @@ class AdminController extends Controller
 
         $validator = Validator::make($request->all(), [
             'name' => ['required', 'string', 'max:255'],
+            'attendance_days' => ['nullable', 'array', 'min:1', 'max:7'],
+            'attendance_days.*' => ['required', 'integer', 'between:0,6', 'distinct'],
             'employee_id' => ['nullable', 'string', 'max:60', 'unique:users,employee_id'],
             'password' => ['nullable', 'string', PasswordPolicy::rule()],
             'phone' => ['nullable', 'string', 'max:40'],
@@ -294,6 +296,7 @@ class AdminController extends Controller
             'email' => $data['email'] ?? null,
             'branch_id' => $data['branch_id'] ?? null,
             'role' => 'employee',
+            'attendance_days' => isset($data['attendance_days']) ? array_values(array_map('intval', $data['attendance_days'])) : null,
             'org_id' => $org->id,
             'active' => true,
             'must_change_password' => true,
@@ -304,6 +307,27 @@ class AdminController extends Controller
             'message' => 'Employee added.',
             'employee' => $this->employeePayload($employee->load('branch:id,name')->refresh()),
         ], 201);
+    }
+
+    public function updateAttendanceDays(Request $request, User $employee): JsonResponse
+    {
+        $organization = $request->user()->organization;
+        if ($employee->org_id !== $organization->id || $employee->role !== 'employee') {
+            return response()->json(['message' => 'Employee not found.'], 404);
+        }
+        $data = $request->validate([
+            'attendance_days' => ['required', 'array', 'min:1', 'max:7'],
+            'attendance_days.*' => ['required', 'integer', 'between:0,6', 'distinct'],
+        ]);
+        $days = array_map('intval', $data['attendance_days']);
+        sort($days);
+        $employee->attendance_days = $days;
+        $employee->save();
+
+        return response()->json([
+            'message' => 'Attendance days updated.',
+            'employee' => $this->employeePayload($employee->load('branch:id,name')->refresh()),
+        ]);
     }
 
     public function transferBranch(Request $request, User $employee): JsonResponse
@@ -1023,6 +1047,7 @@ class AdminController extends Controller
             'avatar_path' => $user->avatar_path,
             'avatar_url' => $user->avatar_path ? asset('storage/'.$user->avatar_path) : null,
             'active' => (bool) $user->active,
+            'attendance_days' => $user->attendance_days,
             'must_change_password' => (bool) $user->must_change_password,
             'branch' => $user->branch?->name ?? 'Unassigned',
             'branch_id' => $user->branch_id,
