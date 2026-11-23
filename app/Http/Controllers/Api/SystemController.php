@@ -520,6 +520,64 @@ class SystemController extends Controller
         ], 201);
     }
 
+    public function updateMinorAdmin(Request $request, User $user): JsonResponse
+    {
+        if ($request->user()->role !== 'superadmin') {
+            return response()->json(['message' => 'Only a superadmin can edit administrators.'], 403);
+        }
+
+        if ($user->org_id !== null || ! in_array($user->role, ['superadmin', 'minor_admin', 'sysadmin'], true)) {
+            return response()->json(['message' => 'Administrator not found.'], 404);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'name' => ['required', 'string', 'max:255'],
+            'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user->id)],
+            'employee_id' => ['required', 'string', 'max:60', Rule::unique('users', 'employee_id')->ignore($user->id)],
+            'phone' => ['nullable', 'string', 'max:40'],
+            'role' => ['nullable', Rule::in(['superadmin', 'minor_admin', 'sysadmin'])],
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['message' => 'The given data was invalid.', 'errors' => $validator->errors()], 422);
+        }
+
+        $data = $validator->validated();
+        $role = $data['role'] ?? $user->role;
+        $employeeId = trim($data['employee_id']);
+
+        $isRoot = in_array($user->employee_id, ['SYSTEM_SUPERADMIN', 'SUPERADMIN'], true);
+        if ($isRoot && ($employeeId !== $user->employee_id || $role !== $user->role)) {
+            return response()->json(['message' => 'The root superadmin sign-in ID and role cannot be changed.'], 422);
+        }
+
+        if ($user->id === $request->user()->id && $role !== 'superadmin') {
+            return response()->json(['message' => 'You cannot change your own superadmin role.'], 422);
+        }
+
+        $user->forceFill([
+            'name' => trim($data['name']),
+            'email' => strtolower(trim($data['email'])),
+            'employee_id' => $employeeId,
+            'phone' => isset($data['phone']) && trim($data['phone']) !== '' ? trim($data['phone']) : null,
+            'role' => $role,
+        ])->save();
+
+        return response()->json([
+            'message' => "Administrator {$user->name} updated successfully.",
+            'admin' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'employee_id' => $user->employee_id,
+                'phone' => $user->phone,
+                'role' => $user->role,
+                'active' => (bool) $user->active,
+                'created_at' => $user->created_at?->toIso8601String(),
+            ],
+        ]);
+    }
+
     public function toggleMinorAdmin(Request $request, User $user): JsonResponse
     {
         if ($user->id === $request->user()->id) {
