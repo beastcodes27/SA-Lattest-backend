@@ -161,6 +161,17 @@ class SubscriptionController extends Controller
             'branches_used' => $org->activeBranches()->count(),
             'branches_total' => $org->branches()->count(),
             'branches_limit' => PlanLimits::branchLimit($org->plan),
+            'branches' => $org->branches()
+                ->orderBy('name')
+                ->withCount(['users as employee_count' => fn ($query) => $query->where('role', 'employee')])
+                ->get()
+                ->map(fn ($branch) => [
+                    'id' => $branch->id,
+                    'name' => $branch->name,
+                    'active' => (bool) $branch->active,
+                    'employee_count' => (int) $branch->employee_count,
+                ])
+                ->values(),
             'employees_used' => $org->users()->where('role', 'employee')->count(),
             'employees_limit' => PlanLimits::employeeLimit($org->plan),
             'packages' => $packages,
