@@ -166,4 +166,75 @@ class SystemAdminSecurityTest extends TestCase
         $this->patchJson("/api/system/minor-admins/{$peer->id}")->assertStatus(403);
         $this->assertTrue($peer->fresh()->active);
     }
+
+    public function test_superadmin_can_edit_administrator_details(): void
+    {
+        Sanctum::actingAs($this->superadmin);
+
+        $this->putJson("/api/system/minor-admins/{$this->minorAdmin->id}/details", [
+            'name' => 'Updated Support',
+            'employee_id' => 'SYS-0003',
+            'email' => 'updated-minor@smartattend.co.tz',
+            'phone' => '+255 700 111 222',
+            'role' => 'sysadmin',
+        ])->assertOk()
+            ->assertJsonPath('admin.email', 'updated-minor@smartattend.co.tz')
+            ->assertJsonPath('admin.role', 'sysadmin');
+
+        $this->assertDatabaseHas('users', [
+            'id' => $this->minorAdmin->id,
+            'name' => 'Updated Support',
+            'email' => 'updated-minor@smartattend.co.tz',
+            'role' => 'sysadmin',
+        ]);
+    }
+
+    public function test_minor_admin_cannot_edit_administrator_details(): void
+    {
+        Sanctum::actingAs($this->minorAdmin);
+
+        $this->putJson("/api/system/minor-admins/{$this->minorAdmin->id}/details", [
+            'name' => 'Hacked',
+            'employee_id' => 'SYS-0003',
+            'email' => 'hacked@smartattend.co.tz',
+            'role' => 'superadmin',
+        ])->assertStatus(403);
+
+        $this->assertDatabaseHas('users', [
+            'id' => $this->minorAdmin->id,
+            'name' => 'Support Minor',
+            'email' => 'minor@smartattend.co.tz',
+        ]);
+    }
+
+    public function test_root_superadmin_identity_fields_are_locked_but_contact_details_can_change(): void
+    {
+        Sanctum::actingAs($this->superadmin);
+
+        $this->putJson("/api/system/minor-admins/{$this->rootSuperadmin->id}/details", [
+            'name' => 'Root Super Admin',
+            'employee_id' => 'ROOT-CHANGED',
+            'email' => 'root@smartattend.co.tz',
+            'phone' => null,
+            'role' => 'superadmin',
+        ])->assertStatus(422);
+
+        $this->assertDatabaseHas('users', [
+            'id' => $this->rootSuperadmin->id,
+            'employee_id' => 'SYSTEM_SUPERADMIN',
+        ]);
+
+        $this->putJson("/api/system/minor-admins/{$this->rootSuperadmin->id}/details", [
+            'name' => 'Root Super Admin',
+            'employee_id' => 'SYSTEM_SUPERADMIN',
+            'email' => 'root-updated@smartattend.co.tz',
+            'phone' => '+255 700 000 001',
+            'role' => 'superadmin',
+        ])->assertOk();
+
+        $this->assertDatabaseHas('users', [
+            'id' => $this->rootSuperadmin->id,
+            'email' => 'root-updated@smartattend.co.tz',
+        ]);
+    }
 }
