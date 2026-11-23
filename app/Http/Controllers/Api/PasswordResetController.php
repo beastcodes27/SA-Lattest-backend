@@ -64,6 +64,33 @@ class PasswordResetController extends Controller
         ]);
     }
 
+    public function verifyCode(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'email' => ['required', 'email', 'max:255'],
+            'code' => ['required', 'digits:6'],
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'message' => $validator->errors()->first(),
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        $email = strtolower(trim((string) $request->input('email')));
+        $user = User::where('email', $email)->first();
+
+        if (! $user || ! OtpService::check($user, 'password_reset', (string) $request->input('code'))) {
+            return response()->json(['message' => 'This reset code is invalid or has expired. Please request a new one.'], 422);
+        }
+
+        return response()->json([
+            'message' => 'Code verified. Set your new password.',
+            'verified' => true,
+        ]);
+    }
+
     public function reset(Request $request): JsonResponse
     {
         $validator = Validator::make($request->all(), [
