@@ -72,7 +72,7 @@ class PromoController extends Controller
                 }
                 $org->forceFill(['trial_ends_at' => $base->copy()->addDays((int) $promo->value)])->save();
             } elseif ($promo->type === 'discount_percent') {
-                $org->forceFill(['discount_percent' => min(90, (int) $promo->value)])->save();
+                $org->forceFill(['discount_percent' => min(100, (int) $promo->value)])->save();
             }
 
             PromoRedemption::create(['promo_id' => $promo->id, 'org_id' => $org->id]);
