@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Models\Organization;
 use App\Models\Payment;
+use App\Models\User;
 use App\Services\EmailService;
 use App\Services\MobilePaymentService;
 use App\Services\SmsService;
@@ -32,8 +33,8 @@ class PaymentController extends Controller
         $validator = Validator::make($request->all(), [
             'plan' => ['required', Rule::exists('packages', 'code')->where('active', true)],
             'billing_cycle' => ['nullable', 'string', Rule::in(['monthly', 'annual'])],
-            'mobile_provider' => ['required', 'string', Rule::in(['mpesa', 'tigopesa', 'airtelmoney', 'halopesa'])],
-            'phone_number' => ['required', 'string', 'min:9', 'max:20'],
+            'mobile_provider' => ['nullable', 'string', Rule::in(['mpesa', 'tigopesa', 'airtelmoney', 'halopesa'])],
+            'phone_number' => ['nullable', 'string', 'min:9', 'max:20'],
         ]);
 
         if ($validator->fails()) {
@@ -46,11 +47,32 @@ class PaymentController extends Controller
         $validated = $validator->validated();
         $planCode = $validated['plan'];
         $cycle = strtolower($validated['billing_cycle'] ?? 'monthly');
-        $provider = strtolower($validated['mobile_provider']);
-        $rawPhone = $validated['phone_number'];
-        $normalizedPhone = MobilePaymentService::normalizePhoneNumber($rawPhone);
 
         $calculation = PlanLimits::calculateAmount($planCode, $cycle, (int) $org->discount_percent);
+
+        // A 100% promo makes the package free, so activate it directly instead
+        // of sending a zero-amount request to the mobile money gateway.
+        if ((int) $calculation['final_amount'] <= 0) {
+            return $this->activateFreeSubscription($user, $org, $planCode, $cycle, $calculation);
+        }
+
+        $paymentValidator = Validator::make($request->all(), [
+            'mobile_provider' => ['required', 'string', Rule::in(['mpesa', 'tigopesa', 'airtelmoney', 'halopesa'])],
+            'phone_number' => ['required', 'string', 'min:9', 'max:20'],
+        ]);
+
+        if ($paymentValidator->fails()) {
+            return response()->json([
+                'message' => 'Please provide valid payment details.',
+                'errors' => $paymentValidator->errors(),
+            ], 422);
+        }
+
+        $paymentData = $paymentValidator->validated();
+        $provider = strtolower($paymentData['mobile_provider']);
+        $rawPhone = $paymentData['phone_number'];
+        $normalizedPhone = MobilePaymentService::normalizePhoneNumber($rawPhone);
+
         $reference = MobilePaymentService::generateReference();
         $ussd = MobilePaymentService::PROVIDER_USSD[$provider] ?? '*150*00#';
 
@@ -218,6 +240,53 @@ class PaymentController extends Controller
         return response()->json([
             'payment' => $this->formatPayment($payment),
         ]);
+    }
+
+    private function activateFreeSubscription(
+        User $user,
+        Organization $org,
+        string $planCode,
+        string $cycle,
+        array $calculation
+    ): JsonResponse {
+        $packageName = PlanLimits::package($planCode)?->name ?? ucfirst($planCode);
+
+        $payment = Payment::create([
+            'organization_id' => $org->id,
+            'user_id' => $user->id,
+            'plan' => $planCode,
+            'billing_cycle' => $cycle,
+            'amount' => 0,
+            'original_amount' => $calculation['original_amount'],
+            'discount_amount' => $calculation['discount_amount'],
+            'currency' => $calculation['currency'],
+            'gateway' => Payment::GATEWAY_SONICPESA,
+            'mobile_provider' => 'promo',
+            'phone_number' => '',
+            'reference' => MobilePaymentService::generateReference(),
+            'status' => Payment::STATUS_COMPLETED,
+            'paid_at' => now(),
+            'metadata' => [
+                'initiated_by' => $user->name,
+                'user_email' => $user->email,
+                'discount_percent' => $calculation['discount_percent'],
+                'package_name' => $packageName,
+                'complimentary' => true,
+            ],
+        ]);
+
+        $payment->forceFill([
+            'external_transaction_id' => 'PROMO-'.strtoupper(bin2hex(random_bytes(5))),
+        ])->save();
+
+        $org->activateSubscription($planCode, $cycle, $payment);
+
+        return response()->json([
+            'message' => 'Promo applied. Your '.$packageName.' subscription is now active.',
+            'payment' => $this->formatPayment($payment->fresh()),
+            'subscription' => SubscriptionController::payload($org->fresh()),
+            'free_activation' => true,
+        ], 201);
     }
 
     private function notifyPaymentSuccess(Organization $org, Payment $payment): void

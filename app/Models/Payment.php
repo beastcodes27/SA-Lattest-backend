@@ -41,11 +41,15 @@ class Payment extends Model
         'tigopesa' => 'Tigo Pesa (Yas)',
         'airtelmoney' => 'Airtel Money',
         'halopesa' => 'HaloPesa (Halotel)',
+        'promo' => 'Promo Code',
     ];
 
     public const STATUS_PENDING = 'pending';
+
     public const STATUS_COMPLETED = 'completed';
+
     public const STATUS_FAILED = 'failed';
+
     public const STATUS_CANCELED = 'canceled';
 
     protected function casts(): array
