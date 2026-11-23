@@ -50,6 +50,20 @@ class OtpService
      */
     public static function verify(User $user, string $purpose, string $code): bool
     {
+        return self::validate($user, $purpose, $code, true);
+    }
+
+    /**
+     * Validate a code without consuming it, so the caller can complete the
+     * action (for example resetting a password) in a later step.
+     */
+    public static function check(User $user, string $purpose, string $code): bool
+    {
+        return self::validate($user, $purpose, $code, false);
+    }
+
+    private static function validate(User $user, string $purpose, string $code, bool $consume): bool
+    {
         $record = DB::table('otp_codes')
             ->where('user_id', $user->id)
             ->where('purpose', $purpose)
@@ -77,7 +91,9 @@ class OtpService
             return false;
         }
 
-        DB::table('otp_codes')->where('id', $record->id)->delete();
+        if ($consume) {
+            DB::table('otp_codes')->where('id', $record->id)->delete();
+        }
 
         return true;
     }
