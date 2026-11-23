@@ -723,6 +723,22 @@
             transition: border-color 0.15s, box-shadow 0.15s;
         }
         .pfield:focus { outline: none; border-color: var(--accent); box-shadow: var(--ring); }
+        .pfield.is-invalid, .app-modal-input.is-invalid {
+            border-color: var(--red) !important;
+            background: #FFF6F6;
+        }
+        .pfield.is-invalid:focus, .app-modal-input.is-invalid:focus {
+            border-color: var(--red) !important;
+            box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.16);
+        }
+        .field-error {
+            color: var(--red);
+            font-size: 11.5px;
+            font-weight: 700;
+            line-height: 1.4;
+            margin-top: 5px;
+        }
+        .field-error::before { content: "⚠ "; }
         .plabel { display: block; font-size: 10.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.6px; color: var(--muted); margin-top: 12px; }
         .switch { display: inline-flex; align-items: center; gap: 8px; font-weight: 700; font-size: 13px; cursor: pointer; margin-top: 12px; color: var(--ink); }
         .switch input { accent-color: var(--accent); width: 16px; height: 16px; }
@@ -1041,6 +1057,80 @@
         toast.warning = (msg) => toast(msg, 'warning');
         toast.info = (msg) => toast(msg, 'info');
 
+        function clearFieldErrors(scope) {
+            const root = scope || document;
+            root.querySelectorAll('.field-error').forEach((el) => el.remove());
+            root.querySelectorAll('.is-invalid').forEach((el) => el.classList.remove('is-invalid'));
+        }
+
+        function setFieldError(id, message) {
+            const el = document.getElementById(id);
+            if (!el) return false;
+            el.classList.add('is-invalid');
+            const error = document.createElement('div');
+            error.className = 'field-error';
+            error.dataset.for = id;
+            error.textContent = message || 'This field is invalid.';
+            el.insertAdjacentElement('afterend', error);
+            return true;
+        }
+
+        function focusField(id) {
+            const el = document.getElementById(id);
+            if (!el) return;
+            try {
+                el.focus({ preventScroll: true });
+                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            } catch (_) {}
+        }
+
+        function applyFieldErrors(errors, map = {}, fallbackMessage = 'Please fix the highlighted fields.') {
+            clearFieldErrors();
+            const entries = Object.entries(errors || {});
+            if (!entries.length) return false;
+            let firstId = null;
+            let fallback = null;
+            entries.forEach(([key, value]) => {
+                const message = Array.isArray(value) ? value[0] : String(value || '');
+                const baseKey = String(key).split('.')[0];
+                const id = map[key] || map[baseKey] || key;
+                if (setFieldError(id, message)) {
+                    if (!firstId) firstId = id;
+                } else if (message && !fallback) {
+                    fallback = message;
+                }
+            });
+            if (firstId) focusField(firstId);
+            if (fallback) toast.error(fallback);
+            else if (!firstId) toast.error(fallbackMessage);
+            return Boolean(firstId);
+        }
+
+        function validateFields(checks) {
+            clearFieldErrors();
+            let firstId = null;
+            checks.forEach(({ id, invalid, message }) => {
+                if (invalid && setFieldError(id, message) && !firstId) firstId = id;
+            });
+            if (firstId) focusField(firstId);
+            return !firstId;
+        }
+
+        document.addEventListener('input', (event) => {
+            const el = event.target;
+            if (!el || !el.classList || !el.classList.contains('is-invalid')) return;
+            el.classList.remove('is-invalid');
+            const next = el.nextElementSibling;
+            if (next && next.classList && next.classList.contains('field-error')) next.remove();
+        }, true);
+        document.addEventListener('change', (event) => {
+            const el = event.target;
+            if (!el || !el.classList || !el.classList.contains('is-invalid')) return;
+            el.classList.remove('is-invalid');
+            const next = el.nextElementSibling;
+            if (next && next.classList && next.classList.contains('field-error')) next.remove();
+        }, true);
+
         /* Custom Modal Dialog & Popups System */
         let activeModalResolver = null;
 
@@ -1199,7 +1289,11 @@
                     message = 'That organization no longer exists. The list has been refreshed.';
                     setTimeout(() => { if (typeof loadOrgs === 'function') loadOrgs().catch(() => {}); }, 200);
                 }
-                throw new Error(message);
+                const error = new Error(message);
+                error.status = res.status;
+                error.data = json;
+                error.errors = json.errors && typeof json.errors === 'object' ? json.errors : null;
+                throw error;
             }
             return json;
         }
@@ -1219,7 +1313,7 @@
         async function confirmMfaSetup() {
             const code = (document.getElementById('mfaCode')?.value || '').trim();
             if (!/^[0-9]{6}$/.test(code)) {
-                toast.warning('Enter the 6-digit code from your authenticator app.');
+                validateFields([{ id: 'mfaCode', invalid: true, message: 'Enter the 6-digit code from your authenticator app.' }]);
                 return;
             }
             try {
@@ -1227,7 +1321,9 @@
                 toast.success(json.message || 'Two-factor authentication enabled.');
                 setTimeout(() => window.location.reload(), 600);
             } catch (e) {
-                toast.error(e.message || 'Could not enable 2FA.');
+                if (!(e.errors && applyFieldErrors(e.errors, { code: 'mfaCode' }))) {
+                    toast.error(e.message || 'Could not enable 2FA.');
+                }
             }
         }
 
@@ -1270,18 +1366,19 @@
             const confirmPassword = document.getElementById('confirmPassword').value;
             const otp = document.getElementById('passwordOtp').value.trim();
 
-            if (newPassword.length < 12) {
-                toast.warning('New password must be at least 12 characters.');
-                return;
-            }
-            if (newPassword !== confirmPassword) {
-                toast.warning('New password and confirmation do not match.');
-                return;
-            }
-            if (!/^[0-9]{6}$/.test(otp)) {
-                toast.warning('Enter the 6-digit verification code sent to your email.');
-                return;
-            }
+            const valid = validateFields([
+                { id: 'newPassword', invalid: newPassword.length < 12, message: 'Use at least 12 characters.' },
+                { id: 'confirmPassword', invalid: newPassword !== confirmPassword, message: 'Passwords do not match.' },
+                { id: 'passwordOtp', invalid: !/^[0-9]{6}$/.test(otp), message: 'Enter the 6-digit verification code.' },
+            ]);
+            if (!valid) return;
+
+            const passwordErrorMap = {
+                current_password: 'currentPassword',
+                new_password: 'newPassword',
+                new_password_confirmation: 'confirmPassword',
+                otp: 'passwordOtp',
+            };
 
             const btn = document.getElementById('passwordSubmitBtn');
             btn.disabled = true;
@@ -1299,7 +1396,9 @@
                 document.getElementById('passwordForm').reset();
                 toast.success(res.message || 'Password changed successfully.');
             } catch (err) {
-                toast.error(err.message || 'Could not change password.');
+                if (!(err.errors && applyFieldErrors(err.errors, passwordErrorMap))) {
+                    toast.error(err.message || 'Could not change password.');
+                }
             } finally {
                 btn.disabled = false;
             }
@@ -1562,6 +1661,8 @@
         let mode = 'orgs';
         let pendingPromoCompose = null;
         let adminDirectory = {};
+        let adminRecords = {};
+        let editingAdminId = null;
 
         function emailPromo(id) {
             pendingPromoCompose = String(id);
@@ -1657,6 +1758,12 @@
             const box = document.getElementById('adminsArea');
             const list = admins || [];
             adminDirectory = Object.fromEntries(list.map(a => [String(a.id), a.name]));
+            adminRecords = Object.fromEntries(list.map(a => [String(a.id), a]));
+            editingAdminId = editingAdminId && adminRecords[String(editingAdminId)] ? editingAdminId : null;
+            const editTarget = editingAdminId ? adminRecords[String(editingAdminId)] : null;
+            const editIsRoot = editTarget ? ['SYSTEM_SUPERADMIN', 'SUPERADMIN'].includes(editTarget.employee_id) : false;
+            const editIsSelf = editTarget ? Number(editTarget.id) === Number(currentAdminId) : false;
+            const createAllowed = currentAdminRole === 'superadmin' && !editTarget;
             const canCreateSuper = currentAdminRole === 'superadmin';
             const roleOptions = `
                 <option value="minor_admin">Minor admin</option>
@@ -1664,7 +1771,7 @@
                 ${canCreateSuper ? '<option value="superadmin">Super admin</option>' : ''}
             `;
 
-            const createCard = currentAdminRole === 'superadmin' ? `
+            const createCard = createAllowed ? `
                 <div class="org" style="margin-bottom:20px">
                     <h3>Add system administrator</h3>
                     <p style="color:var(--muted);font-size:13px;margin:4px 0 14px">Create an account that can sign in to this console and help monitor the platform.</p>
@@ -1698,12 +1805,53 @@
                         </div>
                         <div>
                             <label class="plabel">Temporary password</label>
-                            <input class="pfield" id="adm_password" type="password" placeholder="At least 6 characters">
+                            <input class="pfield" id="adm_password" type="password" placeholder="At least 12 characters">
                         </div>
                     </div>
 
                     <div class="actions" style="margin-top:14px">
                         <button class="btn primary" id="adm_create_btn" onclick="createSystemAdmin()">Create Administrator</button>
+                    </div>
+                </div>` : '';
+
+            const editCard = editTarget ? `
+                <div class="org" style="margin-bottom:20px">
+                    <h3>Edit administrator</h3>
+                    <p style="color:var(--muted);font-size:13px;margin:4px 0 14px">Update the account details for ${esc(editTarget.name)}.</p>
+
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+                        <div>
+                            <label class="plabel">Full name</label>
+                            <input class="pfield" id="adm_edit_name" value="${esc(editTarget.name || '')}">
+                        </div>
+                        <div>
+                            <label class="plabel">Sign-in ID</label>
+                            <input class="pfield" id="adm_edit_employee_id" value="${esc(editTarget.employee_id || '')}" ${editIsRoot ? 'disabled' : ''}>
+                        </div>
+                    </div>
+
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+                        <div>
+                            <label class="plabel">Email address</label>
+                            <input class="pfield" id="adm_edit_email" type="email" value="${esc(editTarget.email || '')}">
+                        </div>
+                        <div>
+                            <label class="plabel">Phone (optional)</label>
+                            <input class="pfield" id="adm_edit_phone" value="${esc(editTarget.phone || '')}">
+                        </div>
+                    </div>
+
+                    <label class="plabel">Role</label>
+                    <select class="pfield" id="adm_edit_role" ${(editIsRoot || editIsSelf) ? 'disabled' : ''}>
+                        <option value="minor_admin" ${editTarget.role === 'minor_admin' ? 'selected' : ''}>Minor admin</option>
+                        <option value="sysadmin" ${editTarget.role === 'sysadmin' ? 'selected' : ''}>Sysadmin</option>
+                        <option value="superadmin" ${editTarget.role === 'superadmin' ? 'selected' : ''}>Super admin</option>
+                    </select>
+                    ${editIsRoot ? '<p style="color:var(--muted);font-size:12px;margin:8px 0 0">The root superadmin sign-in ID and role are locked.</p>' : ''}
+
+                    <div class="actions" style="margin-top:14px">
+                        <button class="btn primary" onclick="updateSystemAdmin(${editTarget.id})">Save changes</button>
+                        <button class="btn ghost" onclick="cancelAdminEdit()">Cancel</button>
                     </div>
                 </div>` : '';
 
@@ -1724,9 +1872,10 @@
                             const isRoot = a.employee_id === 'SYSTEM_SUPERADMIN' || a.employee_id === 'SUPERADMIN';
                             const isSelf = Number(a.id) === Number(currentAdminId);
                             const protectedAccount = isRoot || isSelf;
+                            const editBtn = `<button class="btn ghost" onclick="editSystemAdmin(${a.id})">Edit</button>`;
                             const actions = protectedAccount
-                                ? '<span style="color:var(--muted);font-size:12px;font-weight:600">Protected account</span>'
-                                : `<button class="btn ghost" onclick="toggleSystemAdmin(${a.id}, ${a.active ? 'false' : 'true'})">${a.active ? 'Deactivate' : 'Activate'}</button>
+                                ? `${editBtn}<span style="color:var(--muted);font-size:12px;font-weight:600">Protected account</span>`
+                                : `${editBtn}<button class="btn ghost" onclick="toggleSystemAdmin(${a.id}, ${a.active ? 'false' : 'true'})">${a.active ? 'Deactivate' : 'Activate'}</button>
                                    <button class="btn ghost" onclick="resetSystemAdminPassword(${a.id})">Reset password</button>
                                    <button class="btn danger" onclick="deleteSystemAdmin(${a.id})">Delete</button>`;
                             return `<tr>
@@ -1743,11 +1892,58 @@
                     </tbody>
                 </table>`;
 
-            box.innerHTML = createCard + `
+            box.innerHTML = (editCard || createCard) + `
                 <div style="margin-top:16px">
                     <h3 style="font-size:16px;margin-bottom:8px">System administrators</h3>
                     ${rows}
                 </div>`;
+        }
+
+        async function editSystemAdmin(id) {
+            editingAdminId = id;
+            await loadAdmins();
+            document.getElementById('adminsArea')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        async function cancelAdminEdit() {
+            editingAdminId = null;
+            await loadAdmins();
+        }
+
+        async function updateSystemAdmin(id) {
+            const val = (field) => document.getElementById(field)?.value.trim();
+            const body = {
+                name: val('adm_edit_name'),
+                employee_id: val('adm_edit_employee_id'),
+                email: val('adm_edit_email'),
+                phone: val('adm_edit_phone') || null,
+                role: val('adm_edit_role') || 'minor_admin',
+            };
+
+            const valid = validateFields([
+                { id: 'adm_edit_name', invalid: !body.name, message: 'Enter the administrator name.' },
+                { id: 'adm_edit_employee_id', invalid: !body.employee_id, message: 'Enter the sign-in ID.' },
+                { id: 'adm_edit_email', invalid: !body.email, message: 'Enter the email address.' },
+            ]);
+            if (!valid) return;
+
+            try {
+                const json = await api(`/portal/api/admins/${id}/details`, { method: 'PUT', body: JSON.stringify(body) });
+                toast.success(json.message || 'Administrator updated.');
+                editingAdminId = null;
+                await loadAdmins();
+            } catch (e) {
+                const adminErrorMap = {
+                    name: 'adm_edit_name',
+                    employee_id: 'adm_edit_employee_id',
+                    email: 'adm_edit_email',
+                    phone: 'adm_edit_phone',
+                    role: 'adm_edit_role',
+                };
+                if (!(e.errors && applyFieldErrors(e.errors, adminErrorMap))) {
+                    toast(e.message || 'Could not update the administrator.', false);
+                }
+            }
         }
 
         async function createSystemAdmin() {
@@ -1761,14 +1957,22 @@
                 password: document.getElementById('adm_password')?.value || '',
             };
 
-            if (!body.name || !body.employee_id || !body.email) {
-                toast.warning('Enter the administrator name, sign-in ID and email.');
-                return;
-            }
-            if (body.password.length < 6) {
-                toast.warning('Temporary password must be at least 6 characters.');
-                return;
-            }
+            const valid = validateFields([
+                { id: 'adm_name', invalid: !body.name, message: 'Enter the administrator name.' },
+                { id: 'adm_employee_id', invalid: !body.employee_id, message: 'Enter the sign-in ID.' },
+                { id: 'adm_email', invalid: !body.email, message: 'Enter the email address.' },
+                { id: 'adm_password', invalid: body.password.length < 12, message: 'Temporary password must be at least 12 characters.' },
+            ]);
+            if (!valid) return;
+
+            const adminErrorMap = {
+                name: 'adm_name',
+                employee_id: 'adm_employee_id',
+                email: 'adm_email',
+                phone: 'adm_phone',
+                role: 'adm_role',
+                password: 'adm_password',
+            };
 
             const ok = await customConfirm(`Create a ${adminRoleLabel(body.role).toLowerCase()} account for ${body.name}?`, {
                 title: 'Create Administrator',
@@ -1785,7 +1989,9 @@
                 toast(json.message || 'Administrator created.', true);
                 await loadAdmins();
             } catch (e) {
-                toast(e.message || 'Could not create the administrator.', false);
+                if (!(e.errors && applyFieldErrors(e.errors, adminErrorMap))) {
+                    toast(e.message || 'Could not create the administrator.', false);
+                }
                 if (btn) { btn.disabled = false; btn.textContent = 'Create Administrator'; }
             }
         }
@@ -1814,12 +2020,12 @@
                 title: 'Reset Administrator Password',
                 label: 'New password',
                 inputType: 'password',
-                placeholder: 'At least 6 characters',
+                placeholder: 'At least 12 characters',
                 confirmText: 'Reset Password',
             });
             if (!password) return;
-            if (password.length < 6) {
-                toast.warning('Password must be at least 6 characters.');
+            if (password.length < 12) {
+                toast.warning('Password must be at least 12 characters.');
                 return;
             }
 
@@ -1917,7 +2123,13 @@
                 const json = await api(`/portal/api/organizations/${id}/subscription`, { method: 'POST', body: JSON.stringify(body) });
                 toast(json.message || 'Updated', true);
                 await loadSubs();
-            } catch (e) { toast(e.message, false); }
+            } catch (e) {
+                const subErrorMap = {};
+                if (action === 'set_plan') subErrorMap.plan = 'plan_' + id;
+                if (!(e.errors && applyFieldErrors(e.errors, subErrorMap))) {
+                    toast(e.message, false);
+                }
+            }
         }
 
         async function loadPackages() {
@@ -1987,7 +2199,10 @@
             const name = val('npk_name');
 
             if (!code || !name) {
-                toast.warning('Enter a package code and name.');
+                validateFields([
+                    { id: 'npk_code', invalid: !code, message: 'Enter a unique package code.' },
+                    { id: 'npk_name', invalid: !name, message: 'Enter the package name.' },
+                ]);
                 return;
             }
 
@@ -2016,7 +2231,23 @@
                 toast(json.message || 'Package created successfully.', true);
                 await loadPackages();
             } catch (e) {
-                toast(e.message || 'Could not create the package.', false);
+                const packageErrorMap = {
+                    code: 'npk_code',
+                    name: 'npk_name',
+                    tagline: 'npk_tagline',
+                    price_label: 'npk_price_label',
+                    monthly_price: 'npk_month',
+                    annual_price: 'npk_year',
+                    currency: 'npk_currency',
+                    features: 'npk_features',
+                    employee_limit: 'npk_emp',
+                    branch_limit: 'npk_br',
+                    position: 'npk_position',
+                    active: 'npk_active',
+                };
+                if (!(e.errors && applyFieldErrors(e.errors, packageErrorMap))) {
+                    toast(e.message || 'Could not create the package.', false);
+                }
             }
         }
 
@@ -2040,7 +2271,22 @@
                 const json = await api('/portal/api/packages/' + id, { method: 'PUT', body: JSON.stringify(body) });
                 toast(json.message || 'Package saved', true);
                 await loadPackages();
-            } catch (e) { toast(e.message, false); }
+            } catch (e) {
+                const packageErrorMap = {
+                    name: 'pk_name_' + id,
+                    tagline: 'pk_tag_' + id,
+                    price_label: 'pk_price_' + id,
+                    monthly_price: 'pk_month_' + id,
+                    annual_price: 'pk_year_' + id,
+                    features: 'pk_feat_' + id,
+                    employee_limit: 'pk_emp_' + id,
+                    branch_limit: 'pk_br_' + id,
+                    active: 'pk_active_' + id,
+                };
+                if (!(e.errors && applyFieldErrors(e.errors, packageErrorMap))) {
+                    toast(e.message || 'Could not save the package.', false);
+                }
+            }
         }
 
         async function loadPromos() {
@@ -2103,12 +2349,31 @@
                 ends_at: document.getElementById('np_ends').value || null,
                 active: true,
             };
-            if (!body.code || !body.title || !body.value) { toast('Fill in code, title and value.', false); return; }
+            if (!body.code || !body.title || !body.value || body.value < 1) {
+                validateFields([
+                    { id: 'np_code', invalid: !body.code, message: 'Enter a promo code.' },
+                    { id: 'np_title', invalid: !body.title, message: 'Enter a promo title.' },
+                    { id: 'np_value', invalid: !body.value || body.value < 1, message: 'Enter a value of at least 1.' },
+                ]);
+                return;
+            }
             try {
                 const json = await api('/portal/api/promos', { method: 'POST', body: JSON.stringify(body) });
                 toast(json.message || 'Promo created', true);
                 await loadPromos();
-            } catch (e) { toast(e.message, false); }
+            } catch (e) {
+                const promoErrorMap = {
+                    code: 'np_code',
+                    title: 'np_title',
+                    type: 'np_type',
+                    value: 'np_value',
+                    max_uses: 'np_max',
+                    ends_at: 'np_ends',
+                };
+                if (!(e.errors && applyFieldErrors(e.errors, promoErrorMap))) {
+                    toast(e.message || 'Could not create the promo.', false);
+                }
+            }
         }
 
         async function updatePromo(id) {
@@ -2125,7 +2390,20 @@
                 const json = await api('/portal/api/promos/' + id, { method: 'PUT', body: JSON.stringify(body) });
                 toast(json.message || 'Promo saved', true);
                 await loadPromos();
-            } catch (e) { toast(e.message, false); }
+            } catch (e) {
+                const promoErrorMap = {
+                    title: 'pm_title_' + id,
+                    description: 'pm_desc_' + id,
+                    type: 'pm_type_' + id,
+                    value: 'pm_value_' + id,
+                    max_uses: 'pm_max_' + id,
+                    ends_at: 'pm_ends_' + id,
+                    active: 'pm_active_' + id,
+                };
+                if (!(e.errors && applyFieldErrors(e.errors, promoErrorMap))) {
+                    toast(e.message || 'Could not save the promo.', false);
+                }
+            }
         }
 
         async function loadNotifications() {
@@ -2322,7 +2600,10 @@
             const audience = document.getElementById('sms_audience')?.value || 'org_admin';
             const orgId = audience === 'org' ? document.getElementById('sms_org_id')?.value : null;
 
-            if (!message) { toast.warning('Please enter an SMS message.'); return; }
+            if (!message) {
+                validateFields([{ id: 'sms_body', invalid: true, message: 'Enter an SMS message.' }]);
+                return;
+            }
             const ok = await customConfirm('Send this SMS to the selected recipients?', {
                 title: 'Send SMS Broadcast',
                 tone: 'info',
@@ -2343,7 +2624,14 @@
                 });
                 toast(json.message || 'SMS sent.', true);
             } catch (e) {
-                toast(e.message || 'Failed to send SMS.', false);
+                const smsErrorMap = {
+                    message: 'sms_body',
+                    role: 'sms_audience',
+                    org_id: 'sms_org_id',
+                };
+                if (!(e.errors && applyFieldErrors(e.errors, smsErrorMap))) {
+                    toast(e.message || 'Failed to send SMS.', false);
+                }
             } finally {
                 if (btn) { btn.disabled = false; btn.textContent = 'Send SMS'; }
             }
@@ -2379,8 +2667,13 @@
             const sendEmail = !!document.getElementById('nb_email')?.checked;
             const promoId = sendEmail ? document.getElementById('nb_promo_id')?.value : null;
 
-            if (!title) { toast.warning('Please enter a notification title.'); return; }
-            if (!body) { toast.warning('Please enter a message body.'); return; }
+            if (!title || !body) {
+                validateFields([
+                    { id: 'nb_title', invalid: !title, message: 'Enter a notification title.' },
+                    { id: 'nb_body', invalid: !body, message: 'Enter a message body.' },
+                ]);
+                return;
+            }
 
             const targetDesc = audience === 'all' ? 'all users' : audience;
             const channels = ['push', sendSms ? 'SMS' : null, sendEmail ? 'email' : null].filter(Boolean).join(' + ');
@@ -2411,7 +2704,16 @@
                 toast(json.message || 'Announcement sent successfully!', true);
                 await loadNotifications();
             } catch (e) {
-                toast(e.message || 'Failed to dispatch announcement.', false);
+                const broadcastErrorMap = {
+                    title: 'nb_title',
+                    body: 'nb_body',
+                    role: 'nb_audience',
+                    org_id: 'nb_org_id',
+                    promo_id: 'nb_promo_id',
+                };
+                if (!(e.errors && applyFieldErrors(e.errors, broadcastErrorMap))) {
+                    toast(e.message || 'Failed to dispatch announcement.', false);
+                }
                 if (btn) { btn.disabled = false; btn.textContent = 'Dispatch Announcement'; }
             }
         }
@@ -2552,7 +2854,11 @@
             const notes = document.getElementById('ver_notes')?.value?.trim();
 
             if (!latest || !min || !title) {
-                toast('Please provide Latest Version, Minimum Version, and Title.', false);
+                validateFields([
+                    { id: 'ver_latest', invalid: !latest, message: 'Enter the latest version.' },
+                    { id: 'ver_min', invalid: !min, message: 'Enter the minimum supported version.' },
+                    { id: 'ver_title', invalid: !title, message: 'Enter the update title.' },
+                ]);
                 return;
             }
 
@@ -2586,7 +2892,17 @@
                 toast(res.message || 'App update settings saved successfully.', true);
                 await loadAppVersion(currentVersionPlatform);
             } catch (e) {
-                toast(e.message || 'Failed to update app version.', false);
+                const versionErrorMap = {
+                    latest_version: 'ver_latest',
+                    min_version: 'ver_min',
+                    title: 'ver_title',
+                    apk_url: 'ver_apk',
+                    store_url: 'ver_store',
+                    release_notes: 'ver_notes',
+                };
+                if (!(e.errors && applyFieldErrors(e.errors, versionErrorMap))) {
+                    toast(e.message || 'Failed to update app version.', false);
+                }
             } finally {
                 if (btn) { btn.disabled = false; btn.textContent = 'Save & Push Update'; }
             }
