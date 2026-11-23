@@ -324,7 +324,7 @@ class AuthController extends Controller
 
         if ($promo) {
             PromoRedemption::create(['promo_id' => $promo->id, 'org_id' => $organization->id]);
-            $organization->forceFill(['discount_percent' => min(90, (int) $promo->value)])->save();
+            $organization->forceFill(['discount_percent' => min(100, (int) $promo->value)])->save();
             $promo->increment('uses_count');
         }
 
