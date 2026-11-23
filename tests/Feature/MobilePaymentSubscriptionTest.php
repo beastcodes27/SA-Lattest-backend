@@ -298,4 +298,23 @@ class MobilePaymentSubscriptionTest extends TestCase
 
         $this->assertTrue($this->org->fresh()->isAccessible());
     }
+
+    public function test_subscription_payload_lists_branches_for_downgrade_reconciliation(): void
+    {
+        Sanctum::actingAs($this->admin);
+
+        $branch = $this->org->branches()->create([
+            'name' => 'Head Office',
+            'lat' => -6.7924,
+            'lng' => 39.2083,
+            'radius_meters' => 150,
+            'active' => true,
+        ]);
+
+        $this->getJson('/api/admin/subscription')
+            ->assertOk()
+            ->assertJsonPath('subscription.branches.0.id', $branch->id)
+            ->assertJsonPath('subscription.branches.0.name', 'Head Office')
+            ->assertJsonPath('subscription.branches.0.active', true);
+    }
 }
