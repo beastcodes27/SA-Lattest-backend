@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Organization;
 use App\Models\Package;
 use App\Models\Payment;
+use App\Models\Promo;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
@@ -15,6 +16,7 @@ class MobilePaymentSubscriptionTest extends TestCase
     use RefreshDatabase;
 
     private Organization $org;
+
     private User $admin;
 
     protected function setUp(): void
@@ -244,5 +246,56 @@ class MobilePaymentSubscriptionTest extends TestCase
         $this->assertTrue($this->org->fresh()->isAccessible());
         $employeesRestored = $this->getJson('/api/admin/employees');
         $employeesRestored->assertOk();
+    }
+
+    public function test_100_percent_discount_promo_is_applied_in_full(): void
+    {
+        Sanctum::actingAs($this->admin);
+
+        $promo = Promo::create([
+            'code' => 'FREE100',
+            'title' => 'Free package',
+            'type' => 'discount_percent',
+            'value' => 100,
+            'active' => true,
+        ]);
+
+        $this->postJson('/api/admin/promo/redeem', ['code' => $promo->code])
+            ->assertOk()
+            ->assertJsonPath('subscription.discount_percent', 100);
+
+        $this->assertEquals(100, $this->org->fresh()->discount_percent);
+    }
+
+    public function test_100_percent_promo_activates_subscription_without_mobile_payment(): void
+    {
+        Sanctum::actingAs($this->admin);
+
+        $this->org->forceFill([
+            'subscription_status' => 'canceled',
+            'canceled_at' => now(),
+            'trial_ends_at' => now()->subDay(),
+            'discount_percent' => 100,
+        ])->save();
+
+        $response = $this->postJson('/api/admin/subscription/payments/initiate', [
+            'plan' => 'business',
+            'billing_cycle' => 'monthly',
+        ]);
+
+        $response->assertStatus(201)
+            ->assertJsonPath('free_activation', true)
+            ->assertJsonPath('payment.status', 'completed')
+            ->assertJsonPath('payment.amount', 0)
+            ->assertJsonPath('subscription.status', 'active');
+
+        $this->assertDatabaseHas('payments', [
+            'organization_id' => $this->org->id,
+            'plan' => 'business',
+            'amount' => 0,
+            'status' => 'completed',
+        ]);
+
+        $this->assertTrue($this->org->fresh()->isAccessible());
     }
 }
