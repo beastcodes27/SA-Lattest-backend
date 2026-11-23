@@ -42,6 +42,8 @@ Route::middleware('throttle:api')->group(function () {
             ->middleware('throttle:auth');
         Route::post('forgot-password', [PasswordResetController::class, 'sendCode'])
             ->middleware('throttle:otp');
+        Route::post('verify-reset-code', [PasswordResetController::class, 'verifyCode'])
+            ->middleware('throttle:otp-verify');
         Route::post('reset-password', [PasswordResetController::class, 'reset'])
             ->middleware('throttle:otp-verify');
     });
@@ -157,6 +159,7 @@ Route::middleware('throttle:api')->group(function () {
         Route::get('minor-admins', [SystemController::class, 'minorAdmins']);
         Route::post('minor-admins', [SystemController::class, 'storeMinorAdmin']);
         Route::patch('minor-admins/{user}', [SystemController::class, 'toggleMinorAdmin']);
+        Route::put('minor-admins/{user}/details', [SystemController::class, 'updateMinorAdmin']);
         Route::post('minor-admins/{user}/reset-password', [SystemController::class, 'resetMinorAdminPassword']);
         Route::delete('minor-admins/{user}', [SystemController::class, 'deleteMinorAdmin']);
 
