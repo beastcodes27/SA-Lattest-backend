@@ -245,6 +245,65 @@ class EmailNotificationsTest extends TestCase
         $this->assertDatabaseMissing('otp_codes', ['user_id' => $this->orgAdmin->id, 'purpose' => 'password_reset']);
     }
 
+    public function test_password_reset_code_is_verified_before_setting_a_new_password(): void
+    {
+        $code = null;
+
+        $this->postJson('/api/auth/forgot-password', ['email' => $this->orgAdmin->email])
+            ->assertOk();
+
+        Mail::assertSent(OneTimePasscode::class, function (OneTimePasscode $mail) use (&$code) {
+            if ($mail->purpose === 'password reset' && $mail->hasTo('admin@apex.tz')) {
+                $code = $mail->code;
+
+                return true;
+            }
+
+            return false;
+        });
+
+        $this->assertNotNull($code);
+
+        $this->postJson('/api/auth/verify-reset-code', [
+            'email' => $this->orgAdmin->email,
+            'code' => $code,
+        ])->assertOk()->assertJsonPath('verified', true);
+
+        // Verification must not consume the code so the reset can still run.
+        $this->assertDatabaseHas('otp_codes', [
+            'user_id' => $this->orgAdmin->id,
+            'purpose' => 'password_reset',
+        ]);
+
+        $this->postJson('/api/auth/reset-password', [
+            'email' => $this->orgAdmin->email,
+            'code' => $code,
+            'password' => 'NewPassword@456',
+            'password_confirmation' => 'NewPassword@456',
+        ])->assertOk();
+
+        $this->assertTrue(Hash::check('NewPassword@456', $this->orgAdmin->fresh()->password));
+        $this->assertDatabaseMissing('otp_codes', ['user_id' => $this->orgAdmin->id, 'purpose' => 'password_reset']);
+    }
+
+    public function test_password_reset_verify_rejects_an_invalid_code(): void
+    {
+        DB::table('otp_codes')->insert([
+            'user_id' => $this->orgAdmin->id,
+            'purpose' => 'password_reset',
+            'code' => Hash::make('123456'),
+            'attempts' => 0,
+            'expires_at' => now()->addMinutes(10),
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $this->postJson('/api/auth/verify-reset-code', [
+            'email' => $this->orgAdmin->email,
+            'code' => '654321',
+        ])->assertStatus(422);
+    }
+
     public function test_password_reset_emails_are_limited_to_two_per_day(): void
     {
         $payload = ['email' => $this->orgAdmin->email];
