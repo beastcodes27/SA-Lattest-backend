@@ -220,26 +220,38 @@
                 <button type="button" id="btnSendCode" onclick="handleSendResetCode()" style="margin-top:8px;">Send Reset Code</button>
             </div>
 
-            <!-- Step 2: Verify Code & Set Password -->
-            <div id="resetStep2" style="display:none;">
-                <p id="resetStep2Notice" style="margin:0 0 16px;font-size:13.5px;line-height:1.6;color:var(--muted);"></p>
-                
+            <!-- Step 2: Verify Code -->
+            <div id="resetStepVerify" style="display:none;">
+                <p id="resetStepVerifyNotice" style="margin:0 0 16px;font-size:13.5px;line-height:1.6;color:var(--muted);"></p>
+
                 <label for="resetCode" style="margin-top:0;">6-DIGIT CODE</label>
-                <input type="text" id="resetCode" maxlength="6" placeholder="000000" style="letter-spacing:4px;font-size:16px;font-weight:700;margin-bottom:12px;">
+                <input type="text" id="resetCode" maxlength="6" placeholder="000000" style="letter-spacing:4px;font-size:16px;font-weight:700;margin-bottom:14px;">
 
-                <label for="resetNewPass">NEW PASSWORD</label>
-                <input type="password" id="resetNewPass" placeholder="Minimum 6 characters" style="margin-bottom:12px;">
-
-                <label for="resetConfirmPass">CONFIRM PASSWORD</label>
-                <input type="password" id="resetConfirmPass" placeholder="Repeat new password" style="margin-bottom:14px;">
-
-                <button type="button" id="btnSubmitReset" onclick="handleSubmitReset()" style="margin-top:8px;">Confirm & Reset Password</button>
+                <button type="button" id="btnVerifyCode" onclick="handleVerifyResetCode()" style="margin-top:8px;">Verify Code</button>
                 <div style="text-align:center;margin-top:14px;">
                     <a href="javascript:void(0)" onclick="goToResetStep1()" style="font-size:12.5px;font-weight:600;color:var(--muted);text-decoration:none;">Change Email</a>
                 </div>
             </div>
 
-            <!-- Step 3: Success -->
+            <!-- Step 3: Set New Password -->
+            <div id="resetStepPassword" style="display:none;">
+                <p style="margin:0 0 16px;font-size:13.5px;line-height:1.6;color:var(--muted);">
+                    Code verified. Create a strong new password for your account.
+                </p>
+
+                <label for="resetNewPass" style="margin-top:0;">NEW PASSWORD</label>
+                <input type="password" id="resetNewPass" placeholder="At least 12 characters" style="margin-bottom:12px;">
+
+                <label for="resetConfirmPass">CONFIRM PASSWORD</label>
+                <input type="password" id="resetConfirmPass" placeholder="Repeat new password" style="margin-bottom:14px;">
+
+                <button type="button" id="btnSubmitReset" onclick="handleSubmitReset()" style="margin-top:8px;">Confirm &amp; Reset Password</button>
+                <div style="text-align:center;margin-top:14px;">
+                    <a href="javascript:void(0)" onclick="goToResetStep1()" style="font-size:12.5px;font-weight:600;color:var(--muted);text-decoration:none;">Change Email</a>
+                </div>
+            </div>
+
+            <!-- Step 4: Success -->
             <div id="resetStep3" style="display:none;text-align:center;padding:12px 0;">
                 <div style="width:60px;height:60px;border-radius:30px;background:#10B981;color:#FFFFFF;display:inline-flex;align-items:center;justify-content:center;font-size:28px;margin-bottom:14px;">&#10003;</div>
                 <h4 style="margin:0 0 8px;font-size:18px;font-weight:800;color:var(--ink);">Password Reset Complete!</h4>
@@ -253,9 +265,11 @@
         const resetBackdrop = document.getElementById('resetBackdrop');
         const resetFeedback = document.getElementById('resetFeedback');
         const resetStep1 = document.getElementById('resetStep1');
-        const resetStep2 = document.getElementById('resetStep2');
+        const resetStepVerify = document.getElementById('resetStepVerify');
+        const resetStepPassword = document.getElementById('resetStepPassword');
         const resetStep3 = document.getElementById('resetStep3');
         const btnSendCode = document.getElementById('btnSendCode');
+        const btnVerifyCode = document.getElementById('btnVerifyCode');
         const btnSubmitReset = document.getElementById('btnSubmitReset');
 
         function openResetModal() {
@@ -271,8 +285,12 @@
 
         function goToResetStep1() {
             resetStep1.style.display = 'block';
-            resetStep2.style.display = 'none';
+            resetStepVerify.style.display = 'none';
+            resetStepPassword.style.display = 'none';
             resetStep3.style.display = 'none';
+            document.getElementById('resetCode').value = '';
+            document.getElementById('resetNewPass').value = '';
+            document.getElementById('resetConfirmPass').value = '';
             hideFeedback();
         }
 
@@ -321,14 +339,54 @@
                 }
 
                 resetStep1.style.display = 'none';
-                resetStep2.style.display = 'block';
-                document.getElementById('resetStep2Notice').textContent = 'We sent a 6-digit code to ' + email + '. Enter the code below to set your new password.';
+                resetStepVerify.style.display = 'block';
+                resetStepPassword.style.display = 'none';
+                document.getElementById('resetStepVerifyNotice').textContent = 'We sent a 6-digit code to ' + email + '. Enter the code below to verify your email before setting a new password.';
+                document.getElementById('resetCode').value = '';
                 showFeedback(data.message || 'Verification code sent.', true);
             } catch (err) {
                 showFeedback('Network error. Please try again.', false);
             } finally {
                 btnSendCode.disabled = false;
                 btnSendCode.textContent = 'Send Reset Code';
+            }
+        }
+
+        async function handleVerifyResetCode() {
+            const email = (document.getElementById('resetEmail').value || '').trim();
+            const code = (document.getElementById('resetCode').value || '').trim();
+
+            if (code.length !== 6) {
+                showFeedback('Please enter the complete 6-digit code.', false);
+                return;
+            }
+
+            btnVerifyCode.disabled = true;
+            btnVerifyCode.textContent = 'Verifying...';
+            hideFeedback();
+
+            try {
+                const res = await fetch('/api/auth/verify-reset-code', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                    body: JSON.stringify({ email: email, code: code })
+                });
+                const data = await res.json();
+
+                if (!res.ok) {
+                    showFeedback(data.message || 'This code is invalid or has expired.', false);
+                    return;
+                }
+
+                resetStepVerify.style.display = 'none';
+                resetStepPassword.style.display = 'block';
+                showFeedback(data.message || 'Code verified. Set your new password.', true);
+                document.getElementById('resetNewPass').focus();
+            } catch (err) {
+                showFeedback('Network error. Please try again.', false);
+            } finally {
+                btnVerifyCode.disabled = false;
+                btnVerifyCode.textContent = 'Verify Code';
             }
         }
 
@@ -339,11 +397,13 @@
             const confirm = document.getElementById('resetConfirmPass').value;
 
             if (code.length !== 6) {
-                showFeedback('Please enter the complete 6-digit code.', false);
+                resetStepPassword.style.display = 'none';
+                resetStepVerify.style.display = 'block';
+                showFeedback('Please verify your 6-digit code again.', false);
                 return;
             }
-            if (password.length < 6) {
-                showFeedback('New password must be at least 6 characters.', false);
+            if (password.length < 12) {
+                showFeedback('New password must be at least 12 characters.', false);
                 return;
             }
             if (password !== confirm) {
@@ -375,7 +435,7 @@
                     return;
                 }
 
-                resetStep2.style.display = 'none';
+                resetStepPassword.style.display = 'none';
                 resetStep3.style.display = 'block';
                 hideFeedback();
             } catch (err) {
