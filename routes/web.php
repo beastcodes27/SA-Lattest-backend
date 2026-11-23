@@ -31,6 +31,7 @@ Route::prefix('portal')->group(function () {
             Route::get('admins', [SystemController::class, 'minorAdmins']);
             Route::post('admins', [SystemController::class, 'storeMinorAdmin']);
             Route::patch('admins/{user}', [SystemController::class, 'toggleMinorAdmin']);
+            Route::put('admins/{user}/details', [SystemController::class, 'updateMinorAdmin']);
             Route::post('admins/{user}/reset-password', [SystemController::class, 'resetMinorAdminPassword']);
             Route::delete('admins/{user}', [SystemController::class, 'deleteMinorAdmin']);
 
